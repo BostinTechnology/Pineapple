@@ -5,17 +5,30 @@ Need to add info in here.
 This class extractgs and holds the information about the iCog that has been extracted from the 
 datafile or the EEPROM associated with the sensor
 
+On intialisation, the EEPROM class should
+- read the values from the iCog EEPROM
+- load the datafile and set additional acronymn data
 
 """
+
+#TODO: Modify the code to take the comms handler being passed in and to use it to 
+#       read data from the device.
+
+
+
+import random
+import smbus
 
 #Bus types
 I2C = "I2C"
 SPI = "SPI"
 SERIAL = "Serial"
 
-class EEPROM():
+ID_IOT_CHIP_ADDR = 0x50
+
+class ID_IoT():
     """
-    This class needs to hold everything extracted from the EEPROM associated to the iCog
+    This class needs to hold everything extracted from the ID-IoT EEPROM associated to the iCog
     
     self.datafile contains the information read from the external file.
     """
@@ -27,14 +40,30 @@ class EEPROM():
         #       turple the data for future use
         """
         Initialises the values and checkes if they have been previously saved as a tuple
+        
+        Requires the i2c bus reference to be passed into it.
+        On intialisation, the EEPROM class should
+        - read the values from the iCog EEPROM
+        - load the datafile and set additional acronymn data
         """
         #TODO: Not yet implemented
         #readfrequency is the time between reading of values
 
-#BUG - This should be set higher, but is changed for testing
+        self.comms = comms_handler
+        status = self._read_sensor_data_from_eeprom()
+        if status:
+            status = self._set_acroymn_data()
+        
+        #BUG - This should be set higher, but is changed for testing
         self.readfrequency = 3
         log.debug("iCOG initialised, read frequency set to %s" % self.readfrequency)
+        
+        log.info("[EEPROM] Initialisation of the EEPROM has been completed with status: %s" % status)
+        self.comms_status = status
         return
+    
+    def ReturnCommsStatus(self):
+        return self.comms_status
     
     def ReturnUUID(self):
         return self.uuid
@@ -57,32 +86,69 @@ class EEPROM():
     def ReturnReadFrequency(self):
         return self.readfrequency
 
-    def GetSensorDataFromEEPROM(self, sensor_id):
+#-----------------------------------------------------------------------
+#
+#    P R I V A T E   F U N C T I O N S
+#
+#-----------------------------------------------------------------------
+
+
+    def _read_sensor_data_from_eeprom(self):
         """
         Interface with the EEPROM and get the sensor details
         Sets
             uuid, bustype, busnumber, sensoraddress, sensor, manufacturer, status
-        for each sensor as a unique class object
+        returns status if the read was successful.
         """
-        status, reply = iCOGUtils.GetSensor(sensor_id)
-        log.debug("Got sensor status and data from iCOGUtils: %s : %s" % (status, reply))
-        if status:
-            self.uuid = reply[0]
-            self.bustype = reply[1]
-            self.busnumber= reply[2]
-            self.sensoraddress = reply[3]
-            self.sensor = reply[4]
-            self.manufacturer = reply[5]
-            log.info("Loaded Sensor information")
+        
+        print("Not yet implemented - the read of the EEPROM")
+        logging.warning("Not yet implemented the read of the EEPROM")
+        # Use self.comms to work with the comms handler.
+        
+        sensor_id = random.randint(0,2)
+        print("Sensor ID randomly selected %f" % sensor_id)
+        log.info("Sensor ID randomly selected %f" % sensor_id)
+        
+        if sensor_id == 0:
+            self.bustype = I2C
+            self.busnumber = 1
+            self.sensoraddress = "Ox50"
+            self.uuid= 0x12345678
+            self.sensor = 12
+            self.manufacturer = 1
+            status = True
+        elif sensor_id == 1:
+            self.bustype = I2C
+            self.busnumber = 1
+            self.sensoraddress = "Ox51"
+            self.uuid= 0x00000001
+            self.sensor = 12
+            self.manufacturer = 1
+            status = True
+        elif sensor_id == 2:
+            self.bustype = I2C
+            self.busnumber = 1
+            self.sensoraddress = "Ox52"
+            self.uuid= 0x00000002
+            self.sensor = 12
+            self.manufacturer = 1
+            status = True
         else:
+            self.bustype = ""
+            self.busnumber = 0
+            self.sensoraddress = ""
+            self.uuid= 0
+            self.sensor = 0
+            self.manufacturer = 0
+            self.status= False
             #TODO: Implement something here
             log.critical("Unable to Read EEPROM, program halted")
             #print ("unable to read EEPROM") removed as now log statement
             sys.exit()
         
-        return 
+        return status
         
-    def SetAcroymnData(self):
+    def _set_acroymn_data(self):
         """
         This must be run after GetSensorDataFromEEPROM
         Sets the additional information about the sensor, based on the data file
@@ -135,79 +201,10 @@ class EEPROM():
         
         return
 
-    def SetupSensor(self):
-        """
-        Calls the hardware routine to initiate comms.
-        
-        uuid, bustype, busnumber, sensoraddress
-        """
-        log.info("Setting up hardware")
-        try:
-            self.setuphardware = iCOGSensorComms.SetupHardware(self.uuid, self.bustype, self.busnumber, self.sensoraddress)
-            log.debug("Setup comms with the sensor: %s" % self.setuphardware)
-        except:
-            logging.critical("Unable to set up comms, contact support")
-            sys.exit()
-            
-        return self.setuphardware
-    
 
+### The routines below haven't been converted yet!!
 
-
-    def GetSensor(sensor_id):
-        """
-        The real routines reads the EERPROM and returns various values from it
-        This just returns a positive response and some values as a dictionary if it is the first sensor
-        else it returns False and an empty set
-        
-        UUID, bustype, busnumber, sensoraddress, sensor, manufacturer
-        """
-        
-        #BUG: Logging is not working in this file.
-        log = logging.getLogger(__name__)
-        print("Sensor ID Requested %f" % sensor_id)
-        log.info("Sensor ID")
-        
-        if sensor_id == 0:
-            print("Sensor ID 0 chosen")
-            bustype = I2C
-            busnumber = 1
-            sensoraddress = "Ox50"
-            uuid= 0x12345678
-            sensor = 12
-            manufacturer = 1
-            status = True
-        elif sensor_id == 1:
-            print("Sensor ID 1 chosen")
-            bustype = I2C
-            busnumber = 1
-            sensoraddress = "Ox51"
-            uuid= 0x00000001
-            sensor = 12
-            manufacturer = 1
-            status = True
-        elif sensor_id == 2:
-            print("Sensor ID 2 chosen")
-            bustype = I2C
-            busnumber = 1
-            sensoraddress = "Ox52"
-            uuid= 0x00000002
-            sensor = 12
-            manufacturer = 1
-            status = True
-        else:
-            print("Sensor ID (unknown) chosen")
-            bustype = ""
-            busnumber = 0
-            sensoraddress = ""
-            uuid= 0
-            sensor = 0
-            manufacturer = 0
-            status= False
-        
-        return status, [uuid, bustype, busnumber, sensoraddress, sensor, manufacturer]
-
-    def GetEEPROMData(uuid, bustype, busnumber, sensoraddress,page):
+    def GetEEPROMData(uuid, bustype, busnumber, sensoraddress, page):
         """
         The real routine reads a page of data from the EEPROM
         This just returns some values as a dictionary
@@ -251,19 +248,17 @@ class EEPROM():
         
         return True
 
-    def GetSensorCount():
-        """
-        the real routine determines how manyu sensors are connected somehow
-        This just returns a status and fixed value
-        """
-        
-        return True, 1
 
-
-def main():
+def selftest():
 	
 	return 0
 
 if __name__ == '__main__':
-	main()
+	
+    # setup logging
+    
+    import cls_comms
+    
+    
+    selftest()
 

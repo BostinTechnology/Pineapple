@@ -19,6 +19,7 @@ Command Line Options
 
 import cls_DataAccessor
 import cls_EEPROM
+import cls_comms
 
 import cls_SensorTemplate
 
@@ -37,6 +38,13 @@ import logging
 
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "CognIoT"
+
+#Bus types
+I2C = "I2C"
+SPI = "SPI"
+SERIAL = "Serial"
+
+
 
 def GetSerialNumber():
     """
@@ -145,7 +153,29 @@ def Start():
     """
     Perform the reading of and sending data to the AWS database
     This is the default action if no arguments are passed to the system.
+    
+    Order of the routine
+    1. Access EEPROM to get sensor type
+    2. Setup sensor
+    3. Open data accessor link
+    4. in loop
+        read value
+        post
     """
+
+    # Load the data from the EEPROM on the ID-Iot chip
+    eeprom_comms - cls_comms(I2C, ID_IOT_CHIP_ADDR)
+    eeprom_data = cls_EEPROM(eeprom_comms)
+
+    # Load the correct sensor file
+    
+
+    # Open the comms port to talk to the ID-Iot
+    comms = cls_comms(eeprom_data.ReturnBusType())
+     
+
+    # For the sensor, read the values and write them to the AWS database
+    # needs to use the read frequency to limit the number of reads.
 
 ###
 ###
@@ -159,21 +189,7 @@ def Start():
     log.info("Connected to AWS database")
     log.debug("Database connection:%s" % dbconn)
 
-### The bit of code here has been stripped down and needs to be re-written to 
-### work with a single sensor rather than the multiple ones that the original
-### code was written for
 
-    log.debug("List of Sensors: %s" % sensor)
-    # for each sensor connected, initialise communications     
-    sensor_count = 0
-    for sens in sensor:
-        sens.GetSensorDataFromEEPROM(sensor_count)
-        sens.SetAcroymnData()
-        sens.SetupSensor()
-        sensor_count = sensor_count + 1        
-
-    # For the sensor, read the values and write them to the AWS database
-    # needs to use the read frequency to limit the number of reads.
 
     # main bit stolen from the Bananas code in threading
     if (time.time()- self.starttime) > self.sensor.readfrequency:
@@ -297,7 +313,9 @@ def main():
     #TODO: probably needs something to bomb out if there is a failure
 
     # Note: The default is Start, hence it is the else clause
-    if args.Reset: 
+    if args.Start: 
+        Start()              #TODO: Complete routine
+    elif args.Reset: 
         Reset()              #TODO: Not started
     elif args.NewSensor:
         NewSensor()          #TODO: Not started
@@ -316,7 +334,7 @@ def main():
     elif args.Logging:
         SetLogging()         #TODO: Not started
     else:
-        Start()              #TODO: Complete routine
+        Start()              
 
     
         
