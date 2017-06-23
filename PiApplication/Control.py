@@ -36,13 +36,8 @@ import argparse
 import sys
 import logging
 
-DATAFILE_NAME = "datafile.txt"
-DATAFILE_LOCATION = "CognIoT"
+import Standard_Settings
 
-#Bus types
-I2C = "I2C"
-SPI = "SPI"
-SERIAL = "Serial"
 
 
 
@@ -164,8 +159,8 @@ def Start():
     """
 
     # Load the data from the EEPROM on the ID-Iot chip
-    eeprom_comms - cls_comms(I2C, ID_IOT_CHIP_ADDR)
-    eeprom_data = cls_EEPROM(eeprom_comms)
+    i2c_connection = i2c_comms(I2C)
+    eeprom_data = cls_EEPROM(i2c_connection)
 
     # Load the correct sensor file
     

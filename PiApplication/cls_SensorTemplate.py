@@ -6,10 +6,16 @@ sensors to actually be based on
 
 BUG - Logging is not working
 
+TODO: Will need to check the minimum revision of the software
+        #BUG - This should be set higher, but is changed for testing
+        self.readfrequency = 3
+        log.debug("iCOG initialised, read frequency set to %s" % self.readfrequency)
+
 """
 
 import logging
 
+import Standard_Settings
 
 
 

@@ -19,6 +19,9 @@ import boto3
 import sys
 import logging
 
+import Standard_Settings
+
+
 class DataAccessor:
     """
     Takes the given data and writes it to the required output.
