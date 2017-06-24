@@ -19,7 +19,7 @@ import boto3
 import sys
 import logging
 
-import Standard_Settings
+import Standard_Settings as SS
 
 
 class DataAccessor:
@@ -28,7 +28,7 @@ class DataAccessor:
     The output location will be dependent on the chosen settings - not sure where these are stored.
     """
     def __init__(self):
-        
+        log = logging.getLogger()
         return
         
 

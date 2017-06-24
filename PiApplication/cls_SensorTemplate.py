@@ -15,7 +15,7 @@ TODO: Will need to check the minimum revision of the software
 
 import logging
 
-import Standard_Settings
+import Standard_Settings as SS
 
 
 
@@ -26,7 +26,7 @@ def SetupHardware(uuid, bustype, busnumber, sensoraddress):
     This just returns a positive status and an object representing the sensor
     
     """
-    log = logging.getLogger(__name__)
+    log = logging.getLogger()
     #TODO: needs to return an instance of iteself
     log.info("Setting Up Hardware")
     

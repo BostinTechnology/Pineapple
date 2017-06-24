@@ -15,8 +15,9 @@ TODO: Need functions to write calibration data
 
 import random
 import sys
+import logging
 
-import Standard_Settings
+import Standard_Settings as SS
 
 ID_IOT_CHIP_ADDR = 0x50
 
@@ -51,6 +52,7 @@ class ID_IoT():
         - read the values from the iCog EEPROM
         - load the datafile and set additional data
         """
+        self.log = logging.getLogger()
         #TODO: Not yet implemented
         #readfrequency is the time between reading of values
 
@@ -59,7 +61,7 @@ class ID_IoT():
         status = self._read_sensor_data_from_eeprom()
 
         #TODO: Need to do something clever here
-        log.info("[EEPROM] Initialisation of the EEPROM has been completed")
+        self.log.info("[EEPROM] Initialisation of the EEPROM has been completed")
         self.eeprom_status = status
         return
     
@@ -168,7 +170,7 @@ class ID_IoT():
         if self.map_version == EEPROM_MAP_VERSION_0_2:
             self._read_map_version_0_2()
         else:
-            log.critical("[EEPROM] Map Version read from Id_IOT is not supported, value received:%s" % self.map_version)
+            self.log.critical("[EEPROM] Map Version read from Id_IOT is not supported, value received:%s" % self.map_version)
             print("\nCRITICAL ERROR, EEPROM Map Version is not supported- contact Support\n")
             sys.exit()
         
@@ -186,22 +188,22 @@ class ID_IoT():
         
         if len(row_10) < 1:
             #No data received
-            log.critical("[EEPROM] EEPROM Map read from Id_IOT did not return any data, value received:%s" % row_10)
+            self.log.critical("[EEPROM] EEPROM Map read from Id_IOT did not return any data, value received:%s" % row_10)
             print("\nCRITICAL ERROR, EEPROM Map Read Failure- contact Support\n")
             sys.exit()
                     
         # decode the device connectivity data
         # bytes 0,1,2 = device info
         if row_10[0] == 0b00000001:
-            self.bustype = I2C
+            self.bustype = SS.I2C
             self.sensoraddress = row_10[1]
         elif row_10[0] == 0b00000010:
-            self.bustype = SPI
+            self.bustype = SS.SPI
             self.spi_bus = row_10[2] & 0b10000000           # Bit 7 indicates the SPI bus - 0 or 1
             self.spi_celine = row_10[2] & 0b01000000        # Bit 6 indicates the CE Line
             self.gpio_pin = row_10[2] & 0b00111111          # Bit 5 - 0 indicate the GPIO pin
         elif row_10[0] == 0b00000100:
-            self.bustype = SERIAL
+            self.bustype = SS.SERIAL
         else:
             self.bustype = ''
         # bytes 3,4 - Serial RTS and CTS info
@@ -222,7 +224,7 @@ class ID_IoT():
             data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, row, 16)
             if len(row_10) < 1:
                 #No data received
-                log.warning("[EEPROM] EEPROM Map Calibration data read from Id_IOT did not return any data, value received:%s" % row_10)
+                self.log.warning("[EEPROM] EEPROM Map Calibration data read from Id_IOT did not return any data, value received:%s" % row_10)
                 print("\nERROR, EEPROM Map Calibration Data Read Failure- contact Support\n")
             self.calibration_data.append(data)
         
@@ -241,13 +243,13 @@ class ID_IoT():
         """
         #TODO: Validate the error checking around this
         self.datafile = []
-        log.info("Reading the datafile for sensor information")
+        self.log.info("Reading the datafile for sensor information")
         try:
-            log.debug("DataFile in location:%s" % Standard_Settings.DATAFILE_LOCATION + '/' + Standard_Settings.DATAFILE_NAME)
+            self.log.debug("DataFile in location:%s" % Standard_Settings.DATAFILE_LOCATION + '/' + Standard_Settings.DATAFILE_NAME)
             data = open(Standard_Settings.DATAFILE_LOCATION + '/' + Standard_Settings.DATAFILE_NAME, mode='rt')
             lines = data.readlines()
             data.close()
-            log.debug("datafile loaded %s" % lines)
+            self.log.debug("datafile loaded %s" % lines)
         except:
             log.critical("Failed to Open datafile, please contact support", exc_info=True)
             sys.exit()
@@ -259,21 +261,21 @@ class ID_IoT():
             # split the data by a comma into a list.
             row_data = dataline.split(",")
             self.datafile.append(row_data)
-            log.debug("Row of extracted data %s" % row_data)
+            self.log.debug("Row of extracted data %s" % row_data)
             
         #Now loop through the data string and extract the acroynm and description
-        log.info("Loop through datafile and set sensor information")
+        self.log.info("Loop through datafile and set sensor information")
         # Uses the self.sensor_type read from the Device Connectivity Data
         for element in self.datafile:
             if int(element[4],16) == self.sensor_type_code[0] and int(element[5],16) == self.sensor_type_code[1]:
-                log.debug("Match found for Sensor and Description")
+                self.log.debug("Match found for Sensor and Description")
                 self.sensor_comms_file = element[0]
                 self.sensor_part_number = element[1]
                 self.sensor_type = element[2]
                 self.sensor_manufacturer = element[3]
 
         if len(self.sensor_comms_file) < 1:
-            log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
+            self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
                 
         log.debug("Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
             %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
@@ -291,7 +293,7 @@ class ID_IoT():
         #BUG: If data is null
         if len(data) < 1:
             #No data received
-            log.critical("[EEPROM] EEPROM UUID read from Id_IOT did not return any data, value received:%s" % data)
+            self.log.critical("[EEPROM] EEPROM UUID read from Id_IOT did not return any data, value received:%s" % data)
             print("\nWARNING, EEPROM UUID Read Failure, using default - contact Support\n")
             self.uuid = 0xfa17ed
         else:
@@ -299,7 +301,7 @@ class ID_IoT():
             self.uuid = ''
             for i in data:
                 self.uuid = self.uuid + ('{:02x}'.format(i))
-        log.debug("[EEPROM] UUID Valued:%s" % self.uuid)
+        self.log.debug("[EEPROM] UUID Valued:%s" % self.uuid)
 
         return
 
@@ -327,7 +329,7 @@ class TestCommsHandler():
                     0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
                     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
                     ]
-                    
+        self.log = logging.getLogger()
         return
     
     def read_data_bytes(self, sens_addr, start_byte, no_bytes):
@@ -335,11 +337,11 @@ class TestCommsHandler():
         
         """
         if start_byte > 0xff:
-            log.debug("[TEST] Data byte requested (%s) out of range, returning nothing" % start_byte)
+            self.log.debug("[TEST] Data byte requested (%s) out of range, returning nothing" % start_byte)
             response = []
         else:
             response = self.data[start_byte:start_byte+no_bytes]
-        log.debug("[TEST] Data returned;%s" % response)
+        self.log.debug("[TEST] Data returned;%s" % response)
         return response
 
 def SetupLogging():
@@ -350,25 +352,8 @@ def SetupLogging():
     print("Current logging level is \n\n   DEBUG!!!!\n\n")
     
     # Create a logger with the name of the function
-    global log
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)      #Set to the highest level, actual logging level set for each handler.
-    
-    # Create a file handler to write log info to the file
-    fh = logging.FileHandler('CognIoT.log', mode='w')
-    fh.setLevel(logging.DEBUG)      #This is the one that needs to be driven by user input
-    
-    # Create a console handler with a higher log level to output logging info of ERROR or above to the screen (default output)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.ERROR)
-    
-    # Create a formatter to make the actual logging better readable
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    # Add the handlers to the logger
-    log.addHandler(fh)
-    log.addHandler(ch)
+    logging.config.dictConfig(dict_LoggingSetup.log_cfg)
+    log = logging.getLogger()
 
     #BUG: This is loading the wrong values into the log file
     log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
@@ -387,6 +372,7 @@ if __name__ == '__main__':
     # setup logging
     
     import logging
+    import logging.config
     SetupLogging()
     # use a default class for comms and therefore allow it to be dummy data.
     #import cls_comms

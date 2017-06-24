@@ -5,3 +5,8 @@ SERIAL = "Serial"
 
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "." #"CognIoT"
+
+def test():
+    
+    return
+    

@@ -19,7 +19,9 @@ Command Line Options
 
 import cls_DataAccessor
 import cls_EEPROM
-import cls_comms
+import Standard_Settings as SS
+from cls_comms import i2c_comms
+import dict_LoggingSetup
 
 import cls_SensorTemplate
 
@@ -35,8 +37,8 @@ import time
 import argparse
 import sys
 import logging
+import logging.config
 
-import Standard_Settings
 
 
 
@@ -77,26 +79,11 @@ def SetupLogging():
     """
     print("Current logging level is \n\n   DEBUG!!!!\n\n")
     
-    # Create a logger with the name of the function
     global log
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)      #Set to the highest level, actual logging level set for each handler.
-    
-    # Create a file handler to write log info to the file
-    fh = logging.FileHandler('CognIoT.log', mode='w')
-    fh.setLevel(logging.DEBUG)      #This is the one that needs to be driven by user input
-    
-    # Create a console handler with a higher log level to output logging info of ERROR or above to the screen (default output)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.ERROR)
-    
-    # Create a formatter to make the actual logging better readable
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    # Add the handlers to the logger
-    log.addHandler(fh)
-    log.addHandler(ch)
+    # Create a logger with the name of the function
+    logging.config.dictConfig(dict_LoggingSetup.log_cfg)
+    log = logging.getLogger()
+
 
     #BUG: This is loading the wrong values into the log file
     log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
@@ -159,8 +146,8 @@ def Start():
     """
 
     # Load the data from the EEPROM on the ID-Iot chip
-    i2c_connection = i2c_comms(I2C)
-    eeprom_data = cls_EEPROM(i2c_connection)
+    i2c_connection = i2c_comms()
+    eeprom_data = cls_EEPROM.ID_IoT(i2c_connection)
 
     # Load the correct sensor file
     

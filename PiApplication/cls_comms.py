@@ -11,8 +11,9 @@ Requires sudo apt-get install python3-smbus
 import smbus
 import serial
 import sys
+import logging
 
-import Standard_Settings
+import Standard_Settings as SS
 
 #TODO: Add a retry loop on the comms routines with a default counter set here.
 
@@ -32,6 +33,7 @@ class i2c_comms():
         """
         Setup ready for comms, opening the requried port
         """
+        log = logging.getLogger()
         self._open_port()
 
             
@@ -103,12 +105,12 @@ class i2c_comms():
         try:
             value = self.connection.read_byte_data(addr, byte_no)
         except:
-            log.warning("[COMMS] Unble to read byte:%s from i2c device:%s and got this response:%s"
-                %(byte_no, addr, value)
+            log.warning("[COMMS] Unable to read byte:%s from i2c device:%s and got this response:%s"
+                %(byte_no, addr, value))
             value = ''
         return value
     
-    def _write_byte(self)
+    def _write_byte(self):
         """
         Write a byte from the given address
         """
@@ -116,7 +118,7 @@ class i2c_comms():
             response = self.connection.write_byte_data(self.sensor_address, self.byte_addr, self.value)
         except:
             log.warning("[COMMS] Unble to write byte:%s of value:%s from i2c device:%s and got this response:%s"
-                %(self.byte_addr, self.value, self.sensor_address, response)
+                %(self.byte_addr, self.value, self.sensor_address, response))
         return response    
 
 
@@ -136,6 +138,7 @@ class SPi_Comms():
         """
         Setup ready for comms, opening the requried port
         """
+        log = logging.getLogger()
 
         self.sensor_address = address
         self._open_port()
@@ -200,6 +203,7 @@ class Serial_Comms():
         """
         Setup ready for comms, opening the requried port
         """
+        log = logging.getLogger()
         self.sensor_address = address
         self._open_port()
             
@@ -246,15 +250,15 @@ class Serial_Comms():
         
 
 def selftest():
-	"""
+    """
     Validate the class is working
     
     """
-	return
+    return
 
 if __name__ == '__main__':
     # setup logging
 
     
-	selftest()
+    selftest()
 
