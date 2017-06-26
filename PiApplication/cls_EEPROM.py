@@ -39,7 +39,7 @@ class ID_IoT():
     self.datafile contains the information read from the external file.
     """
 
-    def __init__(self, comms_handler):
+    def __init__(self, comms_handler, read_chip=True):
         #TODO: Read the EEPROM and process the data - could this be set globals function?
         #       Check for a tuple first - if UUID matches, use the data
         #       Create a iCOG class holding the sensor data
@@ -58,7 +58,12 @@ class ID_IoT():
 
         self._clear_data()
         self.comms = comms_handler
-        status = self._read_sensor_data_from_eeprom()
+        if read_chip:
+            # Default is to read the chip, but option exists not to.
+            status = self._read_sensor_data_from_eeprom()
+        else:
+            status = False
+            print("Reading of chip disabled")
 
         #TODO: Need to do something clever here
         self.log.info("[EEPROM] Initialisation of the EEPROM has been completed")
@@ -118,6 +123,36 @@ class ID_IoT():
         
     def ReturnSensorManufacturer(self):
         return self.sensor_manufacturer
+    
+    def SetMapVersion(self, version):
+        """
+        Set the map version in the ID-IoT form the given list of 2 values
+        Uses EEPROM_ADDR_MAP_VERSION as the starting address
+        """
+        reply = False
+        if len(version) < 1:
+            # Dataset is empty
+            self.log.warning("[EEPROM] Dataset passed into SetMapVersion for processing is empty")
+        else:
+            reply = self.comms.write_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_MAP_VERSION, version)
+        self.log.debug("[EEPROM] Set Map Version response status (1=True):%s" % reply)
+        return reply
+    
+    def SetDeviceConnectivityData(self, dataset):
+        """
+        Taking the dataset, program it into the ID-IoT, given a list of 16 bytes
+        Uses EEPROM_ADDR_DEVICE_CONNECT as the starting address
+        Returns True or False
+        """
+        self.log.info("[EEPROM] Set Device Connectivity with dataset:%s" % dataset)
+        reply = False
+        if len(dataset) < 1:
+            # Dataset is empty
+            self.log.warning("[EEPROM] Dataset passed into SetDeviceConnectivityData for processing is empty")
+        else:
+            reply = self.comms.write_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, dataset)
+        self.log.debug("[EEPROM] Set Device Connectivity response status (1=True):%s" % reply)
+        return reply
 
 
 #-----------------------------------------------------------------------
@@ -172,6 +207,8 @@ class ID_IoT():
         else:
             self.log.critical("[EEPROM] Map Version read from Id_IOT is not supported, value received:%s" % self.map_version)
             print("\nCRITICAL ERROR, EEPROM Map Version is not supported- contact Support\n")
+            self.log.exception("[EEPROM] _read_sensor_data_from_eeprom Exception Data")
+
             sys.exit()
         
         # Set additional info

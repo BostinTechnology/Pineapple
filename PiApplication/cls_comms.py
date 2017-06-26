@@ -33,8 +33,10 @@ class i2c_comms():
         """
         Setup ready for comms, opening the requried port
         """
-        log = logging.getLogger()
+        self.log = logging.getLogger()
         self._open_port()
+
+        self.log.debug("[I2C COMMS] Class initiated")
 
             
         return
@@ -67,7 +69,8 @@ class i2c_comms():
             0x10, 0x11, 0x12, 0x13, 0x14
         returns a list of values or an empty string if error occurred
         """
-        
+        self.log.info("[I2C COMMS] Read Data Bytes from address %s starting at %s for %s bytes" 
+                        % (sens_addr, start_byte, no_bytes))
         response = []
         for byte in range(start_byte, start_byte+no_bytes):
             reply = self._read_byte(sens_addr, byte)
@@ -75,9 +78,33 @@ class i2c_comms():
                 response.append(reply)
             else:
                 response = []
+                self.log.debug("[I2C COMMS] Response received from sensor failed, returned:%s" % response)
                 break
+        self.log.debug("[I2C COMMS] Data bytes returned: %s" % response)
         return response
-
+    
+    def write_data_bytes(self, sens_addr, start_byte, data_bytes):
+        """
+        Write a quantity of bytes, starting from start byte
+        So passing (0x50, 0x10, [0x34, 0x45, 0x56]) will write values into bytes
+            0x10=0x34, 0x11=0x45, 0x12=0x56
+        returns confirmation
+        """
+        self.log.info("[I2C COMMS] Write Data Bytes to address %s starting at %s with bytes %s" 
+                        % (sens_addr, start_byte, data_bytes))
+        response = False
+        addr = start_byte
+        for byte in data_bytes:
+            self.log.debug("[I2C COMMS] Data:%s to be written to:%s for device:%s" %(byte, addr, sens_addr))
+            reply = self._write_byte(sens_addr, addr, byte)
+            addr = addr + 1
+            if reply != '':
+                response = False
+                break
+            else:
+                response = True
+        return response
+        
 #-----------------------------------------------------------------------
 #
 #    P R I V A T E   F U N C T I O N S
@@ -88,37 +115,46 @@ class i2c_comms():
         """
         Open the i2c comms port
         """
+
         try:
             self.connection = smbus.SMBus(1)
         except:# FileNotFoundError:
-            log.critical("[COMMS] Unable to open comms port using smbus (_i2c_port), program halted")
-            log.warning("Exception:%s" % traceback.format_exc())
+            self.log.critical("[I2C COMMS] Unable to open comms port using smbus (_i2c_port), program halted")
+            self.log.exception("[I2C COMMS] _write_byte Exception Data")
             print("\nError Occurred, program halted - contact support\n")
             sys.exit()
- 
+        self.log.info("[I2C COMMS] I2C connection created:%s" % self.connection)
         return
     
     def _read_byte(self, addr, byte_no):
         """
         Read a byte from the given address, returns either the value read or an empty binary string
         """
+        value = 0
         try:
             value = self.connection.read_byte_data(addr, byte_no)
         except:
-            log.warning("[COMMS] Unable to read byte:%s from i2c device:%s and got this response:%s"
+            self.log.warning("[I2C COMMS] Unable to read byte:%s from i2c device:%s and got this response:%s"
                 %(byte_no, addr, value))
+            self.log.exception("[I2C COMMS] _read_byte Exception Data")
             value = ''
+        self.log.info("[I2C COMMS] Read Byte from address %s starting at %s with bytes %s" 
+                        % (sens_addr, start_byte, data_bytes))
         return value
     
-    def _write_byte(self):
+    def _write_byte(self, addr, byte_no, value):
         """
         Write a byte from the given address
         """
+        response = 'unknown'
         try:
-            response = self.connection.write_byte_data(self.sensor_address, self.byte_addr, self.value)
+            response = self.connection.write_byte_data(addr, byte_no, value)
         except:
-            log.warning("[COMMS] Unble to write byte:%s of value:%s from i2c device:%s and got this response:%s"
-                %(self.byte_addr, self.value, self.sensor_address, response))
+            self.log.warning("[I2C COMMS] Unable to write byte:%s of value:%s from i2c device:%s and got this response:%s"
+                %(byte_no, value, addr, response))
+            self.log.exception("[I2C COMMS] _write_byte Exception Data")
+        self.log.info("[I2C COMMS] Write Byte to address %s with %s with value %s" 
+                        % (addr, byte_no, value))
         return response    
 
 
@@ -138,7 +174,7 @@ class SPi_Comms():
         """
         Setup ready for comms, opening the requried port
         """
-        log = logging.getLogger()
+        self.log = logging.getLogger()
 
         self.sensor_address = address
         self._open_port()
@@ -180,7 +216,7 @@ class SPi_Comms():
         Open the spi comms port
         """
         print("SPI Comms are not supported")
-        log.critical("[COMMS] SPI comms is currently not supported, pleae contact support")
+        self.log.critical("[COMMS] SPI comms is currently not supported, pleae contact support")
         sys.exit()
         
         #self.connection = ????
@@ -203,7 +239,7 @@ class Serial_Comms():
         """
         Setup ready for comms, opening the requried port
         """
-        log = logging.getLogger()
+        self.log = logging.getLogger()
         self.sensor_address = address
         self._open_port()
             
@@ -242,7 +278,7 @@ class Serial_Comms():
         Open the serial comms port
         """
         print("Serial Comms are not supported")
-        log.critical("[COMMS] Serial comms is currently not supported, pleae contact support")
+        self.log.critical("[COMMS] Serial comms is currently not supported, pleae contact support")
         sys.exit()
         
         #self.connection = ????

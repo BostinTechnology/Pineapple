@@ -195,6 +195,9 @@ def Reset():
     Reset the program back to using the default values
     Clear any cached sensor data
     
+    setup i2c comms
+    provide menu to reset the Id-IoT
+    using the iCog to get the data values.
     """
     print ("Not yet Implemented")
     return
