@@ -3,18 +3,9 @@ This program programs the ID-IoT chip with default settings.
 
 
 TODO: Complete debugging as it is currently not writing values.
-got this in the log file
-25-06-2017 22:33:16 - DEBUG    - [ID_IoT] Connection Data to be written:[1, 68, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255]
-25-06-2017 22:33:16 - INFO     - [EEPROM] Set Device Connectivity with dataset:[1, 68, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255]
-25-06-2017 22:33:16 - DEBUG    - [EEPROM] Set Device Connectivity response status (1=True):False
-25-06-2017 22:33:16 - DEBUG    - [ID_IoT] Write Map Version to be written:[0, 2]
-25-06-2017 22:33:16 - WARNING  - [COMMS] Unable to write byte:0 of value:0 from i2c device:80 and got this response:unknown
-25-06-2017 22:33:16 - DEBUG    - [EEPROM] Set Map Version response status (1=True):False
-
-when writing data, there is no response except an exception.
 
 
-2 Falses!
+
 """
 
 import cls_EEPROM
@@ -48,7 +39,7 @@ LOG_CFG = dict(
     formatters = {
         'full': {'format':
               '%(asctime)s - %(levelname)-8s - %(message)s',
-              'datefmt': '%d-%m-%Y %H:%M:%S'},
+              },
         },
     handlers = {              
         'file': {'class': 'logging.FileHandler',

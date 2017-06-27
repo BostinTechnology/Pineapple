@@ -282,16 +282,17 @@ class ID_IoT():
         self.datafile = []
         self.log.info("Reading the datafile for sensor information")
         try:
-            self.log.debug("DataFile in location:%s" % Standard_Settings.DATAFILE_LOCATION + '/' + Standard_Settings.DATAFILE_NAME)
-            data = open(Standard_Settings.DATAFILE_LOCATION + '/' + Standard_Settings.DATAFILE_NAME, mode='rt')
+            self.log.debug("DataFile in location:%s" % SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME)
+            data = open(SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME, mode='rt')
             lines = data.readlines()
             data.close()
             self.log.debug("datafile loaded %s" % lines)
         except:
-            log.critical("Failed to Open datafile, please contact support", exc_info=True)
+            self.log.critical("Failed to Open datafile, please contact support", exc_info=True)
+            self.log.exception("[EEPROM] _set_additional_data Exception Information")
             sys.exit()
 
-        log.info("Decoding the datafile, line by line")
+        self.log.info("Decoding the datafile, line by line")
         for f in lines:
             # Read a line of data in and strip any unwanted \n type characters
             dataline = f.strip()
@@ -313,8 +314,9 @@ class ID_IoT():
 
         if len(self.sensor_comms_file) < 1:
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
+            self.log.exception("[EEPROM] _set_additional_data Exception Information")
                 
-        log.debug("Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
+        self.log.debug("Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
             %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
         
         return

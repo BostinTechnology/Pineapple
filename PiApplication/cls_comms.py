@@ -12,10 +12,15 @@ import smbus
 import serial
 import sys
 import logging
+import time
 
 import Standard_Settings as SS
 
 #TODO: Add a retry loop on the comms routines with a default counter set here.
+
+#TODO: Convert the fixed time below to a variable that is passed in or derived in some manner.
+# The minimum time between consecutive writes.
+I2C_WRITE_DELAY = 0.005
 
 class i2c_comms():
     """
@@ -23,10 +28,7 @@ class i2c_comms():
     protocols
     
     By default, it just creates an instance of itself and opens the port
-    
-    It is required to be given the port to work with, I2C, SPI, SERIAL
-    - port is the type of connection I2C, SPI or SERIAL
-    - address is the address of the device, default to 0x00 if not required
+
     """
     
     def __init__(self):
@@ -96,13 +98,11 @@ class i2c_comms():
         addr = start_byte
         for byte in data_bytes:
             self.log.debug("[I2C COMMS] Data:%s to be written to:%s for device:%s" %(byte, addr, sens_addr))
-            reply = self._write_byte(sens_addr, addr, byte)
-            addr = addr + 1
-            if reply != '':
-                response = False
+            response = self._write_byte(sens_addr, addr, byte)
+            if response == False:
                 break
-            else:
-                response = True
+            addr = addr + 1
+            time.sleep(I2C_WRITE_DELAY)
         return response
         
 #-----------------------------------------------------------------------
@@ -138,23 +138,26 @@ class i2c_comms():
                 %(byte_no, addr, value))
             self.log.exception("[I2C COMMS] _read_byte Exception Data")
             value = ''
-        self.log.info("[I2C COMMS] Read Byte from address %s starting at %s with bytes %s" 
-                        % (sens_addr, start_byte, data_bytes))
+        self.log.info("[I2C COMMS] Read Byte from address:%s from i2c device:%s and got this response:%s" 
+                        % (byte_no, addr, value))
         return value
     
     def _write_byte(self, addr, byte_no, value):
         """
-        Write a byte from the given address
+        Write a byte from the given address.
+        The only response is an exception
         """
-        response = 'unknown'
+        response = False
         try:
-            response = self.connection.write_byte_data(addr, byte_no, value)
+            self.connection.write_byte_data(addr, byte_no, value)
         except:
-            self.log.warning("[I2C COMMS] Unable to write byte:%s of value:%s from i2c device:%s and got this response:%s"
-                %(byte_no, value, addr, response))
+            self.log.warning("[I2C COMMS] Unable to write byte:%s of value:%s from i2c device:%s"
+                %(byte_no, value, addr))
             self.log.exception("[I2C COMMS] _write_byte Exception Data")
-        self.log.info("[I2C COMMS] Write Byte to address %s with %s with value %s" 
-                        % (addr, byte_no, value))
+        else:
+            self.log.info("[I2C COMMS] Write to Byte:%s of value:%s for i2c device:%s" 
+                        % (byte_no, value, addr))
+            response = True
         return response    
 
 

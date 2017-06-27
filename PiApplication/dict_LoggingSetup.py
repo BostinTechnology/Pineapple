@@ -16,7 +16,7 @@ log_cfg = dict(
     formatters = {
         'full': {'format':
               '%(asctime)s - %(levelname)-8s - %(message)s',
-              'datefmt': '%d-%m-%Y %H:%M:%S'},
+              },
         'brief': {'format':
               '%(asctime)s - %(message)s',
               'datefmt': '%d-%m-%Y %H:%M:%S'}

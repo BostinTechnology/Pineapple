@@ -43,6 +43,8 @@ import logging.config
 
 
 
+
+
 def GetSerialNumber():
     """
     Get the System Serial number to be used as the Device ID
@@ -151,9 +153,12 @@ def Start():
 
     # Load the correct sensor file
     
+    
+    HERE!!
+    
 
     # Open the comms port to talk to the ID-Iot
-    comms = cls_comms(eeprom_data.ReturnBusType())
+    comms = i2c_comms(eeprom_data.ReturnBusType())
      
 
     # For the sensor, read the values and write them to the AWS database
