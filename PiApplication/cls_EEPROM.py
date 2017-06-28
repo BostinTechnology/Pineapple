@@ -77,6 +77,10 @@ class ID_IoT():
         return self.uuid
     
     def ReturnBusType(self):
+        """
+        Returns the bus type from Standard_Settings
+        SS.I2C, SS.SPI, SS.SERIAL
+        """
         return self.bustype
 
     def ReturnMapVersion(self):
@@ -113,6 +117,9 @@ class ID_IoT():
         return self.calibraton_data
 
     def ReturnSensorCommsFile(self):
+        """
+        Returns the name of the icog file to be used
+        """
         return self.sensor_comms_file
         
     def ReturnSensorPartNumber(self):

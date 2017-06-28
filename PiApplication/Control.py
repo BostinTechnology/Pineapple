@@ -21,6 +21,8 @@ import cls_DataAccessor
 import cls_EEPROM
 import Standard_Settings as SS
 from cls_comms import i2c_comms
+from cls_comms import SPi_comms
+from cls_comms import Serial_comms
 import dict_LoggingSetup
 
 import cls_SensorTemplate
@@ -38,6 +40,8 @@ import argparse
 import sys
 import logging
 import logging.config
+import importlib
+
 
 
 
@@ -152,14 +156,42 @@ def Start():
     eeprom_data = cls_EEPROM.ID_IoT(i2c_connection)
 
     # Load the correct sensor file
+    icog_file = eeprom_data.ReturnSensorCommsFile()
+    log.info("[CTRL] Loading the iCog Comms file:%s" % icog_file)
+
+    try:
+        # This doesn't initialise the iCog, just loads it
+        #imported_icog = __import__(icog_file)
+        imported_icog = importlib.import_module(icog_file)
+    except:
+        log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
+        log.exception("[CTRL] Start Routine Exception Data")
+        sys.exit()
+    log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
     
+    # Open the right bus connection to work with the icog connected
+    reqd_bus = eeprom_data.ReturnBusType()
+    if reqd_bus == SS.SPI:
+        icog_connection = SPi_comms()
+    elif reqd_bus == SS.SERIAL:
+        icog_connection = Serial_Comms()
+    elif reqd_bus == SS.I2C:
+        icog_connection = i2c_connection
+    else:
+        log.critical("[CTRL] Required Connection bus:%s is not supported, contact Support" % reqd_bus)
+        log.exception("[CTRL] Start Routine Exception Data")
+        sys.exit()
+    log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
     
-    HERE!!
+    # Initialise the iCog
+    icog = imported_icog.iCog()
+    log.debug("[CTRL] imported icog:%s" % icog)
+    #BUG: It appears it is not intialising the iCog class within the Ls_1 module
+    
+    #HERE!!
     
 
-    # Open the comms port to talk to the ID-Iot
-    comms = i2c_comms(eeprom_data.ReturnBusType())
-     
+    
 
     # For the sensor, read the values and write them to the AWS database
     # needs to use the read frequency to limit the number of reads.

@@ -161,7 +161,7 @@ class i2c_comms():
         return response    
 
 
-class SPi_Comms():
+class SPi_comms():
     """
     This routine will setup and control the low level comms out to the various
     protocols
@@ -226,7 +226,7 @@ class SPi_Comms():
         return
     
 
-class Serial_Comms():
+class Serial_comms():
     """
     This routine will setup and control the low level comms out to the various
     protocols
