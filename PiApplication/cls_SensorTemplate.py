@@ -4,42 +4,112 @@ This is a template class, it is created to develop the template for the
 sensors to actually be based on
 
 
-BUG - Logging is not working
 
-TODO: Will need to check the minimum revision of the software
-        #BUG - This should be set higher, but is changed for testing
-        self.readfrequency = 3
-        log.debug("iCOG initialised, read frequency set to %s" % self.readfrequency)
+Standard variables in the calibration dictionary
+low_power_mode         - For when operating in reduced power consumption mode (True = Low Power Mode)
+read_frequency         - The time between reading of values, converted to seconds
 
 """
 
 import logging
 
-import Standard_Settings as SS
+# This is the default configuration to be used
+DEFAULT_CONFIG = [[common data],[unique data],[0x40], [0x50], [0x60], [0x70]]
+
+class iCog():
+    
+    def __init__(self, calib):
+        """
+        Initialise the iCog and calibration data setup
+        """
+        print("Into iCog")
+        self.log = logging.getLogger()
+        self.log.debug("[Ls1] cls_icog initialised")
+        
+        self.eeprom_calib_data = calib
+        self.calibration_data = {}          # Reset the calibration data dictionary
+        
+        return
+    
+    def StartSensor(self):
+        """
+        Start the sensor based on the calibration data.
+        In Low Power mode, do nothing
+        """
+        
+        self._start()
+        
+        return stuff
+    
+    def EndReadings(self):
+        """
+        Stop the sensor from running
+        """
+        
+        return
+    
+    def ReadValue(self):
+        """
+        Return the current value from the sensor
+        In Low Power mode start / read and end the sensor
+        """
+        
+        return a value
+    
+    def SetConfig(self):
+        """
+        Menu to set all possible values for the calibration data
+        Update the self.calibration_data dictionary
+        Return the calibration array for reprogramming into the ID_IoT chip
+        ** In the calling function write that data to the ID_Iot chip
+        """
+        
+        return calib
+    
+    def ResetConfig(self):
+        """
+        Reset all calibration to the defaults that are contained in this file
+        Get user confirmation first!
+        Return this calibration data for reprogramming into the ID_IoT chip
+        ** In the calling function write that data to the ID_Iot chip
+        """
+        
+        return calib
+    
+    def ReturnReadFrequency(self):
+        """
+        Return the read frequency for this iCog
+        returned in seconds
+        """
+        
+        return waittime
+
+#-----------------------------------------------------------------------
+#
+#    P R I V A T E   F U N C T I O N S
+#
+#-----------------------------------------------------------------------
+
+    def _decode_calib_data(self):
+        """
+        Given the Calibration data, convert it into the useful dictionary of information
+        """
+
+    def _start(self):
+        """
+        Start the sensor working
+        Stablise the values being read
+        """
+
+
+def main():
+    print("start")
+    icog = iCog()
+    return
+
+if __name__ == '__main__':
+    main()
 
 
 
-def SetupHardware(uuid, bustype, busnumber, sensoraddress):
-    """
-    
-    The real routine sets up the comms for the sensor attached to the PI
-    This just returns a positive status and an object representing the sensor
-    
-    """
-    log = logging.getLogger()
-    #TODO: needs to return an instance of iteself
-    log.info("Setting Up Hardware")
-    
-    return True
 
-def ReadData(uuid, bustype, busnumber, deviceaddress):
-    """
-    
-    The real routine sets up the comms for the sensor attached to the PI
-    This just returns a positive status and an object representing the sensor
-    
-    """
-    log = logging.getLogger(__name__)
-    sensor_data = {"0.01", "35"}
-    
-    return True, sensor_data

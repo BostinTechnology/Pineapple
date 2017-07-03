@@ -183,12 +183,14 @@ def Start():
         sys.exit()
     log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
     
-    # Initialise the iCog
-    icog = imported_icog.iCog()
-    log.debug("[CTRL] imported icog:%s" % icog)
-    #BUG: It appears it is not intialising the iCog class within the Ls_1 module
+    # Retrieve Calibration Data and pass it to the iCog
+    calib_data = eeprom_data.ReturnCalibrationData()
     
-    #HERE!!
+    # Initialise the iCog
+    icog = imported_icog.iCog(icog_connection, calib_data)
+    log.debug("[CTRL] imported icog:%s" % icog)
+    
+    HERE!!
     
 
     

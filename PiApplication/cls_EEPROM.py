@@ -228,7 +228,7 @@ class ID_IoT():
         Read the data from the map, version 0.2
         """
         # read device connectivity data
-        row_10 = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, 16)
+        row_10 = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, SS.CALIB_PAGE_LENGTH)
         
         if len(row_10) < 1:
             #No data received
@@ -265,12 +265,14 @@ class ID_IoT():
         # Read Calibration Values
         self.calibration_data = []
         for row in range(0x20, 0x80,0x10):
-            data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, row, 16)
-            if len(row_10) < 1:
+            data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, row, SS.CALIB_PAGE_LENGTH)
+            if len(row_10) < SS.CALIB_PAGE_LENGTH:
                 #No data received
                 self.log.warning("[EEPROM] EEPROM Map Calibration data read from Id_IOT did not return any data, value received:%s" % row_10)
                 print("\nERROR, EEPROM Map Calibration Data Read Failure- contact Support\n")
+                data = [0]*SS.CALIB_PAGE_LENGTH          # Set it to default of zero's
             self.calibration_data.append(data)
+            log.debug("[EEPROM] Calibration Data read from Id_IoT address %s :%s" % (row,data))
         
         return
         

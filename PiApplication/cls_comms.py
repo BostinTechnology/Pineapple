@@ -61,7 +61,7 @@ class i2c_comms():
         Read a data byte on the chosen connection
         """
 
-        reply = self._i2c_read_byte(sens_addr, byte_addr)
+        reply = self._read_byte(sens_addr, byte_addr)
         return reply
     
     def read_data_bytes(self, sens_addr, start_byte, no_bytes):
@@ -84,7 +84,7 @@ class i2c_comms():
                 break
         self.log.debug("[I2C COMMS] Data bytes returned: %s" % response)
         return response
-    
+
     def write_data_bytes(self, sens_addr, start_byte, data_bytes):
         """
         Write a quantity of bytes, starting from start byte
@@ -103,6 +103,17 @@ class i2c_comms():
                 break
             addr = addr + 1
             time.sleep(I2C_WRITE_DELAY)
+        return response
+            
+    def write_data_byte(self, sens_addr, addr_byte, data_byte):
+        """
+        Write a byte to the address byte
+        So passing (0x50, 0x10, 0x34) will write 0x34 into address byte 0x10
+        returns confirmation
+        """
+        self.log.info("[I2C COMMS] Write Data Byte to address %s byte %s with value %s" 
+                        % (sens_addr, addr_byte, data_byte))
+        response = self._write_byte(sens_addr, addr_byte, data_byte)
         return response
         
 #-----------------------------------------------------------------------
