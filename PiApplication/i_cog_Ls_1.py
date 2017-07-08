@@ -10,6 +10,8 @@ read_frequency         - The time between reading of values, converted to second
 Ls1 Specific
 ============
 light_mode              - 0 = IR mode, 1 = Ambient Light Sensing (0 = IR mode, 1 = ALS mode)
+full_scale_range        - 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
+adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
 
 """
 
@@ -17,7 +19,12 @@ import logging
 import time
 
 # This is the default configuration to be used
-DEFAULT_CONFIG = [[common data],[unique data],[0x40], [0x50], [0x60], [0x70]]
+DEFAULT_CONFIG = [[0x00, 0x00, 0x01, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x01, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]]
 
 SENSOR_ADDR = 0x44
 # The time between a write and subsequent read
@@ -31,14 +38,15 @@ class iCog():
         """
         self.log = logging.getLogger()
         self.log.debug("[Ls1] cls_icog initialised")
-        
+        self.log.debug("[Ls1] Data being used to build calibration dictionary:%s" % calib)
+
         self.comms = comms_handler
         self.calibration_data = {}          # Reset the calibration data dictionary
         if self._decode_calib_data(calib) == False:
             # Failed to decode the configuration, prompt the user and use the defaults
-            response = self.ResetConfig()
+            response = self._load_defaults()
             log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
-        
+            #TODO: Write calibration data back to the ID_IoT
         self._setup_sensor()
         return
     
@@ -48,7 +56,7 @@ class iCog():
         In Low Power mode, do nothing
         Return the status
         """
-        if self.calibration)_data{'low_power_mode'} == False:
+        if self.calibration_data['low_power_mode'] == False:
             # Only start if NOT in low power mode
             status = self._start()
         else:
@@ -70,7 +78,7 @@ class iCog():
         """
 
         
-        return a value
+        return value
     
     def SetConfig(self):
         """
@@ -89,6 +97,10 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
+
+        # Use self._load_defaults to load the default calibration
+        
+        # use something to create the calibration data to write back.
         
         return calib
     
@@ -112,14 +124,32 @@ class iCog():
         The calibration data passed in is a list of 6 lists of 16 bytes of data
         """
         #TODO: Need to check the length of the incoming data, currently assuming it is the right size
+        
+        #TODO: Need to validate the dictionary, what happens if the value doesn't exist?
+        
         # Common Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = (data[0][1] << 16) + (data [0][2] << 8) + (data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
-        self.calibration_data['light_mode'] = data[1][0] & 0b00000001       # 0 = IR mode, 1 = ALS mode
+        self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
+        self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
+        self.calibration_data['adc_resolution'] = data[1][1] & 0b00001100     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
         
-        return True / False
+        logging.warning("[Ls1] _decode_calib_data doesn't validate")
+        return True
     
+    def _load_defaults():
+        """
+        Using the DEFAULT_CONFIG, load a new configuration data set        
+        """
+        if self._decode_calib_data(DEFAULT_CONFIG) == False:
+            # Failed to decode the default configuration, need to abort
+            self.log.critical("[Ls1] Unable to load Default Configuration")
+            print("\nCRITICAL ERROR, Unable to Load Default Configuration- contact Support\n")
+            self.log.exception("[Ls1] ResetConfig Exception Data")
+
+            sys.exit()
+        return True
     def _setup_sensor(self):
         """
         Taking the calibration data, write it to the sensor
@@ -172,32 +202,29 @@ class iCog():
         # sets the various command register 2 bits for reading values
         reg_addr = 0x01
         mask = 0b00001111
-        value = 0b1100
-        
-        
-        HERE - this is to be converted
-        
-        HERE - value needs to be based on calibration data.
-        HERE - Set Sensor Range, 2 values Full Scale Range and ADC Resolution
-                
-                
-        byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-        logging.info ("Range Resolution Register before setting measurement ranges (0x01):%x" % byte)
+        #value = 0b1100
+        # The calibration bits are already set in the correct bit numbers
+        value = self.calibration_data['full_scale_range'] + self.calibration_data['adc_resolution']
+        status = False
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info("[Ls1] Range Resolution Register before setting measurement ranges (0x01):%x" % byte)
         if (byte & mask) != value:
             # Modify the register to set bits 3 & 2 to 0b11, bits 1 & 0 to 0b00
             towrite = (byte & ~mask) | value
-            logging.debug("Byte to write to set measurement ranges %x" % towrite)
-            bus.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
+            self.log.debug("[Ls1] Byte to write to set measurement ranges %x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
-            byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-            logging.info ("Range Resolution Register After setting measurement ranges (0x01):%x" % byte)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Ls1] Range Resolution Register After setting measurement ranges (0x01):%x" % byte)
             if (byte & mask) == value:
-                print("Sensor Range ResolutionRegisters sets")
+                self.log.debug("[Ls1] Sensor Range ResolutionRegisters set")
+                status = True
             else:
-                print("Sensor Range ResolutionRegisters not set")
+                self.log.debug("[Ls1] Sensor Range ResolutionRegisters not set")
+                status = False
         else:
-            logging.debug("Sensor Range Resolution alreay set")
-        return true / false
+            self.log.debug("[Ls1] Sensor Range Resolution already set")
+        return status
     
     def _start(self):
         """
@@ -210,6 +237,7 @@ class iCog():
 
 def main():
     print("start")
+    # Need to add comms handler and calib data to test with
     icog = iCog()
     return
 

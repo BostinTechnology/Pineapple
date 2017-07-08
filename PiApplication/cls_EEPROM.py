@@ -266,14 +266,14 @@ class ID_IoT():
         self.calibration_data = []
         for row in range(0x20, 0x80,0x10):
             data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, row, SS.CALIB_PAGE_LENGTH)
-            if len(row_10) < SS.CALIB_PAGE_LENGTH:
+            if len(data) < SS.CALIB_PAGE_LENGTH:
                 #No data received
                 self.log.warning("[EEPROM] EEPROM Map Calibration data read from Id_IOT did not return any data, value received:%s" % row_10)
                 print("\nERROR, EEPROM Map Calibration Data Read Failure- contact Support\n")
                 data = [0]*SS.CALIB_PAGE_LENGTH          # Set it to default of zero's
             self.calibration_data.append(data)
-            log.debug("[EEPROM] Calibration Data read from Id_IoT address %s :%s" % (row,data))
-        
+            self.log.debug("[EEPROM] Calibration Data read from Id_IoT address %s :%s" % (row,data))
+        self.log.info("[EEPROM] Complete Calibration datafile retrieved:%s" % self.calibration_data)
         return
         
     def _set_additional_data(self):

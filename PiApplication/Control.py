@@ -25,7 +25,7 @@ from cls_comms import SPi_comms
 from cls_comms import Serial_comms
 import dict_LoggingSetup
 
-import cls_SensorTemplate
+#import cls_SensorTemplate
 
 ###
 ### Need a bit of code that imports the correct iCog file.
@@ -186,11 +186,12 @@ def Start():
     # Retrieve Calibration Data and pass it to the iCog
     calib_data = eeprom_data.ReturnCalibrationData()
     
+    log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
     icog = imported_icog.iCog(icog_connection, calib_data)
     log.debug("[CTRL] imported icog:%s" % icog)
     
-    HERE!!
+    #HERE!!
     
 
     

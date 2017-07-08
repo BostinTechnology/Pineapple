@@ -14,7 +14,7 @@ read_frequency         - The time between reading of values, converted to second
 import logging
 
 # This is the default configuration to be used
-DEFAULT_CONFIG = [[common data],[unique data],[0x40], [0x50], [0x60], [0x70]]
+DEFAULT_CONFIG = [[0x20],[0x30],[0x40], [0x50], [0x60], [0x70]]
 
 class iCog():
     
