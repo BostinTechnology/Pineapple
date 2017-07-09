@@ -114,7 +114,7 @@ class ID_IoT():
         return self.io_2
         
     def ReturnCalibrationData(self):
-        return self.calibraton_data
+        return self.calibration_data
 
     def ReturnSensorCommsFile(self):
         """
@@ -186,7 +186,7 @@ class ID_IoT():
         self.minimum_revision = []
         self.io_1 = []
         self.io_2 = []
-        self.calibraton_data = []
+        self.calibration_data = []
         self.sensor_comms_file = ''
         self.sensor_part_number = ''
         self.sensor_type = ''

@@ -68,7 +68,7 @@ class iCog():
         """
         Stop the sensor from running
         """
-        
+        self._stop()
         return
     
     def ReadValue(self):
@@ -76,7 +76,16 @@ class iCog():
         Return the current value from the sensor
         In Low Power mode start / read and end the sensor
         """
-
+        if self.calibration_data['low_power_mode'] == True:
+            # Only start if NOT in low power mode
+            status = self._start()
+            
+        value = self._read_lux()
+    #BUG: Returns a number, not in the correct json format
+        
+        if self.calibration_data['low_power_mode'] == True:
+            # Only start if NOT in low power mode
+            status = self._stop()
         
         return value
     
@@ -110,7 +119,7 @@ class iCog():
         returned in seconds
         """
         
-        return waittime
+        return self.calibration_data['read_frequency']
 
 #-----------------------------------------------------------------------
 #
@@ -135,7 +144,7 @@ class iCog():
         self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
         self.calibration_data['adc_resolution'] = data[1][1] & 0b00001100     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
         
-        logging.warning("[Ls1] _decode_calib_data doesn't validate")
+        logging.warning("[Ls1] _decode_calib_data doesn't validate incoming data currently")
         return True
     
     def _load_defaults():
@@ -150,15 +159,13 @@ class iCog():
 
             sys.exit()
         return True
+
     def _setup_sensor(self):
         """
         Taking the calibration data, write it to the sensor
         """
         
         if self._sensor_range_resolution() == False:
-            return False
-        
-        if self._set_light_mode() == False:
             return False
         
         return True
@@ -226,14 +233,110 @@ class iCog():
             self.log.debug("[Ls1] Sensor Range Resolution already set")
         return status
     
+    def _read_data_registers(self):
+        """
+        Read the 2 8 bit registers that contain the ADC value
+        """
+        data_addr = [0x02, 0x03]
+        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+        self.log.info ("[Ls1] Data Register values (0x03/0x02):%x /%x" % (data_h, data_l))
+        data_out = (data_h << 8) + data_l
+        self.log.debug("[Ls1] Data Register combined %x" % data_out)
+        return data_out
+    
     def _start(self):
         """
         Start the sensor working
         Stablise the values being read
         """
-        
-        
+        if self._set_light_mode() == False:
+            return False
+ 
         return True
+
+    def _read_lux(self):
+        # Determine the scaling factor for the full scale range
+        if self.calibration_data['light_mode'] == 0:
+            # In IR mode,the fsr is 65535
+            fullscalerange = 65535
+        else:
+            # In ALS mode
+            if self.calibration_data['full_scale_range'] == 0:
+                # Range 1
+                fullscalerange = 1000
+            elif self.calibration_data['full_scale_range'] == 1:
+                # Range 2
+                fullscalerange = 4000
+            elif self.calibration_data['full_scale_range'] == 2:
+                # Range 3
+                fullscalerange = 16000
+            elif self.calibration_data['full_scale_range'] == 3:
+                # Range 4
+                fullscalerange = 64000
+            else:
+                # unknown range
+                fullscalerange = 64000
+                self.log.warning("[Ls1] full scale range undetermined, set to maximum (64000)")
+        self.log.info("[Ls1] Full Scale Range:%s" % fullscalerange)
+        
+        # Determine the ADC Resolution
+        # from calibration data: 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
+        
+        adc_resolution = 00
+        if self.calibration_data['adc_resolution'] == 0:
+            # 2 ^ 16
+            adc_resolution = 65536
+        elif self.calibration_data['adc_resolution'] == 1:
+            # 2 ^ 12
+            adc_resolution = 4096
+        elif self.calibration_data['adc_resolution'] == 2:
+            # 2 ^ 8
+            adc_resolution = 256
+        elif self.calibration_data['adc_resolution'] == 3:
+            # 2 ^ 4
+            adc_resolution = 16
+        else:
+            # unknown resolution
+            adc_resolution = 65536
+            self.log.warning("[Ls1] ADC Resolution undetermined, set to maximum (65536)")
+
+        self.log.info("[Ls1] ADC Resolution Setting %f" % adc_resolution)
+        
+        lux = 0
+        
+        data_read = self._read_data_registers()
+        lux = (fullscalerange / adc_resolution) * data_read
+        self.log.info("Calculated LUX value based on (full scale range / adc resolution ) %f" % lux)
+        return lux
+
+    def _stop(self):
+        """
+        Set the operation mode bits (5-7) of Command Register 1 to zero
+        """
+        reg_addr = 0x00
+        mask = 0b11100000
+        shift = 5
+        mode = 0b000
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ls1] Command Register Before turning off (0x00):%x" % byte)
+        if (byte & mask) != (mode << shift):
+            # Modify the register to set bits 7 to 5= 0b000
+            towrite = (byte & ~mask) | (mode << shift)
+            self.log.debug("[Ls1] Byte to write to turn off %s" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Ls1] Command Register After turning off (0x00):%x" % byte)
+            if (byte & mask) == (mode << shift):
+                self.log.debug("[Ls1] Sensor turned off")
+                status = False
+            else:
+                self.log.debug("[Ls1] Sensor failed to turn off")
+                status = True
+        else:
+            self.log.debug("[Ls1] Sensor already Turned off")
+        return
 
 def main():
     print("start")

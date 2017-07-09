@@ -34,6 +34,7 @@ import dict_LoggingSetup
 
 
 from datetime import datetime
+from datetime import timedelta
 
 import time
 import argparse
@@ -191,13 +192,50 @@ def Start():
     icog = imported_icog.iCog(icog_connection, calib_data)
     log.debug("[CTRL] imported icog:%s" % icog)
     
+    # Sit in a loop reading the values back and writing them to the data connection
+    # values available from the i_cog
+    #   StartSensor, EndReadings, ReadValue, ReturnReadFrequency
+    # put it all in a try loop to use CTRL-C to cancel
+    print("Reading Values from sensor\n")
+    print("CTRL-C to cancel")
+
+    read_freq = icog.ReturnReadFrequency()
+    log.debug("[CTRL] Read Frequency:%s" % read_freq)
+    try:
+        icog.StartSensor()
+        while True:
+            # Start the timer
+            endtime = datetime.now() + timedelta(seconds=read_freq)
+            print("\r\r\r\r\r\r\rReading", end="")
+
+            #Read the value
+            reading = icog.ReadValue()
+            #TODO: Convert to a post
+            log.info("[CTRL] Value Read back from the sensor:%s" % reading)
+
+            # Wait for timeout
+            waiting = False
+            while endtime < datetime.now():
+                if waiting == False:
+                    print("\r\r\r\r\r\r\rWaiting", end="")
+                    waiting=True
+            
+    except KeyboardInterrupt:
+        # CTRL - C entered
+        print(" CTRL-C entered")
+    except:
+        #Error occurrred
+        log.critical("[CTRL] Error occurred whilst looping to read values")
+        print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
+        log.exception("[CTRL] Start reading loop Exception Data")
+
+    
+    
     #HERE!!
     
 
     
 
-    # For the sensor, read the values and write them to the AWS database
-    # needs to use the read frequency to limit the number of reads.
 
 ###
 ###
