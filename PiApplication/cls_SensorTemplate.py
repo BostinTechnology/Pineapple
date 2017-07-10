@@ -56,7 +56,7 @@ class iCog():
         
         return a value
     
-    def SetConfig(self):
+    def SetCalibration(self):
         """
         Menu to set all possible values for the calibration data
         Update the self.calibration_data dictionary
@@ -66,15 +66,27 @@ class iCog():
         
         return calib
     
-    def ResetConfig(self):
+    def ResetCalibration(self):
         """
         Reset all calibration to the defaults that are contained in this file
         Get user confirmation first!
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
+
+        # Use self._load_defaults to load the default calibration
+        
+        # use something to create the calibration data to write back.
         
         return calib
+    
+    def ReturnCalibrationData(self):
+        """
+        Return the currently set calibration data
+        returned as a dictionary
+        """
+        
+        return self.calibration_data
     
     def ReturnReadFrequency(self):
         """

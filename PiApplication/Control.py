@@ -26,12 +26,7 @@ from cls_comms import Serial_comms
 import dict_LoggingSetup
 
 #import cls_SensorTemplate
-
-###
-### Need a bit of code that imports the correct iCog file.
-### See importlib or search for dynamic import modules (dive into python)
-###
-
+# The required iCog is imported in the code once it has been determined
 
 from datetime import datetime
 from datetime import timedelta
@@ -44,9 +39,9 @@ import logging.config
 import importlib
 
 
-
-
-
+# The following global variables are used.
+gbl_log = ""
+gbl_icog = ""
 
 
 
@@ -56,7 +51,7 @@ def GetSerialNumber():
     returns the Serial Number or '0000000000000000'
     """
     try:
-        log.debug("Opening proc/cpuinfo for CPU serial Number")
+        gbl_log.debug("[CTRL] Opening proc/cpuinfo for CPU serial Number")
         f = open('/proc/cpuinfo')
         for line in f:
             if line[0:6] == "Serial":
@@ -64,9 +59,9 @@ def GetSerialNumber():
         f.close
     except:
         cpuserial = '0000000000000000'
-        log.error("Failed to open proc / cpuinfo, set to default")
+        gbl_log.error("[CTRL] Failed to open proc / cpuinfo, set to default")
 
-    log.info("CPU Serial Number : %s" % cpuserial)
+    gbl_log.info("[CTRL] CPU Serial Number : %s" % cpuserial)
     return int(cpuserial, 16)
 
 def GenerateTimeStamp():
@@ -76,7 +71,7 @@ def GenerateTimeStamp():
     datetime returns a object so it needs to be converted to a string and then redeuced to 23 characters to meet format
     """
     now = str(datetime.now())
-    log.debug("Generated a timestamp %s" % now[:23])
+    gbl_log.debug("[CTRL] Generated a timestamp %s" % now[:23])
     return now[:23]
 
 def SetupLogging():
@@ -86,15 +81,15 @@ def SetupLogging():
     """
     print("Current logging level is \n\n   DEBUG!!!!\n\n")
     
-    global log
+    global gbl_log
     # Create a logger with the name of the function
     logging.config.dictConfig(dict_LoggingSetup.log_cfg)
-    log = logging.getLogger()
+    gbl_log = logging.getLogger()
 
 
     #BUG: This is loading the wrong values into the log file
-    log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
-    log.info("Screen Logging Started, current level is %s" % log.getEffectiveLevel)
+    gbl_log.info("[CTRL] File Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
+    gbl_log.info("[CTRL] Screen Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
     
     return
 
@@ -110,7 +105,7 @@ def SetandGetArguments():
 
     """
 
-    log.info("Setting and Getting Parser arguments")
+    gbl_log.info("[CTRL] Setting and Getting Parser arguments")
     parser = argparse.ArgumentParser(description="Capture and send data for CognIoT sensors")
     parser.add_argument("-S", "--Start",
                     help="Start capturing data from the configured sensors and send them to the database")
@@ -135,40 +130,37 @@ def SetandGetArguments():
     Para_group.add_argument("-a", "--SetPara", 
                     help="Set the Operational parameters, e.g. Read Frequency")
 
-    log.debug("Parser values captured: %s" % parser.parse_args())
+    gbl_log.debug("[CTRL] Parser values captured: %s" % parser.parse_args())
     return parser.parse_args()
 
-def Start():
+def SetupSensor():
     """
-    Perform the reading of and sending data to the AWS database
-    This is the default action if no arguments are passed to the system.
+    This function performs the following
+    - Connect to the ID_IoT chip and retive all the infromation
+    - load the correct icog file
+    - Transfer the configuration information into the loaded icog
+    - set the global variable gbl_icog to the required icog
     
-    Order of the routine
-    1. Access EEPROM to get sensor type
-    2. Setup sensor
-    3. Open data accessor link
-    4. in loop
-        read value
-        post
     """
-
+    global gbl_icog
+    
     # Load the data from the EEPROM on the ID-Iot chip
     i2c_connection = i2c_comms()
     eeprom_data = cls_EEPROM.ID_IoT(i2c_connection)
 
     # Load the correct sensor file
     icog_file = eeprom_data.ReturnSensorCommsFile()
-    log.info("[CTRL] Loading the iCog Comms file:%s" % icog_file)
+    gbl_log.info("[CTRL] Loading the iCog Comms file:%s" % icog_file)
 
     try:
         # This doesn't initialise the iCog, just loads it
         #imported_icog = __import__(icog_file)
         imported_icog = importlib.import_module(icog_file)
     except:
-        log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
-        log.exception("[CTRL] Start Routine Exception Data")
+        gbl_log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
+        gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
-    log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
+    gbl_log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
     
     # Open the right bus connection to work with the icog connected
     reqd_bus = eeprom_data.ReturnBusType()
@@ -179,18 +171,36 @@ def Start():
     elif reqd_bus == SS.I2C:
         icog_connection = i2c_connection
     else:
-        log.critical("[CTRL] Required Connection bus:%s is not supported, contact Support" % reqd_bus)
-        log.exception("[CTRL] Start Routine Exception Data")
+        gbl_log.critical("[CTRL] Required Connection bus:%s is not supported, contact Support" % reqd_bus)
+        gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
-    log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
+    gbl_log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
     
     # Retrieve Calibration Data and pass it to the iCog
     calib_data = eeprom_data.ReturnCalibrationData()
     
-    log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
+    gbl_log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
-    icog = imported_icog.iCog(icog_connection, calib_data)
-    log.debug("[CTRL] imported icog:%s" % icog)
+    gbl_icog = imported_icog.iCog(icog_connection, calib_data)
+    gbl_log.debug("[CTRL] imported icog:%s" % gbl_icog)
+
+    return
+    
+def Start():
+    """
+    Perform the reading of and sending data to the AWS database
+    This is the default action if no arguments are passed to the system.
+    
+    Order of the routine
+
+
+    3. Open data accessor link
+    4. in loop
+        read value
+        post
+    """
+ 
+    SetupSensor()
     
     # Sit in a loop reading the values back and writing them to the data connection
     # values available from the i_cog
@@ -199,25 +209,26 @@ def Start():
     print("Reading Values from sensor\n")
     print("CTRL-C to cancel")
 
-    read_freq = icog.ReturnReadFrequency()
-    log.debug("[CTRL] Read Frequency:%s" % read_freq)
+    read_freq = gbl_icog.ReturnReadFrequency()
+    #read_freq = 10
+    gbl_log.debug("[CTRL] Read Frequency:%s" % read_freq)
     try:
-        icog.StartSensor()
+        gbl_icog.StartSensor()
         while True:
             # Start the timer
             endtime = datetime.now() + timedelta(seconds=read_freq)
             print("\r\r\r\r\r\r\rReading", end="")
 
             #Read the value
-            reading = icog.ReadValue()
+            reading = gbl_icog.ReadValue()
             #TODO: Convert to a post
-            log.info("[CTRL] Value Read back from the sensor:%s" % reading)
+            gbl_log.info("[CTRL] Value Read back from the sensor:%s" % reading)
 
             # Wait for timeout
             waiting = False
-            while endtime < datetime.now():
+            while endtime > datetime.now():
                 if waiting == False:
-                    print("\r\r\r\r\r\r\rWaiting", end="")
+                    print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
                     waiting=True
             
     except KeyboardInterrupt:
@@ -225,9 +236,9 @@ def Start():
         print(" CTRL-C entered")
     except:
         #Error occurrred
-        log.critical("[CTRL] Error occurred whilst looping to read values")
+        gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
         print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
-        log.exception("[CTRL] Start reading loop Exception Data")
+        gbl_log.exception("[CTRL] Start reading loop Exception Data")
 
     
     
@@ -246,25 +257,9 @@ def Start():
 
     # setup the connection to the AWS database
     dbconn = DataAccessor.DynamodbConnection()
-    log.info("Connected to AWS database")
-    log.debug("Database connection:%s" % dbconn)
+    gbl_log.info("Connected to AWS database")
+    gbl_log.debug("Database connection:%s" % dbconn)
 
-
-
-    # main bit stolen from the Bananas code in threading
-    if (time.time()- self.starttime) > self.sensor.readfrequency:
-        self.log.debug("Thread Time to read values for thread:%s" % self.threadname)
-        # Read the data (uuid, bustype, busnumber, deviceaddress)
-        info = iCOGSensorComms.ReadData(self.sensor.uuid, self.sensor.bustype, self.sensor.busnumber, self.sensor.sensoraddress)
-        self.log.debug("Thread %s: Read data from Sensor: %s" %( self.threadname, info))
-
-        #Write the data from the sensor to the database
-        DataAccessor.WriteValues(self.conn, info, GenerateTimeStamp(), self.sensor.uuid, self.sensor.sensor, self.sensor.sensoracroynm, self.sensor.sensordescription)
-        self.log.debug("Thread %s has written data to AWS" % self.threadname)
-
-        # Reset the timer
-        self.starttime = time.time()
-    #self.log.debug("Time elapsed during loop check:%f" %(starttime - time.time()))    
     
     return
 
@@ -306,6 +301,13 @@ def DisplayCal():
     Perform the necessary actions to display the Calibration data being used
     
     """
+    #BUG: calib_data is not set as the icog is not instantiated unless Start called
+    # Need to add a check to see if Setup has alread been run and therefore doesn't need to be rerun
+    # Put this check in SetupSensor()
+    
+    calib_data = gbl_icog.ReturnCalibrationData()
+    for item in calib_data:
+        print("Setting:%s     Value:%s" %( item, calib_data[item]))
     print ("Not yet Implemented")
     return
     
@@ -332,20 +334,29 @@ def SetParameters():
     Parameters to be captured
     - Sensor Acroynm
     - Sensor Description
-    - Read Frequency
     """
     print ("Not yet Implemented")
     return
 
 def SetLogging():
     """
-    Perform the necessary actions to achange the logging level being used
+    Perform the necessary actions to change the logging level being used
 
     The default logging level is zero
     """
     print ("Not yet Implemented")
     return
- 
+
+def SplashScreen():
+    print("***********************************************")
+    print("*             Bostin Technology               *")
+    print("*                                             *")
+    print("*             Mobile IoT Sensor               *")
+    print("*                                             *")
+    print("*        for more info www.cognIoT.eu         *")
+    print("***********************************************\n")
+    return
+    
 ################################################################################
 # 
 # The following function is main - the entry point
@@ -358,6 +369,8 @@ def main():
     
     """
     
+    SplashScreen()
+    
     SetupLogging()
     
     args = SetandGetArguments()
@@ -368,7 +381,6 @@ def main():
     print("\nDevice ID: %s" % device_id)
     print("\nTo Exit, CTRL-c\n\n")
 
-### Add a proper splash screen
 
     
     #TODO: print out the values being used, especially if they are the defaults.
@@ -377,7 +389,7 @@ def main():
 
     # Note: The default is Start, hence it is the else clause
     if args.Start: 
-        Start()              #TODO: Complete routine
+        Start()
     elif args.Reset: 
         Reset()              #TODO: Not started
     elif args.NewSensor:

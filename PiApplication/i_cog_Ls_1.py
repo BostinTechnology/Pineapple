@@ -4,8 +4,8 @@
 Variables in the calibration_data dictionary
 Standard
 ========
-low_power_mode         - For when operating in reduced power consumption mode (True = Low Power Mode)
-read_frequency         - The time between reading of values, converted to seconds
+low_power_mode          - For when operating in reduced power consumption mode (True = Low Power Mode)
+read_frequency          - The time between reading of values, converted to seconds
 
 Ls1 Specific
 ============
@@ -19,8 +19,8 @@ import logging
 import time
 
 # This is the default configuration to be used
-DEFAULT_CONFIG = [[0x00, 0x00, 0x01, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-                  [0x01, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+                  [0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                   [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                   [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                   [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -89,7 +89,7 @@ class iCog():
         
         return value
     
-    def SetConfig(self):
+    def SetCalibration(self):
         """
         Menu to set all possible values for the calibration data
         Update the self.calibration_data dictionary
@@ -99,7 +99,7 @@ class iCog():
         
         return calib
     
-    def ResetConfig(self):
+    def ResetCalibration(self):
         """
         Reset all calibration to the defaults that are contained in this file
         Get user confirmation first!
@@ -112,6 +112,14 @@ class iCog():
         # use something to create the calibration data to write back.
         
         return calib
+    
+    def ReturnCalibrationData(self):
+        """
+        Return the currently set calibration data
+        returned as a dictionary
+        """
+        
+        return self.calibration_data
     
     def ReturnReadFrequency(self):
         """
@@ -142,9 +150,21 @@ class iCog():
         # Unique Data values
         self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
         self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
-        self.calibration_data['adc_resolution'] = data[1][1] & 0b00001100     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
+        self.calibration_data['adc_resolution'] = (data[1][1] & 0b00001100) >> 2     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
         
-        logging.warning("[Ls1] _decode_calib_data doesn't validate incoming data currently")
+        self.log.info("[Ls1] Calibration Data:%s" % self.calibration_data)
+        self.log.warning("[Ls1] _decode_calib_data doesn't validate incoming data currently")
+
+        """"""
+        #Test Data
+        self.calibration_data['low_power_mode'] = False
+        self.calibration_data['read_frequency'] = 10
+        # Unique Data values
+        self.calibration_data['light_mode'] = 0
+        self.calibration_data['full_scale_range'] = 1
+        self.calibration_data['adc_resolution'] = 0
+        """"""
+        
         return True
     
     def _load_defaults():
@@ -211,7 +231,8 @@ class iCog():
         mask = 0b00001111
         #value = 0b1100
         # The calibration bits are already set in the correct bit numbers
-        value = self.calibration_data['full_scale_range'] + self.calibration_data['adc_resolution']
+        value = self.calibration_data['full_scale_range'] + (self.calibration_data['adc_resolution'] << 2)
+        self.log.debug("[Ls1] Required Sensor Range byte setting:%s" % value)
         status = False
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info("[Ls1] Range Resolution Register before setting measurement ranges (0x01):%x" % byte)
@@ -224,10 +245,10 @@ class iCog():
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
             self.log.info ("[Ls1] Range Resolution Register After setting measurement ranges (0x01):%x" % byte)
             if (byte & mask) == value:
-                self.log.debug("[Ls1] Sensor Range ResolutionRegisters set")
+                self.log.debug("[Ls1] Sensor Range Resolution Registers set")
                 status = True
             else:
-                self.log.debug("[Ls1] Sensor Range ResolutionRegisters not set")
+                self.log.debug("[Ls1] Sensor Range Resolution Registers not set")
                 status = False
         else:
             self.log.debug("[Ls1] Sensor Range Resolution already set")
@@ -301,13 +322,13 @@ class iCog():
             adc_resolution = 65536
             self.log.warning("[Ls1] ADC Resolution undetermined, set to maximum (65536)")
 
-        self.log.info("[Ls1] ADC Resolution Setting %f" % adc_resolution)
+        self.log.info("[Ls1] ADC Resolution Setting %s" % adc_resolution)
         
         lux = 0
         
         data_read = self._read_data_registers()
         lux = (fullscalerange / adc_resolution) * data_read
-        self.log.info("Calculated LUX value based on (full scale range / adc resolution ) %f" % lux)
+        self.log.info("[Ls1] Calculated LUX value based on (full scale range / adc resolution) * data read %f" % lux)
         return lux
 
     def _stop(self):

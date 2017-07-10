@@ -135,6 +135,7 @@ class ID_IoT():
         """
         Set the map version in the ID-IoT form the given list of 2 values
         Uses EEPROM_ADDR_MAP_VERSION as the starting address
+        Used as part of the ID_IoT setup only.
         """
         reply = False
         if len(version) < 1:
@@ -150,6 +151,7 @@ class ID_IoT():
         Taking the dataset, program it into the ID-IoT, given a list of 16 bytes
         Uses EEPROM_ADDR_DEVICE_CONNECT as the starting address
         Returns True or False
+        Used as part of the ID_IoT setup only.
         """
         self.log.info("[EEPROM] Set Device Connectivity with dataset:%s" % dataset)
         reply = False
@@ -289,33 +291,33 @@ class ID_IoT():
         """
         #TODO: Validate the error checking around this
         self.datafile = []
-        self.log.info("Reading the datafile for sensor information")
+        self.log.info("[EEPROM] Reading the datafile for sensor information")
         try:
-            self.log.debug("DataFile in location:%s" % SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME)
+            self.log.debug("[EEPROM] DataFile in location:%s" % SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME)
             data = open(SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME, mode='rt')
             lines = data.readlines()
             data.close()
-            self.log.debug("datafile loaded %s" % lines)
+            self.log.debug("[EEPROM] datafile loaded %s" % lines)
         except:
-            self.log.critical("Failed to Open datafile, please contact support", exc_info=True)
+            self.log.critical("[EEPROM] Failed to Open datafile, please contact support", exc_info=True)
             self.log.exception("[EEPROM] _set_additional_data Exception Information")
             sys.exit()
 
-        self.log.info("Decoding the datafile, line by line")
+        self.log.info("[EEPROM] Decoding the datafile, line by line")
         for f in lines:
             # Read a line of data in and strip any unwanted \n type characters
             dataline = f.strip()
             # split the data by a comma into a list.
             row_data = dataline.split(",")
             self.datafile.append(row_data)
-            self.log.debug("Row of extracted data %s" % row_data)
+            self.log.debug("[EEPROM] Row of extracted data %s" % row_data)
             
         #Now loop through the data string and extract the acroynm and description
-        self.log.info("Loop through datafile and set sensor information")
+        self.log.info("[EEPROM] Loop through datafile and set sensor information")
         # Uses the self.sensor_type read from the Device Connectivity Data
         for element in self.datafile:
             if int(element[4],16) == self.sensor_type_code[0] and int(element[5],16) == self.sensor_type_code[1]:
-                self.log.debug("Match found for Sensor and Description")
+                self.log.debug("[EEPROM] Match found for Sensor and Description")
                 self.sensor_comms_file = element[0]
                 self.sensor_part_number = element[1]
                 self.sensor_type = element[2]
@@ -325,7 +327,7 @@ class ID_IoT():
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
             self.log.exception("[EEPROM] _set_additional_data Exception Information")
                 
-        self.log.debug("Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
+        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
             %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
         
         return
