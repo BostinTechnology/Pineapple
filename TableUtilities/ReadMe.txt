@@ -22,3 +22,8 @@ To access the local console type:
 Running CreateTables.py will then create the tables.
 
     ** Set the IP address of the dynamodb
+
+Javascript local example
+
+http://docs.aws.amazon.com/amazondynamodb/latest/gettingstartedguide/GettingStarted.JavaScript.html
+
