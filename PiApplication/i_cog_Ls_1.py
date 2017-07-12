@@ -95,8 +95,15 @@ class iCog():
         Update the self.calibration_data dictionary
         Return the calibration array for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
+        if no data is returned, no data is written
         """
         
+        HERE!! the funciton below is written but not tested
+        self._set_standard_config()
+
+        self._set_specific_config()
+
+        self._build_config_array()
         return calib
     
     def ResetCalibration(self):
@@ -106,12 +113,13 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
-
+        
         # Use self._load_defaults to load the default calibration
+        self._load_defaults()
         
-        # use something to create the calibration data to write back.
+        # Send the calibration data to write back to the ID_IoT
         
-        return calib
+        return DEFAULT_CONFIG
     
     def ReturnCalibrationData(self):
         """
@@ -135,6 +143,54 @@ class iCog():
 #
 #-----------------------------------------------------------------------
 
+    def _set_standard_config(self):
+        """
+        Set the standard parameters for the configuration
+        """
+        print("Setting Standard Configuration Parameters")
+        choice = ""
+        while choice == "":
+            choice = input("Do you want the sensor to operate in Low Power Mode (y/n)")
+            if choice.upper() == "Y":
+                self.calibration_data['low_power_mode'] = True
+            elif choice.upper() =="N":
+                self.calibration_data['low_power_mode'] = False
+            else:
+                print("Please choose Y or N")
+                choice = ""
+        
+        choice = 0
+        while choice = 0:
+            choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
+            if choice.isdigit():
+                if choice >= 0.1 and choice <= 16416000:
+                    self.calibration_data['read_frequency'] = choice
+                else:
+                    choice = 0
+            else choice = 0
+        
+        return
+        
+    def _set_specific_config(self):
+        """
+        Set the config specific to the Ls1
+        light_mode              - 0 = IR mode, 1 = Ambient Light Sensing (0 = IR mode, 1 = ALS mode)
+        full_scale_range        - 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
+        adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
+        """
+        
+        #TODO as nothing done yet
+        print("To Be implemented")
+        return
+    
+    def _build_config_array(self):
+        """
+        Take the self.calibration_data and convert it to bytes to be written
+        """
+        
+        print("To be implemented")
+        return
+        
     def _decode_calib_data(self, data):
         """
         Given the Calibration data, convert it into the useful dictionary of information
@@ -167,7 +223,7 @@ class iCog():
         
         return True
     
-    def _load_defaults():
+    def _load_defaults(self):
         """
         Using the DEFAULT_CONFIG, load a new configuration data set        
         """
@@ -177,6 +233,7 @@ class iCog():
             print("\nCRITICAL ERROR, Unable to Load Default Configuration- contact Support\n")
             self.log.exception("[Ls1] ResetConfig Exception Data")
 
+            #BUG: This is a poor solution, should return to the main menu with a better way out than this
             sys.exit()
         return True
 

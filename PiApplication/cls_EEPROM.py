@@ -30,6 +30,7 @@ EEPROM_ADDR_CHECKSUM = 0x0e
 EEPROM_ADDR_DEVICE_CONNECT = 0x10
 EEPROM_ADDR_UUID = 0xfc
 EEPROM_UUID_LEN = 4
+EEPROM_ADDR_ICOG_CONFIG = 0x20      #The start address for the icog configuration data
 
 
 class ID_IoT():
@@ -163,6 +164,19 @@ class ID_IoT():
         self.log.debug("[EEPROM] Set Device Connectivity response status (1=True):%s" % reply)
         return reply
 
+    def ResetCalibrationData(self, dataset):
+        """
+        Given the dataset which contains all the values to be written to the ID_IoT starting at EEPROM_ADDR_ICOG_CONFIG
+        Assumes the dataset given fits into the space
+        
+        """
+        self.log.info("[EEPROM] Reset Calibration Data with data:%s" % dataset)
+        start_address = EEPROM_ADDR_ICOG_CONFIG
+        for block in dataset:
+            self.log.debug("[EEPROM] Start Address:%s data block:%s" % (start_address, block))
+            self.comms.write_data_bytes(ID_IOT_CHIP_ADDR, start_address, block)
+            start_address = start_address + len(block)
+        return
 
 #-----------------------------------------------------------------------
 #
@@ -266,7 +280,7 @@ class ID_IoT():
         
         # Read Calibration Values
         self.calibration_data = []
-        for row in range(0x20, 0x80,0x10):
+        for row in range(EEPROM_ADDR_ICOG_CONFIG, 0x80,0x10):
             data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, row, SS.CALIB_PAGE_LENGTH)
             if len(data) < SS.CALIB_PAGE_LENGTH:
                 #No data received

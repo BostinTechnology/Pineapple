@@ -37,11 +37,12 @@ import sys
 import logging
 import logging.config
 import importlib
+import inspect
 
 
 # The following global variables are used.
 gbl_log = ""
-gbl_icog = ""
+
 
 
 
@@ -105,6 +106,9 @@ def SetandGetArguments():
 
     """
 
+#BUG: The way the arguments is required is not as expected
+# Had to type sudo python3 Control.py -c DISPLAYCAL
+# to get it to work
     gbl_log.info("[CTRL] Setting and Getting Parser arguments")
     parser = argparse.ArgumentParser(description="Capture and send data for CognIoT sensors")
     parser.add_argument("-S", "--Start",
@@ -139,17 +143,16 @@ def SetupSensor():
     - Connect to the ID_IoT chip and retive all the infromation
     - load the correct icog file
     - Transfer the configuration information into the loaded icog
-    - set the global variable gbl_icog to the required icog
-    
+    - set the global variable icog to the required icog
+    returns the instance of the icog and the eeprom
     """
-    global gbl_icog
-    
+  
     # Load the data from the EEPROM on the ID-Iot chip
     i2c_connection = i2c_comms()
-    eeprom_data = cls_EEPROM.ID_IoT(i2c_connection)
+    eeprom = cls_EEPROM.ID_IoT(i2c_connection)
 
     # Load the correct sensor file
-    icog_file = eeprom_data.ReturnSensorCommsFile()
+    icog_file = eeprom.ReturnSensorCommsFile()
     gbl_log.info("[CTRL] Loading the iCog Comms file:%s" % icog_file)
 
     try:
@@ -163,7 +166,7 @@ def SetupSensor():
     gbl_log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
     
     # Open the right bus connection to work with the icog connected
-    reqd_bus = eeprom_data.ReturnBusType()
+    reqd_bus = eeprom.ReturnBusType()
     if reqd_bus == SS.SPI:
         icog_connection = SPi_comms()
     elif reqd_bus == SS.SERIAL:
@@ -177,14 +180,14 @@ def SetupSensor():
     gbl_log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
     
     # Retrieve Calibration Data and pass it to the iCog
-    calib_data = eeprom_data.ReturnCalibrationData()
+    calib_data = eeprom.ReturnCalibrationData()
     
     gbl_log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
-    gbl_icog = imported_icog.iCog(icog_connection, calib_data)
-    gbl_log.debug("[CTRL] imported icog:%s" % gbl_icog)
+    icog = imported_icog.iCog(icog_connection, calib_data)
+    gbl_log.debug("[CTRL] imported icog:%s" % icog)
 
-    return
+    return (icog, eeprom)
     
 def Start():
     """
@@ -200,7 +203,7 @@ def Start():
         post
     """
  
-    SetupSensor()
+    (icog, eeprom) = SetupSensor()
     
     # Sit in a loop reading the values back and writing them to the data connection
     # values available from the i_cog
@@ -209,18 +212,18 @@ def Start():
     print("Reading Values from sensor\n")
     print("CTRL-C to cancel")
 
-    read_freq = gbl_icog.ReturnReadFrequency()
+    read_freq = icog.ReturnReadFrequency()
     #read_freq = 10
     gbl_log.debug("[CTRL] Read Frequency:%s" % read_freq)
     try:
-        gbl_icog.StartSensor()
+        icog.StartSensor()
         while True:
             # Start the timer
             endtime = datetime.now() + timedelta(seconds=read_freq)
             print("\r\r\r\r\r\r\rReading", end="")
 
             #Read the value
-            reading = gbl_icog.ReadValue()
+            reading = icog.ReadValue()
             #TODO: Convert to a post
             gbl_log.info("[CTRL] Value Read back from the sensor:%s" % reading)
 
@@ -270,9 +273,19 @@ def Reset():
     
     setup i2c comms
     provide menu to reset the Id-IoT
-    using the iCog to get the data values.
+    using the iCog to reset the config and get the data values.
+    reset all the configuration data back to original
     """
-    print ("Not yet Implemented")
+    check = input("Are you sure you want to reset back to default values (y/n)?")
+    if check.upper() == "Y":
+        (icog, eeprom) = SetupSensor()
+        calib = icog.ResetCalibration()
+        eeprom.ResetCalibrationData(calib)
+
+        print("Calibration Data reset to default values")
+    
+    print("Clearing of User data not yet implemented")
+    
     return
 
 def NewSensor():
@@ -305,18 +318,32 @@ def DisplayCal():
     # Need to add a check to see if Setup has alread been run and therefore doesn't need to be rerun
     # Put this check in SetupSensor()
     
-    calib_data = gbl_icog.ReturnCalibrationData()
+    (icog, eeprom) = SetupSensor()
+    calib_data = icog.ReturnCalibrationData()
+    print("Setting                  Value")
+    print("==============================")
     for item in calib_data:
-        print("Setting:%s     Value:%s" %( item, calib_data[item]))
-    print ("Not yet Implemented")
+        print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
+
     return
     
 def SetCal():
     """
     Perform the necessary actions to set the Calibration data being used
-    
+    Call the icog SetCalibration routine which returns the calibration data
+    Write the calibration data to the ID_IoT
     """
-    print ("Not yet Implemented")
+    
+    (icog, eeprom) = SetupSensor()
+    calib = icog.SetCalibration()
+    if len(calib) < 1:
+        # no data returned, so nothing to write
+        eeprom.ResetCalibrationData(calib)
+
+        print("Calibration Data Set")
+    else:
+        print("No change to the calibration data")
+    
     return
     
 def DisplayParameters():
@@ -334,6 +361,7 @@ def SetParameters():
     Parameters to be captured
     - Sensor Acroynm
     - Sensor Description
+    - local or remote database
     """
     print ("Not yet Implemented")
     return
@@ -391,7 +419,7 @@ def main():
     if args.Start: 
         Start()
     elif args.Reset: 
-        Reset()              #TODO: Not started
+        Reset()
     elif args.NewSensor:
         NewSensor()          #TODO: Not started
     elif args.DeviceID:
@@ -399,9 +427,9 @@ def main():
     elif args.SensorID:
         DisplaySensorID()    #TODO: Not started
     elif args.DisplayCal:
-        DisplayCal()         #TODO: Not started
+        DisplayCal()
     elif args.SetCal:
-        SelCal()             #TODO: Not started
+        SetCal()             #TODO: Not started
     elif args.DisplayPara:
         DisplayParameters()  #TODO: Not started
     elif args.SetPara:
