@@ -333,16 +333,18 @@ def SetCal():
     Call the icog SetCalibration routine which returns the calibration data
     Write the calibration data to the ID_IoT
     """
-    
+    gbl_log.info("[CTRL] Setting the Calibration")
     (icog, eeprom) = SetupSensor()
     calib = icog.SetCalibration()
-    if len(calib) < 1:
-        # no data returned, so nothing to write
+    if len(calib) > 1:
+        # data returned, so nothing to write
         eeprom.ResetCalibrationData(calib)
 
         print("Calibration Data Set")
+        gbl_log.info("[CTRL] Calibration data set")
     else:
         print("No change to the calibration data")
+        gbl_log.info("[CTRL] No change to the Calibration")
     
     return
     
@@ -429,7 +431,8 @@ def main():
     elif args.DisplayCal:
         DisplayCal()
     elif args.SetCal:
-        SetCal()             #TODO: Not started
+        SetCal()
+        DisplayCal()
     elif args.DisplayPara:
         DisplayParameters()  #TODO: Not started
     elif args.SetPara:
