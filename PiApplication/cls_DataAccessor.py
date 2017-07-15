@@ -5,10 +5,6 @@ Contains the required AWS Connection Utilities
     This will require some space management so that we don't overfill the card.
     If it was really clever, it would create a separate thread to handle writing of the data
 
-This needs to be converted to a class and handle many additional functions like
-- no network connection
-- connecting to the restful interface
-
 Process
 - Data In
 - Write to file
@@ -41,15 +37,15 @@ When writing Sensor Values, TableName='SensorValues',
                 },
 
 """
-###
-### All this needs to be changed to suit the requirements of a class
-###
 
 import boto3
 import sys
 import logging
+import random
+import json
 
 import Standard_Settings as SS
+
 
 
 class DataAccessor:
@@ -65,7 +61,6 @@ class DataAccessor:
         self.acroynm = acroynm
         self.description = desc
         self._db_version()
-        self._open_record_file()
         return
     
     def DataIn(self,data):
@@ -77,6 +72,9 @@ class DataAccessor:
         - Write to file
         There is no response
         """
+        
+        #BUG: Needs to accept data structures with multiple datasets in them
+        # [[x,y,z],[a,b,c]]
         if self._validate_data(data):
             self._write_data_to_file(data)
         else:
@@ -97,14 +95,15 @@ class DataAccessor:
         - More data (if so repeat read records onwards)
         - Return to start
         """
+        print("transmitting dta")
         more_data = True
         while more_data:
             if self._connected():
                 record = self._read_record()
                 if len(record) > 0:
                     status = self._send_record(record)
-                    if status:
-                        self._set_status_flag(record)
+                    if status == False:
+                        self._rewrite_record(record)
             else:
                 more_data = False
                     
@@ -124,7 +123,7 @@ class DataAccessor:
         self.db_version = 0.1
         return
     
-    def _validate_data(self):
+    def _validate_data(self,dataset):
         """
         Check the incoming data to check it contains valid values
         Need some link into the self.db_version
@@ -142,71 +141,61 @@ class DataAccessor:
         self.log.warning("[DAcc] Check for disk space for the data file is not yet implemented")
         return True
     
-    def _open_record_file(self):
-        """
-        The name of the datafile will be standard across the range.
-        Returns True if the file is open, False if not. 
-        """
-        print("Opening of the record file is not yet implemented")
-        self.log.warning("[DAcc] Opening of the record file is not yet implemented")
-        if self._check_disk_space():
-            self.log.info("[DAcc] Reading the record file for sensor information")
-            try:
-                self.log.debug("[DAcc] Record File in location:%s" % SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME)
-                self.record_file = open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='rt')
-                ##lines = self.record_file.readlines()
-                ##self._record_file.close()
-                self.log.debug("[DAcc] record file loaded %s" % lines)
-            except:
-                self.log.critical("[DAcc] Failed to open record file, please contact support", exc_info=True)
-                self.log.exception("[DAcc] _sopen_record_file Exception Information")
-                sys.exit()
-
-        return True
-    
     def _write_data_to_file(self,data_to_write):
         """
         Given the data, write it to the file. If it fails, try some alternative measures
-        The file will already be open for writing
+        Need to have a flag to indicate if the file is being re-synchronised
         """
-        print("Writing data to file is not yet implemented")
-        self.log.warning("[DAcc] Writing data to file is not yet implemented")
+        #TODO: need to check the file has been written correctly.
+        print("Writing data:%s" % data_to_write)
+        
+        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='a') as f:
+            json.dump(data_to_write, f)
+            f.write(',\n')
         return True
 
+    def _read_record(self):
+        """
+        Read a record out of the record file
+        Return an empty string if no record to find
+        """
+        print("Reading of Records is not yet implemented")
+        self.log.warning("[DAcc] Reading of Records is not yet implemented")
+        
+        #BUG: This is not deleting the record from the file.
+        
+        #BUG: If more than 1 record exists, the program fails
+        # file contains ["2", 86, "lux"]["4", 19, "Deg C"]
+        
+        record = ""
+        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='r') as f:
+            record = json.load(f)
+        return record
+        
     def _connected(self):
         """
         Check if the application is connected to the RESTful interface
         Returns True or False
         """
-        print("CHecking for connection is not yet implemented")
+        print("Checking for connection is not yet implemented")
         self.log.warning("[DAcc] Checking for connection is not yet implemented")
         
         return True
     
-    def _read_record(self):
-        """
-        Read a record out of the record file
-        return an empty string if no record to find
-        """
-        print("Reading of Records is not yet implemented")
-        self.log.warning("[DAcc] Reading of Records is not yet implemented")
-        record = ""
-        return record
-        
     def _send_record(self, record_to_send):
         """
         Send the given record from the record file
         return True / False based on the sending of the record
         """
-        print("Sending of Records is not yet implemented")
-        self.log.warning("[DAcc] Sending of Records is not yet implemented")
+        print("Sending of Records is not yet implemented\n:%s" % record_to_send)
+        self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % record_to_send)
         record = ""
         return True
     
-    def _set_status_flag(self, record_to_flag):
+    def _rewrite_record(self, record_to_flag):
         """
-        Set the status flag after a successful sending of a record out of the record file
-        return nothing
+        Write the record back to the file.
+        This requires a flag setting as I can't write additional records whilst this is in operation
         """
         print("Reading of Records is not yet implemented")
         self.log.warning("[DAcc] Reading of Records is not yet implemented")
@@ -273,3 +262,39 @@ class DataAccessor:
 
 
         return
+#-----------------------------------------------------------------------
+#
+#    T E S T   F U N C T I O N S
+#
+#-----------------------------------------------------------------------
+
+## BUG: Tets data also needs to make a data strcuture that conmsists of
+#       [[x,y,z],[a,b,c]]
+
+def GenerateTestData():
+    """
+    Generate a dataset to represent the simulated input
+    [type, number, units]
+    """
+    types = ['1','2','3','4']
+    units = ['lux', 'Deg C', 'Deg F', '%', 'tag']
+    dataset = []
+    dataset.append(types[random.randint(0,len(types)-1)])
+    dataset.append(random.randint(0,100))
+    dataset.append(units[random.randint(0,len(units)-1)])
+    print("Data Being Returned:%s" % dataset)
+    
+    
+    return dataset
+
+def main():
+    print("Sending Data In")
+    # Need to add comms handler and calib data to test with
+    dacc = DataAccessor(device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
+    for i in range(0,1):
+        dacc.DataIn(GenerateTestData())
+    print("\nTransmitting Data\n")
+    dacc.TransmitData()
+
+if __name__ == '__main__':
+    main()
