@@ -43,6 +43,7 @@ import sys
 import logging
 import random
 import json
+from datetime import time
 
 import Standard_Settings as SS
 
@@ -56,6 +57,8 @@ class DataAccessor:
     def __init__(self, device, sensor, acroynm, desc):
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
+        
+        self.records = []
         self.device = device
         self.sensor = sensor
         self.acroynm = acroynm
@@ -95,19 +98,37 @@ class DataAccessor:
         - More data (if so repeat read records onwards)
         - Return to start
         """
-        print("transmitting dta")
+        print("Transmitting Data")
         more_data = True
+        record_try_count = 0
         while more_data:
             if self._connected():
                 record = self._read_record()
                 if len(record) > 0:
                     status = self._send_record(record)
-                    if status == False:
-                        self._rewrite_record(record)
+                    if status == True:
+                        self._remove_record(record)
+                        record_try_count = 0
+                    else:
+                        record_try_count = record_try_count + 1
+                        if record_try_count > SS.RECORD_TRY_COUNT:
+                            self.log.error("[DAcc] Failed to send record over %s times, record archived" % record_try_count)
+                            self.log.info("[DAcc] Archived Record:%s" % record)
+                            self._remove_record(record)
+                        else:
+                            time.sleep(record_try_count)        # Wait for a period before retrying
+                            self._rewrite_record(record)
+                else:
+                    more_data = False
+                    self.log.info("[DAcc} No more data records to read")
             else:
+                # I'm not connected, so return
                 more_data = False
-                    
-        
+                self.log.info("[DAcc] Not currently connected, so no records sent")
+                return False
+        return True
+
+
 #-----------------------------------------------------------------------
 #
 #    P R I V A T E   F U N C T I O N S
@@ -140,18 +161,24 @@ class DataAccessor:
         print("Check for disk space for the data file is not yet implemented")
         self.log.warning("[DAcc] Check for disk space for the data file is not yet implemented")
         return True
-    
+        
+    def _update_record_file(self):
+        """
+        Take the self.records and write it to the file
+        """
+        self.log.info("[DAcc] Records File udpated")
+        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='w') as f:
+            json.dump(self.records, f)
+        return
+        
     def _write_data_to_file(self,data_to_write):
         """
         Given the data, write it to the file. If it fails, try some alternative measures
         Need to have a flag to indicate if the file is being re-synchronised
         """
-        #TODO: need to check the file has been written correctly.
-        print("Writing data:%s" % data_to_write)
-        
-        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='a') as f:
-            json.dump(data_to_write, f)
-            f.write(',\n')
+        self.log.info("[DAcc] _write_data_to_file")
+        self.records.append(data_to_write)
+        self._update_record_file()
         return True
 
     def _read_record(self):
@@ -159,18 +186,30 @@ class DataAccessor:
         Read a record out of the record file
         Return an empty string if no record to find
         """
-        print("Reading of Records is not yet implemented")
-        self.log.warning("[DAcc] Reading of Records is not yet implemented")
-        
-        #BUG: This is not deleting the record from the file.
-        
-        #BUG: If more than 1 record exists, the program fails
-        # file contains ["2", 86, "lux"]["4", 19, "Deg C"]
-        
-        record = ""
-        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='r') as f:
-            record = json.load(f)
+        record = []
+        if len(self.records) > 0:
+            record = self.records[0]
+        self.log.debug("[DAcc] Record obtained from the records file:%s" % record)
         return record
+    
+    def _remove_record(self,record_to_delete):
+        """
+        Remove record zero from the records file
+        Checks the record given matches the one it is about to remove before removing it
+        After removing it from the records, updates the file on disk
+        """
+        
+        compare = self.records[0]
+        if len(compare) > 0:
+            if compare == record_to_delete:
+                self.records.pop(0)
+                self.log.debug("[DAcc] Removed record zero from the list, record was:%s" % compare)
+            else:
+                self.log.warning("[DAcc] When trying to remove record, it didn't match expected so no record removed")
+            self._update_record_file()
+        else:
+            self.log.debug("[DAcc] tried to remove record zero but self.records was empty")
+        return
         
     def _connected(self):
         """
@@ -197,8 +236,8 @@ class DataAccessor:
         Write the record back to the file.
         This requires a flag setting as I can't write additional records whilst this is in operation
         """
-        print("Reading of Records is not yet implemented")
-        self.log.warning("[DAcc] Reading of Records is not yet implemented")
+        print("Rewrite of Records is not yet implemented")
+        self.log.warning("[DAcc] Rewrite of Records is not yet implemented")
         return
 
         
@@ -284,17 +323,38 @@ def GenerateTestData():
     dataset.append(units[random.randint(0,len(units)-1)])
     print("Data Being Returned:%s" % dataset)
     
-    
     return dataset
+
+def SetupLogging():
+    """
+    Setup the logging defaults
+    Using the logger function to span multiple files.
+    """
+    print("Current logging level is \n\n   DEBUG!!!!\n\n")
+    
+    # Create a logger with the name of the function
+    logging.config.dictConfig(dict_LoggingSetup.log_cfg)
+    log = logging.getLogger()
+
+    #BUG: This is loading the wrong values into the log file
+    log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
+    log.info("Screen Logging Started, current level is %s" % log.getEffectiveLevel)
+    
+    return
 
 def main():
     print("Sending Data In")
     # Need to add comms handler and calib data to test with
     dacc = DataAccessor(device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
-    for i in range(0,1):
+    for i in range(0,100):
         dacc.DataIn(GenerateTestData())
     print("\nTransmitting Data\n")
     dacc.TransmitData()
 
 if __name__ == '__main__':
+    import logging
+    import logging.config
+    import dict_LoggingSetup
+    SetupLogging()
+    
     main()

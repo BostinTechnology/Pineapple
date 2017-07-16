@@ -11,6 +11,7 @@ CALIB_PAGE_LENGTH = 16            # The number of bytes in the 'row' of calibrat
 
 RECORDFILE_LOCATION = "."
 RECORDFILE_NAME = "records.txt"
+RECORD_TRY_COUNT = 10               # How many times, when connected the Data Accessor will try and send a record
 
 def test():
     

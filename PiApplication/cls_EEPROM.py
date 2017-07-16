@@ -437,6 +437,7 @@ if __name__ == '__main__':
     
     import logging
     import logging.config
+    import dict_LoggingSetup
     SetupLogging()
     # use a default class for comms and therefore allow it to be dummy data.
     #import cls_comms
