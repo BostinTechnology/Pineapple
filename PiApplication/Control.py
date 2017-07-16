@@ -17,7 +17,7 @@ Command Line Options
 
 """
 
-import cls_DataAccessor
+from cls_DataAccessor import DataAccessor
 import cls_EEPROM
 import Standard_Settings as SS
 from cls_comms import i2c_comms
@@ -189,7 +189,7 @@ def SetupSensor():
 
     return (icog, eeprom)
     
-def Start():
+def Start(cust_info):
     """
     Perform the reading of and sending data to the AWS database
     This is the default action if no arguments are passed to the system.
@@ -212,6 +212,7 @@ def Start():
     print("Reading Values from sensor\n")
     print("CTRL-C to cancel")
 
+    DataAcc = DataAccessor(cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
     read_freq = icog.ReturnReadFrequency()
     #read_freq = 10
     gbl_log.debug("[CTRL] Read Frequency:%s" % read_freq)
@@ -224,14 +225,19 @@ def Start():
 
             #Read the value
             reading = icog.ReadValue()
-            #TODO: Convert to a post
+
             gbl_log.info("[CTRL] Value Read back from the sensor:%s" % reading)
+            
+            DataAcc.DataIn(reading)
+            # The following but needs to be put into a thread for parallel running
+            DataAcc.TransmitData()
 
             # Wait for timeout
             waiting = False
             while endtime > datetime.now():
                 if waiting == False:
                     print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
+                    self.log.debug("[CTRL] Waiting for timeout to complete")
                     waiting=True
             
     except KeyboardInterrupt:
@@ -243,27 +249,6 @@ def Start():
         print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
         gbl_log.exception("[CTRL] Start reading loop Exception Data")
 
-    
-    
-    #HERE!!
-    
-
-    
-
-
-###
-###
-### The routine beneath here needs a complete review and refresh. All the names
-### will have been changed and altered to suit the new structure
-###
-###
-
-    # setup the connection to the AWS database
-    dbconn = DataAccessor.DynamodbConnection()
-    gbl_log.info("Connected to AWS database")
-    gbl_log.debug("Database connection:%s" % dbconn)
-
-    
     return
 
 def Reset():
@@ -411,7 +396,7 @@ def main():
     print("\nDevice ID: %s" % device_id)
     print("\nTo Exit, CTRL-c\n\n")
 
-
+    customer_info = {"device" : 1, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
     
     #TODO: print out the values being used, especially if they are the defaults.
     
@@ -419,7 +404,7 @@ def main():
 
     # Note: The default is Start, hence it is the else clause
     if args.Start: 
-        Start()
+        Start(customer_info)
     elif args.Reset: 
         Reset()
     elif args.NewSensor:
@@ -440,7 +425,7 @@ def main():
     elif args.Logging:
         SetLogging()         #TODO: Not started
     else:
-        Start()              
+        Start(customer_info)              
 
     
         

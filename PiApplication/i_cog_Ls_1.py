@@ -29,6 +29,8 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x44
 # The time between a write and subsequent read
 WAITTIME = 0.5
+MVDATA_TYPE = 1
+MVDATA_UNITS = 'lx'
 
 class iCog():
     
@@ -73,7 +75,7 @@ class iCog():
     
     def ReadValue(self):
         """
-        Return the current value from the sensor
+        Return the current value from the sensor, in the correct format
         In Low Power mode start / read and end the sensor
         """
         if self.calibration_data['low_power_mode'] == True:
@@ -87,7 +89,9 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._stop()
         
-        return value
+        mvdata = [MVDATA_TYPE, value, MVDATA_UNITS]
+        
+        return mvdata
     
     def SetCalibration(self):
         """

@@ -31,7 +31,8 @@ When writing Sensor Values, TableName='SensorValues',
                 'SensorDescription' : { 'S': str(desc)},
                 'MVData': { 'M' : {
                     'type': { 'S' : '1'},
-                    'value': { 'S' : str(data)}
+                    'value': { 'S' : str(data)},
+                    'units': { 'S' : units}
                     }},
                 'Viewed': { 'BOOL' : False},
                 },
@@ -53,11 +54,15 @@ class DataAccessor:
     """
     Takes the given data and writes it to the required output.
     The output location will be dependent on the chosen settings - not sure where these are stored.
+    Device_ID: {'N': str(device)}, TimeStamp: {'S': str(tstamp)}, Sensor_ID': {'N': str(sensor)},
+    SensorAcroynm': {'S' : str(acroynm)}, SensorDescription' : { 'S': str(desc)},
+
     """
     def __init__(self, device, sensor, acroynm, desc):
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
         
+        #TODO: Change this to use queus https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
         self.device = device
         self.sensor = sensor
@@ -221,14 +226,58 @@ class DataAccessor:
         
         return True
     
-    def _send_record(self, record_to_send):
+    def _send_record(self, data_in):
         """
         Send the given record from the record file
         return True / False based on the sending of the record
+        {
+                'Device_ID': {'N': str(device)},
+                'TimeStamp': {'S': str(tstamp)},
+                'Sensor_ID': {'N': str(sensor)},
+                'SensorAcroynm': {'S' : str(acroynm)},
+                'SensorDescription' : { 'S': str(desc)},
+                
+                THE BELOW BIT DOES NOT HOLD TRUE WITH DOCUMENTATION
+                - Need to review how to store the info.
+                
+                'MVData': { 'M' : 
+                    {                     # Multiple sets
+                    'type': { 'S' : '1'},
+                    'value': { 'S' : str(data)},
+                    'units': { 'S' : units}
+                    },
+                    {                     # Multiple sets
+                    'type': { 'S' : '1'},
+                    'value': { 'S' : str(data)},
+                    'units': { 'S' : units}
+                    }
+                    },
+                'Viewed': { 'BOOL' : False},
+                },
+                        self.device = device
+        self.sensor = sensor
+        self.acroynm = acroynm
+        self.description = desc
         """
-        print("Sending of Records is not yet implemented\n:%s" % record_to_send)
-        self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % record_to_send)
-        record = ""
+        data_record = {}
+        data_record['Device_ID'] = { 'N' : str(self.device)}
+        #TODO: Timestamp to be added
+        #data_record['TimeStamp'] = { 'S' : str(tstamp)}
+        data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
+        data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
+        data_record['SensorDescription'] = { 'N' : str(self.description)}
+        mvdata = {}
+        for item in data_in:
+            mvdata['type'] = {'S' : str(item[0])}
+            mvdata['value'] = {'S' : str(item[1])}
+            mvdata['units'] = {'S' : str(item[2])}
+            
+        HERE!!!
+        
+        
+        self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
+        print("Sending of Records is not yet implemented\n:%s" % data_in)
+        self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
         return True
     
     def _rewrite_record(self, record_to_flag):
@@ -290,7 +339,8 @@ class DataAccessor:
                     'SensorDescription' : { 'S': str(desc)},
                     'MVData': { 'M' : {
                         'type': { 'S' : '1'},
-                        'value': { 'S' : str(data)}
+                        'value': { 'S' : str(data)},
+                        'units':{ 'S' : units}
                         }},
                     'Viewed': { 'BOOL' : False},
                     },
