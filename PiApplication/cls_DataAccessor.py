@@ -45,6 +45,7 @@ import logging
 import random
 import json
 from datetime import time
+from datetime import datetime
 
 import Standard_Settings as SS
 
@@ -122,7 +123,6 @@ class DataAccessor:
                             self._remove_record(record)
                         else:
                             time.sleep(record_try_count)        # Wait for a period before retrying
-                            self._rewrite_record(record)
                 else:
                     more_data = False
                     self.log.info("[DAcc} No more data records to read")
@@ -171,6 +171,9 @@ class DataAccessor:
         """
         Take the self.records and write it to the file
         """
+        
+        #TODO: Need to add some disk management, not sure what to do though!
+        
         self.log.info("[DAcc] Records File udpated")
         with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='w') as f:
             json.dump(self.records, f)
@@ -231,126 +234,54 @@ class DataAccessor:
         Send the given record from the record file
         return True / False based on the sending of the record
         {
-                'Device_ID': {'N': str(device)},
+                'Device_ID': {'N': str(self.device)},
                 'TimeStamp': {'S': str(tstamp)},
-                'Sensor_ID': {'N': str(sensor)},
-                'SensorAcroynm': {'S' : str(acroynm)},
-                'SensorDescription' : { 'S': str(desc)},
+                'Sensor_ID': {'N': str(self.sensor)},
+                'SensorAcroynm': {'S' : str(self.acroynm)},
+                'SensorDescription' : { 'S': str(self.description)},
                 
                 THE BELOW BIT DOES NOT HOLD TRUE WITH DOCUMENTATION
                 - Need to review how to store the info.
                 
                 'MVData': { 'M' : 
-                    {                     # Multiple sets
+                    {                     # Multiple sets of values require seperate records
                     'type': { 'S' : '1'},
                     'value': { 'S' : str(data)},
                     'units': { 'S' : units}
-                    },
-                    {                     # Multiple sets
-                    'type': { 'S' : '1'},
-                    'value': { 'S' : str(data)},
-                    'units': { 'S' : units}
-                    }
+                    } 
                     },
                 'Viewed': { 'BOOL' : False},
                 },
-                        self.device = device
-        self.sensor = sensor
-        self.acroynm = acroynm
-        self.description = desc
+                
+        if data_in contains multiple datasets, send each record independently
         """
-        data_record = {}
-        data_record['Device_ID'] = { 'N' : str(self.device)}
-        #TODO: Timestamp to be added
-        #data_record['TimeStamp'] = { 'S' : str(tstamp)}
-        data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
-        data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
-        data_record['SensorDescription'] = { 'N' : str(self.description)}
-        mvdata = {}
+        
+        #TODO: Need to add database version check and implementation
+        
         for item in data_in:
+            data_record = {}
+            data_record['Device_ID'] = { 'N' : str(self.device)}
+            data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
+            data_record['TimeStamp'] = { 'S' : str(item[3])}
+            data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
+            data_record['SensorDescription'] = { 'N' : str(self.description)}
+            mvdata = {}
             mvdata['type'] = {'S' : str(item[0])}
             mvdata['value'] = {'S' : str(item[1])}
             mvdata['units'] = {'S' : str(item[2])}
+            data_record['MVData'] = { 'M' : mvdata}
+            data_record['Viewed'] = { 'BOOL' : False}
             
-        HERE!!!
-        
-        
-        self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
+            self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
+            
+            #TODO: Send the data record here
+            
+            #TODO: set the true / false flag accordingly
+            
         print("Sending of Records is not yet implemented\n:%s" % data_in)
         self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
         return True
     
-    def _rewrite_record(self, record_to_flag):
-        """
-        Write the record back to the file.
-        This requires a flag setting as I can't write additional records whilst this is in operation
-        """
-        print("Rewrite of Records is not yet implemented")
-        self.log.warning("[DAcc] Rewrite of Records is not yet implemented")
-        return
-
-        
-    def DynamodbConnection(self):
-        """
-        Connect to the dynamo db.
-        set Endpoint is used to make a local connection rather than the remote connection
-        returns T
-        """
-        log = logging.getLogger(__name__)
-        #TODO: Add in validation that a conection has been made.
-        log.info("Setting Up db connection")
-        try:
-            db = boto3.client('dynamodb', 
-                aws_access_key_id='AKIAI7HW3Y2EPZ5GPBTQ',
-                aws_secret_access_key='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',
-                region_name = 'eu-west-1')
-    #            endpoint_url='http://dynamodb.eu-west-1.amazonaws.com',
-
-        except:
-            print ("Unable to connected to database, please check internet connection")
-            sys.exit()
-
-
-        return db
-
-        
-    def WriteValues(self, db, data, tstamp, device, sensor, acroynm, desc):
-        """
-        Update the SensorValues table with the given data and timestamp
-        Always using the same sensor
-        returns nothing
-        """
-        
-        #TODO: Needs to return a success / failure
-
-        #TODO: Future upgrade is to capture the data if offline and send it when it reconnects.
-        
-        print ("device: %s, Timestamp: %s, Sensor: %s, Acroynm: %s, Desc: %s, Tag: %s" % (device, tstamp, sensor, acroynm, desc, data))
-        
-        return
-        try:
-            ans = db.put_item(
-                TableName='SensorValues',
-                Item={
-                    'Device_ID': {'N': str(device)},
-                    'TimeStamp': {'S': str(tstamp)},
-                    'Sensor_ID': {'N': str(sensor)},
-                    'SensorAcroynm': {'S' : str(acroynm)},
-                    'SensorDescription' : { 'S': str(desc)},
-                    'MVData': { 'M' : {
-                        'type': { 'S' : '1'},
-                        'value': { 'S' : str(data)},
-                        'units':{ 'S' : units}
-                        }},
-                    'Viewed': { 'BOOL' : False},
-                    },
-                )
-            # print("Create Item Response %s" % ans) #Debug
-        except:
-            print ("Unable to write data to AWS")
-
-
-        return
 #-----------------------------------------------------------------------
 #
 #    T E S T   F U N C T I O N S
@@ -360,6 +291,11 @@ class DataAccessor:
 ## BUG: Tets data also needs to make a data strcuture that conmsists of
 #       [[x,y,z],[a,b,c]]
 
+def GenerateTimestamp():
+    now = str(datetime.now())
+    print("[DAcc] Generated a timestamp %s" % now[:23])
+    return now[:23]
+    
 def GenerateTestData():
     """
     Generate a dataset to represent the simulated input
@@ -367,10 +303,11 @@ def GenerateTestData():
     """
     types = ['1','2','3','4']
     units = ['lux', 'Deg C', 'Deg F', '%', 'tag']
-    dataset = []
-    dataset.append(types[random.randint(0,len(types)-1)])
-    dataset.append(random.randint(0,100))
-    dataset.append(units[random.randint(0,len(units)-1)])
+    dataset = [[]]
+    dataset[0].append(types[random.randint(0,len(types)-1)])
+    dataset[0].append(random.randint(0,100))
+    dataset[0].append(units[random.randint(0,len(units)-1)])
+    dataset[0].append(GenerateTimestamp())
     print("Data Being Returned:%s" % dataset)
     
     return dataset
@@ -396,7 +333,7 @@ def main():
     print("Sending Data In")
     # Need to add comms handler and calib data to test with
     dacc = DataAccessor(device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
-    for i in range(0,100):
+    for i in range(0,10):
         dacc.DataIn(GenerateTestData())
     print("\nTransmitting Data\n")
     dacc.TransmitData()

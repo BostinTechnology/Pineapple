@@ -125,14 +125,14 @@ def SetandGetArguments():
                     help="Set the logging level to be used (Default is OFF)")
     Cal_group = parser.add_mutually_exclusive_group()
     Cal_group.add_argument("-c", "--DisplayCal", 
-                    help="Display the Calibration Data for the sensors")
+                    help="Display the Calibration Data for the sensors, e.g. Read Frequency")
     Cal_group.add_argument("-e", "--SetCal", 
-                    help="Set new Calibration Data for the sensors")
+                    help="Set new Calibration Data for the sensors, e.g. Read Frequency")
     Para_group = parser.add_mutually_exclusive_group()
-    Para_group.add_argument("-o", "--DisplayPara", 
-                    help="Display the Operational parameters, e.g. Read Frequency")
-    Para_group.add_argument("-a", "--SetPara", 
-                    help="Set the Operational parameters, e.g. Read Frequency")
+    Para_group.add_argument("-o", "--DisplayCustInfo", 
+                    help="Display the Customer Information, e.g. Customer Name")
+    Para_group.add_argument("-a", "--SetCustInfo", 
+                    help="Set the Operational parameters, e.g. Customer Name")
 
     gbl_log.debug("[CTRL] Parser values captured: %s" % parser.parse_args())
     return parser.parse_args()
@@ -237,7 +237,7 @@ def Start(cust_info):
             while endtime > datetime.now():
                 if waiting == False:
                     print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
-                    self.log.debug("[CTRL] Waiting for timeout to complete")
+                    gbl_log.debug("[CTRL] Waiting for timeout to complete")
                     waiting=True
             
     except KeyboardInterrupt:
@@ -401,7 +401,11 @@ def main():
     #TODO: print out the values being used, especially if they are the defaults.
     
     #TODO: probably needs something to bomb out if there is a failure
-
+    
+    #TODO: Need to add some disk management, a generic check for overall disk space.
+        # See one of my photography apps
+        
+    
     # Note: The default is Start, hence it is the else clause
     if args.Start: 
         Start(customer_info)
@@ -418,9 +422,9 @@ def main():
     elif args.SetCal:
         SetCal()
         DisplayCal()
-    elif args.DisplayPara:
+    elif args.DisplayCustInfo:
         DisplayParameters()  #TODO: Not started
-    elif args.SetPara:
+    elif args.SetCustInfo:
         SetParameters()      #TODO: Not started
     elif args.Logging:
         SetLogging()         #TODO: Not started

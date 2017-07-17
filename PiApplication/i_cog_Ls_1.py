@@ -17,6 +17,7 @@ adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
 
 import logging
 import time
+from datetime import datetime
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -77,19 +78,20 @@ class iCog():
         """
         Return the current value from the sensor, in the correct format
         In Low Power mode start / read and end the sensor
+        This should return a list of lists, each inner list is a set of values
         """
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._start()
             
         value = self._read_lux()
-    #BUG: Returns a number, not in the correct json format
+        timestamp = self._timestamp()
         
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._stop()
         
-        mvdata = [MVDATA_TYPE, value, MVDATA_UNITS]
+        mvdata = [[MVDATA_TYPE, value, MVDATA_UNITS, timestamp]]
         
         return mvdata
     
@@ -483,6 +485,14 @@ class iCog():
         else:
             self.log.debug("[Ls1] Sensor already Turned off")
         return
+    
+    def _timestamp(self):
+        """
+        Generate a timestamp of the correct format
+        """
+        now = str(datetime.now())
+        self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
+        return str(now[:23])
 
 def main():
     print("start")
