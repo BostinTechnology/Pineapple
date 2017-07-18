@@ -230,7 +230,6 @@ class ID_IoT():
         else:
             self.log.critical("[EEPROM] Map Version read from Id_IOT is not supported, value received:%s" % self.map_version)
             print("\nCRITICAL ERROR, EEPROM Map Version is not supported- contact Support\n")
-            self.log.exception("[EEPROM] _read_sensor_data_from_eeprom Exception Data")
 
             sys.exit()
         
@@ -313,7 +312,7 @@ class ID_IoT():
             data.close()
             self.log.debug("[EEPROM] datafile loaded %s" % lines)
         except:
-            self.log.critical("[EEPROM] Failed to Open datafile, please contact support", exc_info=True)
+            self.log.critical("[EEPROM] Failed to Open datafile, please contact support")
             self.log.exception("[EEPROM] _set_additional_data Exception Information")
             sys.exit()
 
@@ -339,7 +338,6 @@ class ID_IoT():
 
         if len(self.sensor_comms_file) < 1:
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
-            self.log.exception("[EEPROM] _set_additional_data Exception Information")
                 
         self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
             %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
@@ -358,7 +356,6 @@ class ID_IoT():
         if len(data) < 1:
             #No data received
             self.log.critical("[EEPROM] EEPROM UUID read from Id_IOT did not return any data, value received:%s" % data)
-            print("\nWARNING, EEPROM UUID Read Failure, using default - contact Support\n")
             self.uuid = 0xfa17ed
         else:
             #self.uuid = data[0] << 24 + data[1] << 16 + data[2] <<8 + data[3]

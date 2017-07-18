@@ -301,7 +301,6 @@ class iCog():
             # Failed to decode the default configuration, need to abort
             self.log.critical("[Ls1] Unable to load Default Configuration")
             print("\nCRITICAL ERROR, Unable to Load Default Configuration- contact Support\n")
-            self.log.exception("[Ls1] ResetConfig Exception Data")
 
             #BUG: This is a poor solution, should return to the main menu with a better way out than this
             sys.exit()

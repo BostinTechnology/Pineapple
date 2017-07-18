@@ -6,6 +6,8 @@ SERIAL = "Serial"
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "." #"CognIoT"
 
+MIN_DISK_SPACE = 50 * 1024             # Minimum disk space required at startup (measured in bytes)
+
 #EEPROM Settings
 CALIB_PAGE_LENGTH = 16            # The number of bytes in the 'row' of calibration data
 

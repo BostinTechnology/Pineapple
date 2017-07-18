@@ -47,8 +47,10 @@ import json
 from datetime import time
 from datetime import datetime
 
+
 import Standard_Settings as SS
 
+SUPPORTED_DB_VERSIONS = [0.1]           # Contains a list of the supported db versions.
 
 
 class DataAccessor:
@@ -65,11 +67,13 @@ class DataAccessor:
         
         #TODO: Change this to use queus https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
+        self.db_ok = False              # Used to flag that we have successfully checked the database versions match
+        self.db_version = 0
         self.device = device
         self.sensor = sensor
         self.acroynm = acroynm
         self.description = desc
-        self._db_version()
+        self._db_version_check()
         return
     
     def DataIn(self,data):
@@ -105,6 +109,13 @@ class DataAccessor:
         - Return to start
         """
         print("Transmitting Data")
+        if self.db_ok == False:
+            # Not yet validated the database version, check again now. If still unknown, just return
+            self.log.debug("[DAcc] db version is still undertermined, cehcking again now")
+            if self._db_version_check() == False:
+                self.debug.info("[DAcc] Not currently connected, unable to validate database version")
+                return False
+
         more_data = True
         record_try_count = 0
         while more_data:
@@ -149,24 +160,40 @@ class DataAccessor:
         self.db_version = 0.1
         return
     
+    def _db_version_check(self):
+        """
+        Check the database version matches the version this software is designed for.
+        End program if different, return false if unknown
+        """
+        if self._connected():
+            if self.db_version not in SUPPORTED_DB_VERSIONS:
+                self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s" 
+                            % (self.db_version, SUPPORTED_DB_VERSIONS))
+                print("\nCRITICAL ERROR, Database version is not supported - contact Support\n")
+                sys.exit()
+            else:
+                self.db_ok = True
+        else:
+            self.log.info("[DAcc] Unable to validate db version as not connected, assuming wrong version.")
+            self.db_ok = False
+        return self.db_ok
+    
     def _validate_data(self,dataset):
         """
         Check the incoming data to check it contains valid values
         Need some link into the self.db_version
+        For each part of the dataset must contain 4 items, 
+        mvdata['type'] = {'S' : str(item[0])}
+        mvdata['value'] = {'S' : str(item[1])}
+        mvdata['units'] = {'S' : str(item[2])}
+        data_record['TimeStamp'] = { 'S' : str(item[3])}
         """
+        #for item in dataset:
+            
         print("Data Validation is not yet implemented")
         self.log.warning("[DAcc] Data Validation is not yet implemented")
         return True
-    
-    def _check_disk_space(self):
-        """
-        Validate there is enough disk space to write to file
-        
-        """
-        print("Check for disk space for the data file is not yet implemented")
-        self.log.warning("[DAcc] Check for disk space for the data file is not yet implemented")
-        return True
-        
+
     def _update_record_file(self):
         """
         Take the self.records and write it to the file

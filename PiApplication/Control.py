@@ -17,16 +17,8 @@ Command Line Options
 
 """
 
-from cls_DataAccessor import DataAccessor
-import cls_EEPROM
-import Standard_Settings as SS
-from cls_comms import i2c_comms
-from cls_comms import SPi_comms
-from cls_comms import Serial_comms
-import dict_LoggingSetup
 
-#import cls_SensorTemplate
-# The required iCog is imported in the code once it has been determined
+
 
 from datetime import datetime
 from datetime import timedelta
@@ -38,6 +30,19 @@ import logging
 import logging.config
 import importlib
 import inspect
+import os
+import sys
+import os.path
+
+from cls_DataAccessor import DataAccessor
+import cls_EEPROM
+import Standard_Settings as SS
+from cls_comms import i2c_comms
+from cls_comms import SPi_comms
+from cls_comms import Serial_comms
+import dict_LoggingSetup
+#import cls_SensorTemplate
+# The required iCog is imported in the code once it has been determined
 
 
 # The following global variables are used.
@@ -93,6 +98,20 @@ def SetupLogging():
     gbl_log.info("[CTRL] Screen Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
     
     return
+
+    
+def CheckDiskSpace():
+    """
+    Validate there is enough disk space to write to file
+    
+    """
+    st = os.statvfs(".")
+    du = st.f_bavail * st.f_frsize  # number of blocks multiplied by block size
+    gbl_log.debug("[CTRL] Space available %s" % du)
+    if du < SS.MIN_DISK_SPACE:
+        print ('Insufficient Disk Space, capture aborted')
+        return False
+    return True
 
 ################################################################################
 # 
@@ -175,7 +194,6 @@ def SetupSensor():
         icog_connection = i2c_connection
     else:
         gbl_log.critical("[CTRL] Required Connection bus:%s is not supported, contact Support" % reqd_bus)
-        gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
     gbl_log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
     
@@ -214,7 +232,7 @@ def Start(cust_info):
 
     DataAcc = DataAccessor(cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
     read_freq = icog.ReturnReadFrequency()
-    #read_freq = 10
+
     gbl_log.debug("[CTRL] Read Frequency:%s" % read_freq)
     try:
         icog.StartSensor()
@@ -402,8 +420,9 @@ def main():
     
     #TODO: probably needs something to bomb out if there is a failure
     
-    #TODO: Need to add some disk management, a generic check for overall disk space.
-        # See one of my photography apps
+    if CheckDiskSpace() == False:
+        gbl_log.critical("[CTRL] Insufficient disk space, unable to start")
+        print("\nCRITICAL ERROR Insufficient disk space, unable to start application\n")
         
     
     # Note: The default is Start, hence it is the else clause
