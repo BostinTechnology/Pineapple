@@ -253,6 +253,7 @@ def Start(cust_info):
             # Wait for timeout
             waiting = False
             while endtime > datetime.now():
+                #TODO: Make this a lower power wait period
                 if waiting == False:
                     print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
                     gbl_log.debug("[CTRL] Waiting for timeout to complete")
@@ -351,15 +352,16 @@ def SetCal():
     
     return
     
-def DisplayParameters():
+def DisplayCustomerParameters():
     """
     Perform the necessary actions to display the parameter data being used
     
+    SHould probably use LoadCustomerInfo, or at least provide a menu choice to do so.
     """
     print ("Not yet Implemented")
     return
     
-def SetParameters():
+def SetCustomerParameters():
     """
     Perform the necessary actions to allow the clinet to set the parameter data being used
     
@@ -367,6 +369,8 @@ def SetParameters():
     - Sensor Acroynm
     - Sensor Description
     - local or remote database
+    
+    Will need to use SaveCustomerInfo
     """
     print ("Not yet Implemented")
     return
@@ -389,6 +393,58 @@ def SplashScreen():
     print("*        for more info www.cognIoT.eu         *")
     print("***********************************************\n")
     return
+
+def LoadCustomerInfo():
+    """
+    Load the Customer File infomration and return it in a decitionary
+    customer_info = {"device" : 1, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
+
+    """
+    print("Loading of Customer Data is not yet implemented")
+    gbl_log.warning("[CTRL] Loading of Customer Data is not yet implemented")
+    
+    custfile = {}
+    gbl_log.info("[CTRL] Reading the customer file information")
+    try:
+        gbl_log.debug("[CTRL] Customer File in location:%s" % SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME)
+        data = open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='r')
+        
+        # TODO: Need to load the file as if it is a dictionary, probably using json
+        #lines = data.readlines()
+        
+        data.close()
+        gbl_log.debug("[CTRL] Customer file loaded %s" % lines)
+    except:
+        gbl_log.critical("[CTRL] Failed to Open customer file, please contact support")
+        gbl_log.exception("[CTRL] Load Customer INfo Exception Information")
+        sys.exit()
+        #TODO: Force them to reload the customer info at this point rather than bomb out
+
+    gbl_log.info("[CTRLM] Decoding the customer file, line by line")
+    #TODO: Understand how this works for dictionaries
+    """
+    for f in lines:
+        # Read a line of data in and strip any unwanted \n type characters
+        dataline = f.strip()
+        # split the data by a comma into a list.
+        row_data = dataline.split(",")
+        self.datafile.append(row_data)
+        self.log.debug("[EEPROM] Row of extracted data %s" % row_data)
+    """
+    return cust_info
+            
+def SaveCustomerInfo(cust_info):
+    """
+    Take the cust_info and write it to the file
+    Disk management is handled as part of the Control module
+    """
+    
+    #TODO: Validate this as cust_info will be a dictionary
+    
+    gbl_log.info("[DAcc] Customer File udpated")
+    with open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='w') as f:
+        json.dump(cust_info, f)
+    return
     
 ################################################################################
 # 
@@ -410,10 +466,10 @@ def main():
     
     # First print a 'splash screen'
     device_id = GetSerialNumber()
-    print("Bostin Technology\n")
     print("\nDevice ID: %s" % device_id)
     print("\nTo Exit, CTRL-c\n\n")
 
+    customer_info = LoadCustomerInfo()
     customer_info = {"device" : 1, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
     
     #TODO: print out the values being used, especially if they are the defaults.
@@ -442,9 +498,9 @@ def main():
         SetCal()
         DisplayCal()
     elif args.DisplayCustInfo:
-        DisplayParameters()  #TODO: Not started
+        DisplayCustomerParameters()  #TODO: Not started
     elif args.SetCustInfo:
-        SetParameters()      #TODO: Not started
+        SetCustomerParameters()      #TODO: Not started
     elif args.Logging:
         SetLogging()         #TODO: Not started
     else:

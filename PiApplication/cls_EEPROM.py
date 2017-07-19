@@ -9,8 +9,6 @@ On intialisation, the EEPROM class should
 - read the values from the iCog EEPROM
 - load the datafile and set additional acronymn data
 
-TODO: Need functions to write calibration data
-
 """
 
 import random
@@ -41,10 +39,6 @@ class ID_IoT():
     """
 
     def __init__(self, comms_handler, read_chip=True):
-        #TODO: Read the EEPROM and process the data - could this be set globals function?
-        #       Check for a tuple first - if UUID matches, use the data
-        #       Create a iCOG class holding the sensor data
-        #       turple the data for future use
         """
         Initialises the values and checkes if they have been previously saved as a tuple
         
@@ -54,8 +48,6 @@ class ID_IoT():
         - load the datafile and set additional data
         """
         self.log = logging.getLogger()
-        #TODO: Not yet implemented
-        #readfrequency is the time between reading of values
 
         self._clear_data()
         self.comms = comms_handler
@@ -66,13 +58,12 @@ class ID_IoT():
             status = False
             print("Reading of chip disabled")
 
-        #TODO: Need to do something clever here
         self.log.info("[EEPROM] Initialisation of the EEPROM has been completed")
         self.eeprom_status = status
         return
     
     def ReturnEEPROMStatus(self):
-        return self.eeprom_status            #TODO: Make this mean something
+        return self.eeprom_status
     
     def ReturnUUID(self):
         return self.uuid
@@ -222,6 +213,8 @@ class ID_IoT():
         
         self.eeprom_checksum = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_CHECKSUM, 2)
         
+        self.log.info("[EEPROM] Map Version:%s" % self.map_version)
+        self.log.info("[EEPROM] EEPROM Checksum:%s" self.eeprom_checksum)
         #TODO: Implement checksum check
         
         # Check if the map version is supported
@@ -275,7 +268,16 @@ class ID_IoT():
         self.io_1 = row_10[10:12]
         self.io_2 = row_10[12:14]
         
-        #TODO: Add logging for all these values
+        self.log.info("[EEPROM] Device Connectivity Data - bus type:%s" % self.bustype)
+        self.log.info("[EEPROM] Device Connectivity Data - sensor address:%s" % self.sensoraddress)
+        self.log.info("[EEPROM] Device Connectivity Data - SPI bus:%s" % self.spi_bus)
+        self.log.info("[EEPROM] Device Connectivity Data - SPI CE Line:%s" % self.spi_celine)
+        self.log.info("[EEPROM] Device Connectivity Data - GPIO Pin:%s" % self.gpio_pin)
+        self.log.info("[EEPROM] Device Connectivity Data - Serial RTC CTS:%s" % self.serial_rtc_cts)
+        self.log.info("[EEPROM] Device Connectivity Data - Sensor Type:%s" % self.sensor_type)
+        self.log.info("[EEPROM] Device Connectivity Data - Minimum Revision:%s" % self.minimum_revision)
+        self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 1:%s" % self.io_1)
+        self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 2:%s" % self.io_2)
         
         # Read Calibration Values
         self.calibration_data = []
@@ -299,10 +301,7 @@ class ID_IoT():
                 self.sensor_part_number
                 self.sensor_type
                 self.sensor_manfacturer
-        #TODO: This should only be run if the customer hasn't set values first.
-        #TODO: Reading fo the datafile should only be done once and not for each sensor
         """
-        #TODO: Validate the error checking around this
         self.datafile = []
         self.log.info("[EEPROM] Reading the datafile for sensor information")
         try:

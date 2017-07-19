@@ -37,6 +37,10 @@ When writing Sensor Values, TableName='SensorValues',
                 'Viewed': { 'BOOL' : False},
                 },
 
+TODO: db version check is only completed at startup or first connection. If the version changes whilst it is connected
+    there is no check to resolve it.
+    
+TODO: Need to improve the testing aspects to gaion good coverage
 """
 
 import boto3
@@ -188,19 +192,34 @@ class DataAccessor:
         mvdata['units'] = {'S' : str(item[2])}
         data_record['TimeStamp'] = { 'S' : str(item[3])}
         """
-        #for item in dataset:
+        valid_data_record = True:
+        for item in dataset:
+            if item[0].isdigit() == False:
+                self.log.info("[DAcc] 1st part (type) of the dataset failed as it is not a number, dataset:%s" % dataset)
+                valid_data_record = False
+            else:
+                if item[0] < 1 or item[0] > 4:
+                    self.log.info("[DAcc] 1st part (type) of the dataset failed as it is outside valid range (1-4), dataset:%s" % dataset)
+
+            if len(item[1]) < 1:
+                self.log.info("[DAcc] 2nd part (value) of the dataset failed as it is too short (<1), dataset:%s" % dataset)
+                valid_data_record = False
             
-        print("Data Validation is not yet implemented")
-        self.log.warning("[DAcc] Data Validation is not yet implemented")
-        return True
+            if len(item[2]) < 1:
+                self.log.info("[DAcc] 3rd part (units) of the dataset failed as it is too short (<1), dataset:%s" % dataset)
+                valid_data_record = False
+            
+            if len(item[3]) < 19:
+                self.log.info("[DAcc] 4th part (timestamp) of the dataset failed as it is too short (<23), dataset:%s" % dataset)
+                valid_data_record = False
+            
+        return valid_data_record
 
     def _update_record_file(self):
         """
         Take the self.records and write it to the file
+        Disk management is handled as part of the Control module
         """
-        
-        #TODO: Need to add some disk management, not sure what to do though!
-        
         self.log.info("[DAcc] Records File udpated")
         with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='w') as f:
             json.dump(self.records, f)
@@ -251,6 +270,8 @@ class DataAccessor:
         Check if the application is connected to the RESTful interface
         Returns True or False
         """
+        
+        #TODO: Implement Connection Check
         print("Checking for connection is not yet implemented")
         self.log.warning("[DAcc] Checking for connection is not yet implemented")
         
@@ -281,32 +302,31 @@ class DataAccessor:
                 },
                 
         if data_in contains multiple datasets, send each record independently
+        The format of the data sent could be different for different data versions
         """
-        
-        #TODO: Need to add database version check and implementation
-        
-        for item in data_in:
-            data_record = {}
-            data_record['Device_ID'] = { 'N' : str(self.device)}
-            data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
-            data_record['TimeStamp'] = { 'S' : str(item[3])}
-            data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
-            data_record['SensorDescription'] = { 'N' : str(self.description)}
-            mvdata = {}
-            mvdata['type'] = {'S' : str(item[0])}
-            mvdata['value'] = {'S' : str(item[1])}
-            mvdata['units'] = {'S' : str(item[2])}
-            data_record['MVData'] = { 'M' : mvdata}
-            data_record['Viewed'] = { 'BOOL' : False}
-            
-            self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
-            
-            #TODO: Send the data record here
-            
-            #TODO: set the true / false flag accordingly
-            
-        print("Sending of Records is not yet implemented\n:%s" % data_in)
-        self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
+        if self.db_ok = 0.1:
+            for item in data_in:
+                data_record = {}
+                data_record['Device_ID'] = { 'N' : str(self.device)}
+                data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
+                data_record['TimeStamp'] = { 'S' : str(item[3])}
+                data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
+                data_record['SensorDescription'] = { 'N' : str(self.description)}
+                mvdata = {}
+                mvdata['type'] = {'S' : str(item[0])}
+                mvdata['value'] = {'S' : str(item[1])}
+                mvdata['units'] = {'S' : str(item[2])}
+                data_record['MVData'] = { 'M' : mvdata}
+                data_record['Viewed'] = { 'BOOL' : False}
+                
+                self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
+                
+                #TODO: Send the data record here
+                print("Sending of Records is not yet implemented\n:%s" % data_in)
+                self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
+                
+                #TODO: set the true / false flag accordingly
+                
         return True
     
 #-----------------------------------------------------------------------

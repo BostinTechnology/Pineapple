@@ -6,6 +6,10 @@ SERIAL = "Serial"
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "." #"CognIoT"
 
+CUSTFILE_NAME = "custfile.txt"
+CUSTFILE_LOCATION = "."
+
+
 MIN_DISK_SPACE = 50 * 1024             # Minimum disk space required at startup (measured in bytes)
 
 #EEPROM Settings

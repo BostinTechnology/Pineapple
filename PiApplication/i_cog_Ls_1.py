@@ -48,8 +48,7 @@ class iCog():
         if self._decode_calib_data(calib) == False:
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
-            log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
-            #TODO: Write calibration data back to the ID_IoT
+            self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
         self._setup_sensor()
         return
     
@@ -266,9 +265,10 @@ class iCog():
         Given the Calibration data, convert it into the useful dictionary of information
         The calibration data passed in is a list of 6 lists of 16 bytes of data
         """
-        #TODO: Need to check the length of the incoming data, currently assuming it is the right size
-        
-        #TODO: Need to validate the dictionary, what happens if the value doesn't exist?
+        if len(data[0]) < 4 or data[1] < 2:
+            self.log.info("[Ls1] dataset is too short, using defaults. Dataset received:%s" % data)
+            self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
+            data = DEFAULT_CONFIG
         
         # Common Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
@@ -277,9 +277,6 @@ class iCog():
         self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
         self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
         self.calibration_data['adc_resolution'] = (data[1][1] & 0b00001100) >> 2     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
-        
-        self.log.info("[Ls1] Calibration Data:%s" % self.calibration_data)
-        self.log.warning("[Ls1] _decode_calib_data doesn't validate incoming data currently")
 
         """
         #Test Data
