@@ -43,6 +43,8 @@ TODO: db version check is only completed at startup or first connection. If the 
 TODO: Need to improve the testing aspects to gaion good coverage
 """
 
+#TODO: I write stuff to file, but do I ever read it back? I should on start / load
+
 import boto3
 import sys
 import logging
@@ -192,7 +194,7 @@ class DataAccessor:
         mvdata['units'] = {'S' : str(item[2])}
         data_record['TimeStamp'] = { 'S' : str(item[3])}
         """
-        valid_data_record = True:
+        valid_data_record = True
         for item in dataset:
             if item[0].isdigit() == False:
                 self.log.info("[DAcc] 1st part (type) of the dataset failed as it is not a number, dataset:%s" % dataset)
@@ -304,7 +306,7 @@ class DataAccessor:
         if data_in contains multiple datasets, send each record independently
         The format of the data sent could be different for different data versions
         """
-        if self.db_ok = 0.1:
+        if self.db_ok == 0.1:
             for item in data_in:
                 data_record = {}
                 data_record['Device_ID'] = { 'N' : str(self.device)}

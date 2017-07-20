@@ -214,7 +214,7 @@ class ID_IoT():
         self.eeprom_checksum = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_CHECKSUM, 2)
         
         self.log.info("[EEPROM] Map Version:%s" % self.map_version)
-        self.log.info("[EEPROM] EEPROM Checksum:%s" self.eeprom_checksum)
+        self.log.info("[EEPROM] EEPROM Checksum:%s" % self.eeprom_checksum)
         #TODO: Implement checksum check
         
         # Check if the map version is supported

@@ -17,6 +17,8 @@ Command Line Options
 
 """
 
+#TODO: look for try loops and convert to with statements, especially open statements
+
 
 
 
@@ -33,6 +35,7 @@ import inspect
 import os
 import sys
 import os.path
+import json
 
 from cls_DataAccessor import DataAccessor
 import cls_EEPROM
@@ -372,6 +375,9 @@ def SetCustomerParameters():
     
     Will need to use SaveCustomerInfo
     """
+    #TODO: Get answers for the customer questions.
+    customer_info = {"device" : 2, "sensor" : 2, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
+    SaveCustomerInfo(customer_info)
     print ("Not yet Implemented")
     return
 
@@ -405,33 +411,25 @@ def LoadCustomerInfo():
     
     custfile = {}
     gbl_log.info("[CTRL] Reading the customer file information")
-    try:
-        gbl_log.debug("[CTRL] Customer File in location:%s" % SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME)
-        data = open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='r')
-        
-        # TODO: Need to load the file as if it is a dictionary, probably using json
-        #lines = data.readlines()
-        
-        data.close()
-        gbl_log.debug("[CTRL] Customer file loaded %s" % lines)
-    except:
-        gbl_log.critical("[CTRL] Failed to Open customer file, please contact support")
-        gbl_log.exception("[CTRL] Load Customer INfo Exception Information")
-        sys.exit()
-        #TODO: Force them to reload the customer info at this point rather than bomb out
+    filename = SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME
+    if os.path.isfile(filename):
+        gbl_log.debug("[CTRL] Customer File in location:%s" % filename)
+        with open(filename, mode='r') as cust:
+            custfile = json.load(cust)
+            
+    else:
+        print("No existing customer file, please Set customer info")
+        gbl_log.info("[CTRL] No Customer file exisitng")
 
-    gbl_log.info("[CTRLM] Decoding the customer file, line by line")
-    #TODO: Understand how this works for dictionaries
-    """
-    for f in lines:
-        # Read a line of data in and strip any unwanted \n type characters
-        dataline = f.strip()
-        # split the data by a comma into a list.
-        row_data = dataline.split(",")
-        self.datafile.append(row_data)
-        self.log.debug("[EEPROM] Row of extracted data %s" % row_data)
-    """
-    return cust_info
+    # Validate the customer info that has been read back.
+    status = True
+    for item in ['device', 'sensor', 'acroynm', 'description']:
+        if item not in custfile:
+            status = False
+            gbl_log.info("[CTRL] Missing item from the customer file:%s" % item)
+        
+    gbl_log.debug("[CTRL] customer data being returned:%s" % custfile)
+    return status, custfile
             
 def SaveCustomerInfo(cust_info):
     """
@@ -440,10 +438,11 @@ def SaveCustomerInfo(cust_info):
     """
     
     #TODO: Validate this as cust_info will be a dictionary
-    
-    gbl_log.info("[DAcc] Customer File udpated")
+    gbl_log.debug("[CTRL] Data being written to the customer file:%s" % cust_info)
     with open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='w') as f:
         json.dump(cust_info, f)
+        gbl_log.info("[DAcc] Customer File udpated")
+
     return
     
 ################################################################################
@@ -469,9 +468,6 @@ def main():
     print("\nDevice ID: %s" % device_id)
     print("\nTo Exit, CTRL-c\n\n")
 
-    customer_info = LoadCustomerInfo()
-    customer_info = {"device" : 1, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
-    
     #TODO: print out the values being used, especially if they are the defaults.
     
     #TODO: probably needs something to bomb out if there is a failure
@@ -480,6 +476,10 @@ def main():
         gbl_log.critical("[CTRL] Insufficient disk space, unable to start")
         print("\nCRITICAL ERROR Insufficient disk space, unable to start application\n")
         
+    status, customer_info = LoadCustomerInfo()
+    if status != True:
+        print("Customer Infomation is missing or incomplete, please re-enter")
+        SetCustomerParameters()
     
     # Note: The default is Start, hence it is the else clause
     if args.Start: 
