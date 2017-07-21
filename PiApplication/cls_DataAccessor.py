@@ -45,6 +45,8 @@ TODO: Need to improve the testing aspects to gaion good coverage
 
 #TODO: I write stuff to file, but do I ever read it back? I should on start / load
 
+#TODO: Need to take the customer info on local or aws into consideration
+
 import boto3
 import sys
 import logging
@@ -117,7 +119,7 @@ class DataAccessor:
         print("Transmitting Data")
         if self.db_ok == False:
             # Not yet validated the database version, check again now. If still unknown, just return
-            self.log.debug("[DAcc] db version is still undertermined, cehcking again now")
+            self.log.debug("[DAcc] db version is still undertermined, checking again now")
             if self._db_version_check() == False:
                 self.debug.info("[DAcc] Not currently connected, unable to validate database version")
                 return False
@@ -172,6 +174,7 @@ class DataAccessor:
         End program if different, return false if unknown
         """
         if self._connected():
+            self._db_version()
             if self.db_version not in SUPPORTED_DB_VERSIONS:
                 self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s" 
                             % (self.db_version, SUPPORTED_DB_VERSIONS))
@@ -196,15 +199,15 @@ class DataAccessor:
         """
         valid_data_record = True
         for item in dataset:
-            if item[0].isdigit() == False:
+            if str(item[0]).isdigit() == False:
                 self.log.info("[DAcc] 1st part (type) of the dataset failed as it is not a number, dataset:%s" % dataset)
                 valid_data_record = False
             else:
                 if item[0] < 1 or item[0] > 4:
                     self.log.info("[DAcc] 1st part (type) of the dataset failed as it is outside valid range (1-4), dataset:%s" % dataset)
 
-            if len(item[1]) < 1:
-                self.log.info("[DAcc] 2nd part (value) of the dataset failed as it is too short (<1), dataset:%s" % dataset)
+            if str(item[1]).isdigit() == False:
+                self.log.info("[DAcc] 2nd part (value) of the dataset failed as it not a number, dataset:%s" % dataset)
                 valid_data_record = False
             
             if len(item[2]) < 1:

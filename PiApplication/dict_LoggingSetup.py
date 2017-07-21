@@ -27,10 +27,12 @@ log_cfg = dict(
               'level': logging.ERROR,
               'stream': 'ext://sys.stdout'},
               
-        'file': {'class': 'logging.FileHandler',
+        'file': {'class': 'logging.handlers.RotatingFileHandler',
                 'formatter': 'full',
                 'level': logging.DEBUG,
                 'filename': 'CognIoT.log',
+                'maxBytes':  102400,
+                'backupCount' : 5,
                 'mode': 'w'},
                   
         },

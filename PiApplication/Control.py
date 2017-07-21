@@ -88,8 +88,6 @@ def SetupLogging():
     Setup the logging defaults
     Using the logger function to span multiple files.
     """
-    print("Current logging level is \n\n   DEBUG!!!!\n\n")
-    
     global gbl_log
     # Create a logger with the name of the function
     logging.config.dictConfig(dict_LoggingSetup.log_cfg)
@@ -97,8 +95,7 @@ def SetupLogging():
 
 
     #BUG: This is loading the wrong values into the log file
-    gbl_log.info("[CTRL] File Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
-    gbl_log.info("[CTRL] Screen Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
+    gbl_log.info("[CTRL] Logging Started, current level is %s" % gbl_log.getEffectiveLevel())
     
     return
 
@@ -128,32 +125,25 @@ def SetandGetArguments():
 
     """
 
-#BUG: The way the arguments is required is not as expected
-# Had to type sudo python3 Control.py -c DISPLAYCAL
-# to get it to work
     gbl_log.info("[CTRL] Setting and Getting Parser arguments")
     parser = argparse.ArgumentParser(description="Capture and send data for CognIoT sensors")
-    parser.add_argument("-S", "--Start",
+    parser.add_argument("-s", "--start", action="store_true",
                     help="Start capturing data from the configured sensors and send them to the database")
-    parser.add_argument("-t", "--Reset", 
+    parser.add_argument("-r", "--reset", action="store_true",
                     help="Reset to the default values")
-    parser.add_argument("-n", "--NewSensor", 
+    parser.add_argument("-n", "--newsensor", action="store_true",
                     help="Add a new Sensor to this Raspberry Pi")
-    parser.add_argument("-d", "--DeviceID", 
-                    help="Display the Device ID for this Raspberry Pi")
-    parser.add_argument("-i", "--SensorID", 
-                    help="Display the Sensor IDs being used")
-    parser.add_argument("-l", "--Logging", 
+    parser.add_argument("-l", "--logging", action="store_true",
                     help="Set the logging level to be used (Default is OFF)")
     Cal_group = parser.add_mutually_exclusive_group()
-    Cal_group.add_argument("-c", "--DisplayCal", 
+    Cal_group.add_argument("-c", "--displaycal", action="store_true",
                     help="Display the Calibration Data for the sensors, e.g. Read Frequency")
-    Cal_group.add_argument("-e", "--SetCal", 
+    Cal_group.add_argument("-a", "--setcal", action="store_true",
                     help="Set new Calibration Data for the sensors, e.g. Read Frequency")
     Para_group = parser.add_mutually_exclusive_group()
-    Para_group.add_argument("-o", "--DisplayCustInfo", 
+    Para_group.add_argument("-i", "--displayinfo", action="store_true",
                     help="Display the Customer Information, e.g. Customer Name")
-    Para_group.add_argument("-a", "--SetCustInfo", 
+    Para_group.add_argument("-f", "--setinfo", action="store_true",
                     help="Set the Operational parameters, e.g. Customer Name")
 
     gbl_log.debug("[CTRL] Parser values captured: %s" % parser.parse_args())
@@ -179,7 +169,6 @@ def SetupSensor():
 
     try:
         # This doesn't initialise the iCog, just loads it
-        #imported_icog = __import__(icog_file)
         imported_icog = importlib.import_module(icog_file)
     except:
         gbl_log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
@@ -284,14 +273,19 @@ def Reset():
     reset all the configuration data back to original
     """
     check = input("Are you sure you want to reset back to default values (y/n)?")
+    gbl_log.info("[CTRL] Reset of program back to default values response:%s" % check)
     if check.upper() == "Y":
         (icog, eeprom) = SetupSensor()
         calib = icog.ResetCalibration()
         eeprom.ResetCalibrationData(calib)
-
+        gbl_log.debug("[CTRL] Sensor Calibration Data reset")
         print("Calibration Data reset to default values")
     
-    print("Clearing of User data not yet implemented")
+    filename = SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME
+    if os.path.isfile(filename):
+        os.remove(filename)
+        gbl_log.debug("[CTRL] Customer File in location deleted:%s" % filename)
+        print("Customer data removed, will need to be re-entered on next startup")
     
     return
 
@@ -302,20 +296,6 @@ def NewSensor():
     print ("Not yet Implemented")
     return
 
-def DisplayDeviceID():
-    """
-    Display the Device ID to the user
-    """
-    print ("Not yet Implemented")
-    return
-
-def DisplaySensorID():
-    """
-    Perform the necessary actions to display the Sensor ID being used
-    """
-    print ("Not yet Implemented")
-    return
-    
 def DisplayCal():
     """
     Perform the necessary actions to display the Calibration data being used
@@ -355,16 +335,19 @@ def SetCal():
     
     return
     
-def DisplayCustomerParameters():
+def DisplayCustomerParameters(cust_info):
     """
     Perform the necessary actions to display the parameter data being used
     
-    SHould probably use LoadCustomerInfo, or at least provide a menu choice to do so.
     """
-    print ("Not yet Implemented")
+    print("Setting                  Value")
+    print("==============================")
+    for item in cust_info:
+        print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
+
     return
     
-def SetCustomerParameters():
+def SetCustomerParameters(device):
     """
     Perform the necessary actions to allow the clinet to set the parameter data being used
     
@@ -375,11 +358,56 @@ def SetCustomerParameters():
     
     Will need to use SaveCustomerInfo
     """
-    #TODO: Get answers for the customer questions.
-    customer_info = {"device" : 2, "sensor" : 2, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
-    SaveCustomerInfo(customer_info)
-    print ("Not yet Implemented")
-    return
+    print("Setting Customer Information\n")
+    cust_info = {}
+    cust_info['device'] = device
+    gbl_log.debug("[CTRL] Device Number:%s" % device)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Sensor number?")
+        if choice.isdigit():
+            choice = int(choice)
+            cust_info['sensor'] = choice
+        else:
+            print("Please enter a number")
+            choice = ""
+    gbl_log.debug("[CTRL] Sensor Number:%s" % choice)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Sensor Acroynm?")
+        if len(choice) > 0 and len(choice) <= SS.MAX_ACROYNM_LENGTH:
+            cust_info['acroynm'] = choice
+        else:
+            print("Please enter a acroynm for the sensor (max 10 characters")
+            choice = ""
+    gbl_log.debug("[CTRL] Sensor Acroynm:%s" % choice)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Sensor Description?")
+        if len(choice) > 0 and len(choice) <= SS.MAX_DESCRIPTION_LENGTH:
+            cust_info['description'] = choice
+        else:
+            print("Please enter a description for the sensor (max 100 characters)")
+            choice = ""
+    gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
+    
+    choice = ""
+    while choice == "":
+        choice = input("Is the Pi operating with a local or AWS Database (l or a)?")
+        if choice.upper() == "L":
+            cust_info['database'] = SS.DB_LOCAL
+        elif  choice.upper() == "A":
+            cust_info['database'] = SS.DB_AWS
+        else:
+            print("Please enter either 'l' for loca or a for Amazon AWS")
+            choice = ""
+    gbl_log.debug("[CTRL] Database Location:%s" % choice)
+    
+    SaveCustomerInfo(cust_info)
+    return cust_info
 
 def SetLogging():
     """
@@ -400,15 +428,12 @@ def SplashScreen():
     print("***********************************************\n")
     return
 
-def LoadCustomerInfo():
+def LoadCustomerInfo(dev):
     """
     Load the Customer File infomration and return it in a decitionary
-    customer_info = {"device" : 1, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
+    customer_info = {"device" : UUID, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
 
     """
-    print("Loading of Customer Data is not yet implemented")
-    gbl_log.warning("[CTRL] Loading of Customer Data is not yet implemented")
-    
     custfile = {}
     gbl_log.info("[CTRL] Reading the customer file information")
     filename = SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME
@@ -421,13 +446,15 @@ def LoadCustomerInfo():
         print("No existing customer file, please Set customer info")
         gbl_log.info("[CTRL] No Customer file exisitng")
 
+    custfile['device'] = dev        #device_id is set by the UUID of the Pi
+
     # Validate the customer info that has been read back.
     status = True
-    for item in ['device', 'sensor', 'acroynm', 'description']:
+    for item in ['device', 'sensor', 'acroynm', 'description', 'database']:
         if item not in custfile:
             status = False
             gbl_log.info("[CTRL] Missing item from the customer file:%s" % item)
-        
+    
     gbl_log.debug("[CTRL] customer data being returned:%s" % custfile)
     return status, custfile
             
@@ -437,7 +464,6 @@ def SaveCustomerInfo(cust_info):
     Disk management is handled as part of the Control module
     """
     
-    #TODO: Validate this as cust_info will be a dictionary
     gbl_log.debug("[CTRL] Data being written to the customer file:%s" % cust_info)
     with open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='w') as f:
         json.dump(cust_info, f)
@@ -467,7 +493,7 @@ def main():
     device_id = GetSerialNumber()
     print("\nDevice ID: %s" % device_id)
     print("\nTo Exit, CTRL-c\n\n")
-
+    
     #TODO: print out the values being used, especially if they are the defaults.
     
     #TODO: probably needs something to bomb out if there is a failure
@@ -476,32 +502,28 @@ def main():
         gbl_log.critical("[CTRL] Insufficient disk space, unable to start")
         print("\nCRITICAL ERROR Insufficient disk space, unable to start application\n")
         
-    status, customer_info = LoadCustomerInfo()
+    status, customer_info = LoadCustomerInfo(device_id)
     if status != True:
         print("Customer Infomation is missing or incomplete, please re-enter")
-        SetCustomerParameters()
+        customer_info = SetCustomerParameters(device_id)
     
     # Note: The default is Start, hence it is the else clause
-    if args.Start: 
+    if args.start: 
         Start(customer_info)
-    elif args.Reset: 
+    elif args.reset: 
         Reset()
-    elif args.NewSensor:
+    elif args.newsensor:
         NewSensor()          #TODO: Not started
-    elif args.DeviceID:
-        DisplayDeviceID()    #TODO: Not started
-    elif args.SensorID:
-        DisplaySensorID()    #TODO: Not started
-    elif args.DisplayCal:
+    elif args.displaycal:
         DisplayCal()
-    elif args.SetCal:
+    elif args.setcal:
         SetCal()
         DisplayCal()
-    elif args.DisplayCustInfo:
-        DisplayCustomerParameters()  #TODO: Not started
-    elif args.SetCustInfo:
-        SetCustomerParameters()      #TODO: Not started
-    elif args.Logging:
+    elif args.displayinfo:
+        DisplayCustomerParameters(customer_info)
+    elif args.setinfo:
+        SetCustomerParameters()
+    elif args.logging:
         SetLogging()         #TODO: Not started
     else:
         Start(customer_info)              

@@ -265,7 +265,7 @@ class iCog():
         Given the Calibration data, convert it into the useful dictionary of information
         The calibration data passed in is a list of 6 lists of 16 bytes of data
         """
-        if len(data[0]) < 4 or data[1] < 2:
+        if len(data[0]) < 4 or len(data[1]) < 2:
             self.log.info("[Ls1] dataset is too short, using defaults. Dataset received:%s" % data)
             self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
