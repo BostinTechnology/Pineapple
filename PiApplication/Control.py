@@ -4,23 +4,16 @@ Bostin Technology  (see www.BostinTechnology.com)
 For use with the CognIoT Sensors and uses the Android Application to read values
 
 Command Line Options
-    - Start Capturing Readings (default action)     -s --Start
-    - Display Calibration                           -c --DisplayCal
-    - Set Calibration                               -e --SetCal
-    - Display Operational Parameters                -o --DisplayPara
-    - Set Operational Parameters                    -a --SetPara
-    - Reset                                         -t --Reset
-    - Add New Sensor                                -n --NewSensor
-    - Read Device ID                                -d --DeviceID
-    - Read Sensor ID                                -i --SensorID
-    - Set Logging Level                             -l --Logging
+    - Start Capturing Readings (default action)     -s --start
+    - Display Calibration                           -c --displaycal
+    - Set Calibration                               -e --setcal
+    - Display Customer Parameters                   -o --displayinfo
+    - Set Customer Parameters                       -a --setinfo
+    - Reset                                         -t --reset
 
 """
 
-#TODO: look for try loops and convert to with statements, especially open statements
-
-
-
+#TODO: Convert datafile.txt to python script
 
 from datetime import datetime
 from datetime import timedelta
@@ -59,6 +52,20 @@ def GetSerialNumber():
     Get the System Serial number to be used as the Device ID
     returns the Serial Number or '0000000000000000'
     """
+    gbl_log.debug("[CTRL] Opening proc/cpuinfo for CPU serial Number")
+    cpuserial = '0000000000000000'
+    with open('/proc/cpuinfo') as f:
+        for line in f:
+            if line[0:6] == "Serial":
+                cpuserial = line[10:26]
+    gbl_log.info("[CTRL] CPU Serial Number : %s" % cpuserial)
+    return int(cpuserial, 16)
+
+def GetSerialNumber_old():
+    """
+    Get the System Serial number to be used as the Device ID
+    returns the Serial Number or '0000000000000000'
+    """
     try:
         gbl_log.debug("[CTRL] Opening proc/cpuinfo for CPU serial Number")
         f = open('/proc/cpuinfo')
@@ -93,13 +100,11 @@ def SetupLogging():
     logging.config.dictConfig(dict_LoggingSetup.log_cfg)
     gbl_log = logging.getLogger()
 
-
-    #BUG: This is loading the wrong values into the log file
+    gbl_log.info("\n\n")
     gbl_log.info("[CTRL] Logging Started, current level is %s" % gbl_log.getEffectiveLevel())
     
     return
 
-    
 def CheckDiskSpace():
     """
     Validate there is enough disk space to write to file
@@ -131,10 +136,6 @@ def SetandGetArguments():
                     help="Start capturing data from the configured sensors and send them to the database")
     parser.add_argument("-r", "--reset", action="store_true",
                     help="Reset to the default values")
-    parser.add_argument("-n", "--newsensor", action="store_true",
-                    help="Add a new Sensor to this Raspberry Pi")
-    parser.add_argument("-l", "--logging", action="store_true",
-                    help="Set the logging level to be used (Default is OFF)")
     Cal_group = parser.add_mutually_exclusive_group()
     Cal_group.add_argument("-c", "--displaycal", action="store_true",
                     help="Display the Calibration Data for the sensors, e.g. Read Frequency")
@@ -409,15 +410,6 @@ def SetCustomerParameters(device):
     SaveCustomerInfo(cust_info)
     return cust_info
 
-def SetLogging():
-    """
-    Perform the necessary actions to change the logging level being used
-
-    The default logging level is zero
-    """
-    print ("Not yet Implemented")
-    return
-
 def SplashScreen():
     print("***********************************************")
     print("*             Bostin Technology               *")
@@ -512,8 +504,6 @@ def main():
         Start(customer_info)
     elif args.reset: 
         Reset()
-    elif args.newsensor:
-        NewSensor()          #TODO: Not started
     elif args.displaycal:
         DisplayCal()
     elif args.setcal:
@@ -523,8 +513,6 @@ def main():
         DisplayCustomerParameters(customer_info)
     elif args.setinfo:
         SetCustomerParameters()
-    elif args.logging:
-        SetLogging()         #TODO: Not started
     else:
         Start(customer_info)              
 

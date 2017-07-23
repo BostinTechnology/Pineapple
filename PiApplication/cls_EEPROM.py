@@ -16,6 +16,7 @@ import sys
 import logging
 
 import Standard_Settings as SS
+import dict_Datafile as DF
 
 ID_IOT_CHIP_ADDR = 0x50
 
@@ -294,6 +295,34 @@ class ID_IoT():
         return
         
     def _set_additional_data(self):
+        """
+        Sets the additional information about the sensor, based on the data file
+        Loads the datafile into a 
+                self.sensor_comms_file
+                self.sensor_part_number
+                self.sensor_type
+                self.sensor_manfacturer
+        """
+        self.log.info("[EEPROM] Reading the datafile for sensor information")
+            
+        # Uses the self.sensor_type read from the Device Connectivity Data
+        for element in DF.datafile:
+            if element[4] == self.sensor_type_code[0] and element[5] == self.sensor_type_code[1]:
+                self.log.debug("[EEPROM] Match found for Sensor and Description")
+                self.sensor_comms_file = element[0]
+                self.sensor_part_number = element[1]
+                self.sensor_type = element[2]
+                self.sensor_manufacturer = element[3]
+
+        if len(self.sensor_comms_file) < 1:
+            self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
+                
+        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
+            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
+        
+        return
+
+    def _set_additional_data_old(self):
         """
         Sets the additional information about the sensor, based on the data file
         Loads the datafile into a 
