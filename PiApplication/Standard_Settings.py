@@ -3,6 +3,7 @@ I2C = "I2C"
 SPI = "SPI"
 SERIAL = "Serial"
 
+# Datafile and Customer file locations
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "." #"CognIoT"
 

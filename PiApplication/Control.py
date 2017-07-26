@@ -43,7 +43,9 @@ import dict_LoggingSetup
 gbl_log = ""
 
 
-
+#BUG: With no calibration data set, I have a read frequency of zero.
+#       Do I need to add a flag in the Id_IoT to indicate that calibration data is set?
+#       If not set, I could then program defaults.
 
 def GetSerialNumber():
     """
@@ -339,6 +341,19 @@ def DisplayCustomerParameters(cust_info):
     Perform the necessary actions to display the parameter data being used
     
     """
+    #BUG:
+            
+        #Setting                  Value
+        #==============================
+        #Traceback (most recent call last):
+          #File "Control.py", line 524, in <module>
+            #main()
+          #File "Control.py", line 511, in main
+            #DisplayCustomerParameters(customer_info)
+          #File "Control.py", line 345, in DisplayCustomerParameters
+            #print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
+        #NameError: name 'calib_data' is not defined
+
     print("Setting                  Value")
     print("==============================")
     for item in cust_info:

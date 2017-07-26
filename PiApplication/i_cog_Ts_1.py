@@ -27,10 +27,14 @@ avg_temp_samples        - The number of samples used to calculate the TEMPERATUR
 avg_humd_samples        - The number of samples used to calculate the HUMIDITY readings (3 bit numbers)
 
 """
+#BUG: The Wait time for data to be available needs to be based on the various settings
+#       at the moment it is set to 10 seconds that appears to work.
+#BUG: when passing data to the data accessor, it is rejecting the values, even though they are floating point numbers
 
 import logging
 import time
 from datetime import datetime
+from datetime import timedelta
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -43,8 +47,16 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x5f
 # The time between a write and subsequent read
 WAITTIME = 0.5
-MVDATA_TYPE = 1         #TODO: Need to change this to cater for multiple datasets
-MVDATA_UNITS = 'lx'     #TODO: Need to change this to cater for multiple datasets
+# The time to wait for the Humidity / Temperature data avaiable flag to be set
+HUMID_DA_WAIT_TIME = 10#0.5
+TEMP_DA_WAIT_TIME = 10#0.5
+# The default value to be used if there is no reading available
+DEFAULT_TEMP = -273
+DEFAULT_HUMID = -1
+
+# The items listed below MUST match the data structure returned from the _read_value function
+MVDATA_TYPE = [1,1]
+MVDATA_UNITS = ['DegC','rH']
 
 class iCog():
     
@@ -55,6 +67,19 @@ class iCog():
         self.log = logging.getLogger()
         self.log.debug("[Ts1] cls_icog initialised")
         self.log.debug("[Ts1] Data being used to build calibration dictionary:%s" % calib)
+        self.t_out = 0              # Temperature reading from the sensor
+        self.h_out = 0              # Humidity reading from the sensor
+        
+        self.t0_degc = 0            #Calibration Data
+        self.t1_degc = 0            #   -- "" --
+        self.t0_out = 0             #   -- "" --
+        self.t1_out = 0             #   -- "" --
+        self.h0_rh = 0             #   -- "" --
+        self.h1_rh = 0             #   -- "" --
+        self.h0_out = 0             #   -- "" --
+        self.h1_out = 0             #   -- "" --
+        
+        self.t_degc = 0             # Calculated output value
 
         self.comms = comms_handler
         self.calibration_data = {}          # Reset the calibration data dictionary
@@ -105,7 +130,8 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._stop()
         
-        mvdata = [[MVDATA_TYPE, value, MVDATA_UNITS, timestamp]]
+        mvdata = [[MVDATA_TYPE[0], value[0], MVDATA_UNITS[0], timestamp],
+                    [MVDATA_TYPE[1], value[1], MVDATA_UNITS[1], timestamp]]
         
         return mvdata
     
@@ -132,6 +158,8 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
+        
+        #TODO: Consider resetting the sensor at the same time - use RefreshRegisters
         
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
@@ -332,6 +360,64 @@ class iCog():
         data_out = (data_h << 8) + data_l
         self.log.debug("[Ls1] Data Register combined %x" % data_out)
         return data_out
+
+    def _set_temp_samples(self):
+        """
+        Set bit 7 of the CTRL Register 0x20 to 1 and bits 1 & 0 to 0b 00
+        """
+        status = False
+        reg_addr = 0x10
+        mask = 0b00111000
+        mode = self.calibration_data['avg_temp_samples'] << 3
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ts1] Temperature Samples Register Before turning on Sensor:0x%x" % byte)
+        if (byte & mask) != mode:
+            #Modify the register to set bits 5-3 to the mode
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Ts1] Byte to write to set Temperature Samples Register 0x%x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Ts1] Temperature Samples Register after setting:0x%x" % byte)
+            if (byte & mask) == mode:
+                self.log.debug("[Ts1] Temperature Samples Register set")
+                status = True
+            else:
+                self.log.debug("[Ts1] Temperature Samples Register Failed to set")
+                status = False
+        else:
+            self.log.debug("[Ts1] Temperature Samples Register already set")
+            status = True
+        return status
+
+    def _set_humid_samples(self):
+        """
+        Set bit 7 of the CTRL Register 0x20 to 1 and bits 1 & 0 to 0b 00
+        """
+        status = False
+        reg_addr = 0x10
+        mask = 0b00000111
+        mode = self.calibration_data['avg_humd_samples']
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ts1] Humidity Samples Register Before turning on Sensor:0x%x" % byte)
+        if (byte & mask) != mode:
+            #Modify the register to set bits 5-3 to the mode
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Ts1] Byte to write to set Humidity Samples Register 0x%x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Ts1] Humidity Samples Register after setting:0x%x" % byte)
+            if (byte & mask) == mode:
+                self.log.debug("[Ts1] Humidity Samples Register set")
+                status = True
+            else:
+                self.log.debug("[Ts1] Humidity Samples Register Failed to set")
+                status = False
+        else:
+            self.log.debug("[Ts1] Humidity Samples Register already set")
+            status = True
+        return status
     
     def _turn_on_sensor(self):
         """
@@ -341,15 +427,15 @@ class iCog():
         reg_addr = 0x20
         mask = 0b10000011
         mode = 0b10000001
-        byte = self.comms.read_byte_data(SENSOR_ADDR,reg_addr)
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Control Register Before turning on Sensor (0x20):0x%x" % byte)
         if (byte & mask) != mode:
             #Modify the register to set bit7 = 1 and bits1,0 to 01
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to turn on Sensor 0x%x" % towrite)
-            self.comms.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
-            byte = self.comms.read_byte_data(SENSOR_ADDR,reg_addr)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
             self.log.info ("[Ts1] Control Register After turning on sensor(0x20):0x%x" % byte)
             if (byte & mask) == mode:
                 self.log.debug("[Ts1] Sensor Turned ON")
@@ -369,15 +455,15 @@ class iCog():
         reg_addr = 0x20
         mask = 0b10000011
         mode = 0b00000000
-        byte = self.comms.read_byte_data(SENSOR_ADDR,reg_addr)
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Control Register Before turning off (0x20):%x" % byte)
         if (byte & mask) != mode:
             # Modify the register to set bit7 = 0 and bits1,0 to 00
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to turn off %s" % towrite)
-            self.comms.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
-            byte = self.comms.read_byte_data(SENSOR_ADDR,reg_addr)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
             self.log.info ("[Ts1] Control Register After turning off (0x20):%x" % byte)
             if (byte & mask) == mode:
                 self.log.debug("[Ts1] Sensor Turned OFF")
@@ -390,7 +476,229 @@ class iCog():
             status = True
         return status
 
+    ### Routines to read the various temperature calibration data out
+    def _read_t0_degc(self):
+        """
+        Read out and decode the 1.2 bytes of temperature calibraion reading T0
+        """
+        #TODO: Need to have some sort of validation here
+        t0_reg_addr = [0x32, 0x35]
+        t0_degc_l = self.comms.read_data_byte(SENSOR_ADDR,t0_reg_addr[0])
+        t0_degc_h = self.comms.read_data_byte(SENSOR_ADDR,t0_reg_addr[1])
+        self.log.debug ("[Ts1] T0 Calibration Readings (0x35/0x32):%x/%x" % (t0_degc_h, t0_degc_l))
+        #Merge the values into a single reading
+        #extract 2 bits from T0 high
+        t0_degc_h = (t0_degc_h & 0b00000011)
+        self.log.debug("[Ts1] bits 0 & 1 of T0 High:%s" % bin(t0_degc_h))
+        self.t0_degc = ((t0_degc_h << 8) + t0_degc_l) / 8
+        self.log.info("[Ts1] T0 Value:%s" % self.t0_degc)
+        return
+
+    def _read_t1_degc(self):
+        """
+        Read out and decode the 1.2 bytes of temperature calibraion reading T1
+        """
+        #TODO: Need to have some sort of validation here
+        t1_reg_addr = [0x33, 0x35]
+        t1_degc_l = self.comms.read_data_byte(SENSOR_ADDR,t1_reg_addr[0])
+        t1_degc_h = self.comms.read_data_byte(SENSOR_ADDR,t1_reg_addr[1])
+        self.log.debug ("[Ts1] T1 Calibration Readings (0x35/0x33):%x/%x" % (t1_degc_h, t1_degc_l))
+        #Merge the values into a single reading
+        #extract 2 bits from T0 high
+        t1_degc_h = (t1_degc_h & 0b00001100) >> 2
+        self.log.debug("[Ts1] Bits 2 & 3 of T1 High:%s" % bin(t1_degc_h))
+        self.t1_degc = ((t1_degc_h << 8) + t1_degc_l) / 8
+        self.log.info("[Ts1] T1 Value:%s" % self.t1_degc)
+        return
+
+    def _read_t0_out(self):
+        """
+        Read out and decode the 2 bytes of temperature calibration readings
+        """
+        #TODO: Need to have some sort of validation here
+        t0_out_reg_addr = [0x3c, 0x3d]
+        t0_out_l = self.comms.read_data_byte(SENSOR_ADDR,t0_out_reg_addr[0])
+        t0_out_h = self.comms.read_data_byte(SENSOR_ADDR,t0_out_reg_addr[1])
+        self.log.debug ("[Ts1] T0 OUT Reading (0x3c/0x3d):%x/%x" % (t0_out_h, t0_out_l))
+        #Merge the values into a single reading
+        t0_out = (t0_out_h << 8) + t0_out_l
+        self.t0_out = self._twos_compliment(t0_out)
+        self.log.info ("[Ts1] T0 OUT combined (0x3c/0x3d):%s" % self.t0_out)
+        return
+
+    def _read_t1_out(self):
+        """
+        Read out and decode the 2 bytes of temperature calibration readings
+        """
+        #TODO: Need to have some sort of validation here
+        t1_out_reg_addr = [0x3e, 0x3f]
+        t1_out_l = self.comms.read_data_byte(SENSOR_ADDR,t1_out_reg_addr[0])
+        t1_out_h = self.comms.read_data_byte(SENSOR_ADDR,t1_out_reg_addr[1])
+        self.log.debug ("[Ts1] T1_OUT Reading (0x3e/0x3f):%x/%x" % (t1_out_h, t1_out_l))
+        #Merge the values into a single reading
+        t1_out = (t1_out_h << 8) + t1_out_l
+        self.t1_out = self._twos_compliment(t1_out)
+        self.log.info ("[Ts1] T1_OUT Reading combined (0x3e/0x3f):%s" % self.t1_out)
+        return
+
+    ### Routines to read out the various humidity values
+    def _read_h0_rH(self):
+        """
+        Read out and decode the 1 byte of humidity calibraion reading H0
+        """
+        reg_addr = 0x30
+        h0_rh = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.debug ("[Ts1] H0 Calibration Readings (0x30):%x" % h0_rh)
+        self.h0_rh = h0_rh / 2
+        self.log.info("[Ts1] H0 Value:%s" % self.h0_rh)
+        return
+
+    def _read_h1_rH(self):
+        """
+        Read out and decode the 1 byte of humidity calibraion reading H1
+        """
+        reg_addr = 0x31
+        h1_rh = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.debug ("[Ts1] H1 Calibration Readings (0x30):%x" % h1_rh)
+        self.h1_rh = h1_rh / 2
+        self.log.info("[Ts1] H1 Value:%s" % self.h1_rh)
+        return h1_rh
+
+    def _read_h0_out(self):
+        """
+        Read out and decode the 2 bytes of humidity calibration readings
+        """
+        h0_out_reg_addr = [0x36, 0x37]
+        h0_out_l = self.comms.read_data_byte(SENSOR_ADDR,h0_out_reg_addr[0])
+        h0_out_h = self.comms.read_data_byte(SENSOR_ADDR,h0_out_reg_addr[1])
+        self.log.debug ("[Ts1] H0 OUT Reading (0x37/0x36):%x/%x" % (h0_out_h, h0_out_l))
+        #Merge the values into a single reading
+        h0_out = (h0_out_h << 8) + h0_out_l
+        self.h0_out = self._twos_compliment(h0_out)
+        self.log.info ("[Ts1] H0 OUT combined (0x37/0x36):%s" % self.h0_out)
+        return
+
+    def _read_h1_out(self):
+        """
+        Read out and decode the 2 bytes of humidity calibration readings
+        """
+        h0_out_reg_addr = [0x3a, 0x3b]
+        h1_out_l = self.comms.read_data_byte(SENSOR_ADDR,h0_out_reg_addr[0])
+        h1_out_h = self.comms.read_data_byte(SENSOR_ADDR,h0_out_reg_addr[1])
+        self.log.debug ("[Ts1] H1 OUT Reading (0x3B/0x3A):%x/%x" % (h1_out_h, h1_out_l))
+        #Merge the values into a single reading
+        h1_out = (h1_out_h << 8) + h1_out_l
+        self.h1_out = self._twos_compliment(h1_out)
+        self.log.info ("[Ts1] H1 OUT combined (0x3B/0x3A):%s" % self.h1_out)
+        return
+
+    ### Routines to read the sensor values
+    def _read_t_out(self):
+        """
+        Read out and decode the 2 bytes of temperature readings
+        """
+        #TODO: Need to have some sort of validation here
+        t_out_addr = [0x2a, 0x2b]
+        t_out_l = self.comms.read_data_byte(SENSOR_ADDR,t_out_addr[0])
+        t_out_h = self.comms.read_data_byte(SENSOR_ADDR,t_out_addr[1])
+        self.log.debug ("[Ts1] T_OUT Reading (0x2b/0x2a):%x/%x" % (t_out_h, t_out_l))
+        #Merge the values into a single reading
+        t_out = (t_out_h << 8) + t_out_l
+        self.t_out = self._twos_compliment(t_out)
+        self.log.info ("[Ts1] T_OUT Reading combined (0x2b/0x2a):%s" % self.t_out)
+        return self.t_out
+
+    def _read_h_out(self):
+        """
+        Read out and decode the 2 bytes of temperature readings
+        """
+        #TODO: Need to have some sort of validation here that the reading is within an acceptable range
+        h_out_reg_addr = [0x28, 0x29]
+        h_out_l = self.comms.read_data_byte(SENSOR_ADDR,h_out_reg_addr[0])
+        h_out_h = self.comms.read_data_byte(SENSOR_ADDR,h_out_reg_addr[1])
+        self.log.debug ("[Ts1] H_OUT Reading (0x28/0x29):%x/%x" % (h_out_h, h_out_l))
+        #Merge the values into a single reading
+        h_out = (h_out_h << 8) + h_out_l
+        self.h_out = self._twos_compliment(h_out)
+        self.log.info ("[Ts1] H_OUT Reading combined (0x28/0x29):%s" % self.h_out)
+        return self.h_out
+
+    ### Routines to check if there are reading available
+    def _humidity_data_available(self):
+        """
+        Waits until the Humidity data available flag is set
+        """
+        reg_addr = 0x27
+        mask = 0b00000010
+        humid = False
+        endtime = datetime.now() + timedelta(seconds=HUMID_DA_WAIT_TIME)
+        self.log.info("[Ts1] Waiting for the Humidity data available flag (bit1, 0x27) to be set")
+        while humid == False and datetime.now() < endtime:
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            humid = (byte & mask) >> 1
+        self.log.debug("[Ts1] Humidity Data Status (1=data available) %s" % humid)
+        return humid
+
+    def _temperature_data_available(self):
+        """
+        Waits until the Temperature data available flag is set
+        """
+        reg_addr = 0x27
+        mask = 0b00000001
+        temp = False
+        endtime = datetime.now() + timedelta(seconds=TEMP_DA_WAIT_TIME)
+        self.log.info("[Ts1] Waiting for the Temperature data available flag (bit1, 0x27) to be set")
+        while temp == False and datetime.now() < endtime:
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            temp = byte & mask
+        self.log.debug("[Ts1] Temperature Data Status (1=data available) %s" % temp)
+        return temp
     
+    def _enable_one_shot_old(self):
+        """
+        Set the one shot bit to start a new conversion set of data
+        """
+        reg_addr = 0x21
+        mask = 0b00000001
+        mode = 0b00000001
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ts1] One Shot Enable before activating (0x21):%x" % byte)
+        if (byte & mask) != mode:
+            # Modify the register to set bit0 = 1
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Ts1] Byte to write to enable One Shot %s" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Ts1] One Shot Enable after activating (0x21):%x" % byte)
+            if (byte & mask) == mode:
+                self.log.debug("[Ts1] One Shot Enableb")
+                status = True
+            else:
+                self.log.debug("[Ts1] One Shot Enable Failed to enable")
+                status = False
+        else:
+            self.log.debug("[Ts1] One Shot Enable already activated")
+            status = True
+        return status
+        
+    def _enable_one_shot(self):
+        """
+        Set the one shot bit to start a new conversion set of data
+        """
+        reg_addr = 0x21
+        mask = 0b00000001
+        mode = 0b00000001
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ts1] One Shot Enable before activating (0x21):%x" % byte)
+        towrite = (byte & ~mask) | mode
+        self.log.debug("[Ts1] Byte to write to enable One Shot %x" % towrite)
+        self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Ts1] One Shot Enable after activating (0x21):%x" % byte)
+        status = True
+        return status
+
 #-----------------------------------------------------------------------
 #
 #    S t a r t / S t o p / R e a d   F u n c t i o n s
@@ -401,14 +709,28 @@ class iCog():
     def _setup_sensor(self):
         """
         Do all that is required to setup the sensor before starting
-        Need to write the average resolution readings to the sensor
+        Writes the average resolution readings to the sensor (set_?????_samples)
+
         Need to read and store the 4 calibration values for both temp and humidity
             once read, only re-read after reset
         Return either False - unsuccessful, or True if successful
         """
         
-        if 'modify here' == False:
+        if self._set_humid_samples == False:
             return False
+
+        if self._set_temp_samples == False:
+            return False
+        
+        self._read_h0_out()
+        self._read_h0_rH()
+        self._read_h1_out()
+        self._read_h1_rH()
+        
+        self._read_t0_degc()
+        self._read_t0_out()
+        self._read_t1_degc()
+        self._read_t1_out()
         
         return True
     
@@ -419,9 +741,9 @@ class iCog():
         Wait until reading available first.
         Set the active / power down mode
         """
-        if self._turn_on_sensor == False:
+        if self._turn_on_sensor() == False:
             return False
- 
+        
         return True
 
     def _read_value(self):
@@ -432,7 +754,35 @@ class iCog():
         Wait until data is available before reading it
         - add a timeout to this function
         """
-        return value
+        #TODO: check there is a temperature value available
+        # Calculate the temperature
+        #TODO: Need to check the values are set before using them, else get them again
+        #    self.t0_degc, self.t1_degc, self.t0_out, self.t1_out
+        
+        if self._enable_one_shot() == False:
+            return [0,0]
+
+        if self._temperature_data_available():
+            t_out = self._read_t_out()
+            self.log.debug("[Ts1] Temperature Reading from Sensor (T OUT):%s" % t_out)
+            self.t_degc = (self.t0_degc + (t_out - self.t0_out) * (self.t1_degc - self.t0_degc) / (self.t1_out - self.t0_out))
+            self.log.info("[Ts1] Calculated Temperature: %s" % self.t_degc)
+        else:
+            self.log.info("[Ts1] Temperature Reading not available, using default")
+            self.t_degc = DEFAULT_TEMP
+            
+        #TODO: Need to check these values are valid before using them, else get them again
+        #   self.h0_rh, self.h1_rh, self.h0_out, self.h1_out
+        if self._humidity_data_available():
+            h_out = self._read_h_out()
+            self.log.debug("[Ts1] Humidity Reading from Sensor (H OUT):%s" % h_out)
+            self.h_rh = (self.h0_rh + (h_out - self.h0_out) * (self.h1_rh - self.h0_rh) / (self.h1_out - self.h0_out))
+            self.log.info("[Ts1] Calculated Relative Humidity: %s" % self.h_rh)
+        else:
+            self.log.info("[Ts1] Humidity Reading not available, using default")
+            self.h_rh = DEFAULT_HUMID
+            
+        return [self.t_degc, self.h_rh]
 
     def _stop(self):
         """
@@ -456,6 +806,13 @@ class iCog():
         now = str(datetime.now())
         self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
         return str(now[:23])
+
+    def _twos_compliment(self,value):
+        """
+        Convert the given 16bit hex value to decimal using 2's compliment
+        """
+        return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
+
 
 
 #-----------------------------------------------------------------------

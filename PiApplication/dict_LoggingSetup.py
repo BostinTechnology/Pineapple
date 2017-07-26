@@ -31,7 +31,7 @@ log_cfg = dict(
                 'formatter': 'full',
                 'level': logging.DEBUG,
                 'filename': 'CognIoT.log',
-                'maxBytes':  102400,
+                'maxBytes':  1638400,
                 'backupCount' : 5,
                 'mode': 'w'},
                   

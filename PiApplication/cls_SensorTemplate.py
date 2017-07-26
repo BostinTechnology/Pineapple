@@ -95,6 +95,7 @@ class iCog():
         Return the current value from the sensor, in the correct format
         In Low Power mode start / read and end the sensor
         This should return a list of lists, each inner list is a set of values
+        If a value is not available, a default should be returned
         """
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
