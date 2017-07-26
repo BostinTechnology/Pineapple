@@ -5,7 +5,6 @@ sensors to actually be based on
 
 When using the class as the template, the following actions are required.
 - Write sensor specific functions
-    - sensor can operate in low power mode
     - self test - not sure how I can use this, maybe as part of reset calibration?
     - software reset - also maybe as part of reset calibration?
     - sensor zeroing - resetting the sensor to be zero using the offsets
@@ -13,12 +12,8 @@ When using the class as the template, the following actions are required.
         zero_g_y_offset         - ditto
         zero_g_z_offset         - ditto
         
-- Modify the following functions
-    - _setup_sensor
-    - _start
-    - _read_value
-        - modify the MVDATA values
-    - _stop
+- review app note
+    AN4083, Data Manipulation and Basic Settings for Xtrinsic MMA865xFC Accelerometers
 - Write the requried test functions
 
 
@@ -41,6 +36,7 @@ zero_g_z_offset         - ditto
 import logging
 import time
 from datetime import datetime
+import sys
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -53,8 +49,13 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x1d
 # The time between a write and subsequent read
 WAITTIME = 0.5
-MVDATA_TYPE = [1]
-MVDATA_UNITS = ['lx']
+MVDATA_TYPE = [1,1,1]
+MVDATA_UNITS = ['g x-axis','g y-axis','g z-axis']
+
+#Average Quantity of readings values
+AVG_QTY_MAX = 250           # The maximum permissible quantity of readings
+AVG_QTY_MIN = 1             # The minimum permissable quantity of readings
+AVG_QTY_DEFAULT = 10        # The default value if one is not available
 
 class iCog():
     
@@ -72,8 +73,11 @@ class iCog():
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
             self.log.error("[Rs2] Failed to decode calibration data, using default values. Consider resetting it")
-        self._setup_sensor()
-        return
+        if self._setup_sensor() == False:
+            self.log.critical("[Rs2] Failed to setup sensor for use")
+            print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
+            sys.exit()
+        return 
     
     def StartSensor(self):
         """
@@ -114,7 +118,10 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._stop()
         
-        mvdata = [[MVDATA_TYPE[0], value, MVDATA_UNITS[0], timestamp]]
+        mvdata = [[MVDATA_TYPE[0], value[0], MVDATA_UNITS[0], timestamp],
+                    [MVDATA_TYPE[1], value[1], MVDATA_UNITS[1], timestamp],
+                    [MVDATA_TYPE[2], value[2], MVDATA_UNITS[2], timestamp]
+                    ]
         
         return mvdata
     
@@ -232,7 +239,7 @@ class iCog():
             choice = input("Do you want the sensor to work in Single or Averaged mode? (s/a)?")
             if choice.upper() == "A":
                 self.calibration_data['single_mode'] = False
-            elif choice.upper() =="I":
+            elif choice.upper() =="S":
                 self.calibration_data['single_mode'] = True
             else:
                 print("Please choose S or A")
@@ -251,26 +258,30 @@ class iCog():
                 choice = ""
         self.log.debug("[Rs2] Full Scale Range choice:%s" % choice)
         
-        print("Quantity of Reading to be Averaged")
-        print("The number of readings to be taken for the average")
-        choice = ""
-        while choice == "":
-            choice = input("Enter the quantity of readings to be used (1 - 250)?")
-            if choice.isdigit():
-                choice = int(choice)
-                if choice < 1 or choice > 250:
-                    choice = ""
-                    print("Please choosse a number in the range of 1 to 250")
+        if self.calibration_data['single_mode'] == False:
+            print("Quantity of Reading to be Averaged")
+            print("The number of readings to be taken for the average")
+            choice = ""
+            while choice == "":
+                choice = input("Enter the quantity of readings to be used (1 - 250)?")
+                if choice.isdigit():
+                    choice = int(choice)
+                    if choice < AVG_QTY_MIN or choice > AVG_QTY_MAX:
+                        choice = ""
+                        print("Please choosse a number in the range of 1 to 250")
+                    else:
+                        self.calibration_data['average_quantity'] = choice
                 else:
-                    self.calibration_data['average_quantity'] = choice
-            else:
-                print("Please choosse a number in the range of 1 to 250")
-                choice = ""
-        self.log.debug("[Rs2] Average Quantity of Readings choice:%s" % choice)
+                    print("Please choosse a number in the range of 1 to 250")
+                    choice = ""
+            self.log.debug("[Rs2] Average Quantity of Readings choice:%s" % choice)
+        else:
+            self.calibration_data['average_quantity'] = AVG_QTY_DEFAULT
+            self.log.debug("[Rs2] Average Quantity of Readings set to default as operating in single mode")
 
         self.log.debug("[Rs2] New Configuration Parameters:%s" % self.calibration_data)
         return
-    
+
     def _build_calib_data(self):
         """
         Take the self.calibration_data and convert it to bytes to be written
@@ -341,34 +352,17 @@ class iCog():
 #
 #    Specific functions required for the sensor
 #-----------------------------------------------------------------------
-
-    def _xxx(self):
-        """
-        do something
-        """
-        
-        # Example Here
-        """
-        Read the 2 8 bit registers that contain the ADC value
-        """
-        data_addr = [0x02, 0x03]
-        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
-        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
-        self.log.info ("[Ls1] Data Register values (0x03/0x02):%x /%x" % (data_h, data_l))
-        data_out = (data_h << 8) + data_l
-        self.log.debug("[Ls1] Data Register combined %x" % data_out)
-        return data_out
     
     def _turn_on_sensor(self):
         """
         Set bit 0 of the CTRL Register 0x26 to 1 to make the sensor active
         """
         status = False
-        reg_addr = 0x26
+        reg_addr = 0x2A
         mask = 0b00000001
         mode = 0b00000001
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-        self.log.info ("[Rs2] Control Register Before turning on Sensor (0x26):0x%x" % byte)
+        self.log.info ("[Rs2] Control Register Before turning on Sensor (0x2A):0x%x" % byte)
         if (byte & mask) != mode:
             #Modify the register to set bit0 = 1
             towrite = (byte & ~mask) | mode
@@ -376,7 +370,7 @@ class iCog():
             self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-            self.log.info ("[Rs2] Control Register After turning on sensor(0x26):0x%x" % byte)
+            self.log.info ("[Rs2] Control Register After turning on sensor(0x2A):0x%x" % byte)
             if (byte & mask) == mode:
                 self.log.debug("[Rs2] Sensor Turned ON")
                 status = True
@@ -396,7 +390,7 @@ class iCog():
         mask = 0b00000001
         mode = 0b00000000
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-        self.log.info ("[Rs2] Control Register Before turning off (0x26):%x" % byte)
+        self.log.info ("[Rs2] Control Register Before turning off (0x2A):%x" % byte)
         if (byte & mask) != mode:
             # Modify the register to set bit0 = 0
             towrite = (byte & ~mask) | mode
@@ -404,7 +398,7 @@ class iCog():
             self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-            self.log.info ("[Rs2] Control Register After turning off (0x26):%x" % byte)
+            self.log.info ("[Rs2] Control Register After turning off (0x2A):%x" % byte)
             if (byte & mask) == mode:
                 self.log.debug("[Rs2] Sensor Turned OFF")
                 status = True
@@ -416,54 +410,194 @@ class iCog():
             status = True
         return status
 
-def SetFullScaleMode(mode):
-    #Set the Full Scale Mode in the XYZ_DATA_CFG Register 0x0E
-    # mode can be either TWOG, FOURG, EIGHTG
-    reg_addr = 0x0e
-    mask = 0b00000011
-    byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-    logging.info ("XYZ_DATA_CFG Register before setting Full Scale Mode(%x):%x" % (reg_addr,byte))
-    logging.debug("Requested Full Scale mode of operation %x" % mode)
-    # check if the bits are not already set
-    if (byte & mask) != mode:
-        # Modify the register to set bits 1 - 0 to the mode
-        towrite = (byte & ~mask) | mode
-        logging.debug("Byte to write to turn on the Full Scale mode %x" % towrite)
-        bus.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
-        time.sleep(WAITTIME)
-        byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-        logging.info ("XYZ_DATA_CFG Register After turning on the Full Scale mode:%x" % byte)
-        if (byte & mask) == mode:
-            print("Sensor Turned in to Full Scale mode")
+    def _set_full_scale_mode(self):
+        """
+        Set the Full Scale Mode in the XYZ_DATA_CFG Register 0x0E
+        mode can be either 2g (0b00), 4g (0b01) or 8g (0b10)
+        """
+        reg_addr = 0x0e
+        mask = 0b00000011
+        if self.calibration_data['full_scale_range'] == 2:
+            mode = 0b00
+        elif self.calibration_data['full_scale_range'] == 4:
+            mode = 0b01
+        elif self.calibration_data['full_scale_range'] == 8:
+            mode = 0b10
         else:
-            print("Sensor Not in the Full Scale mode")
-    else:
-        logging.debug("Sensor already in required Full Scale mode")
-    return
+            self.log.warning("[Rs2] Unable to determine full scale range, using 8g")
+            mode = 0b10
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.debug("[Rs2] XYZ_DATA_CFG Register before setting Full Scale Mode(%x):%x" % (reg_addr,byte))
+        self.log.info("[Rs2] Requested Full Scale mode of operation %x" % mode)
+        # check if the bits are not already set
+        if (byte & mask) != mode:
+            # Modify the register to set bits 1 - 0 to the mode
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Rs2] Byte to write to turn on the Full Scale mode %x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Rs2] XYZ_DATA_CFG Register After turning on the Full Scale mode:%x" % byte)
+            if (byte & mask) == mode:
+                self.log.info("[Rs2] Sensor Turned in to Full Scale mode")
+            else:
+                self.log.info("[Rs2] Sensor Not in the Full Scale mode")
+        else:
+            self.log.info("[Rs2] Sensor already in required Full Scale mode")
+        return
 
-def SetSelfTest(onoff):
-    # To activate the self-test by setting the ST bit in the CTRL_REG2 register (0x2B).
-    # Enable the Self Test using CTRL_Register 0x2b
-    reg_addr = 0x2b
-    mask = 0b10000000
-    shift = 7
-    byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-    logging.info ("Self Test byte before setting Self Test bit (%x):%x" % (reg_addr,byte))
-    if (byte & mask) != (onoff << shift):
-        # Modify the register to set bit 7 to on or off
-        towrite = (byte & ~mask) | (onoff << shift)
-        logging.debug("Self Test Byte to write to turn on the Self Test %x" % towrite)
-        bus.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
-        time.sleep(WAITTIME)
-        byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-        logging.info ("Self Test After turning on the required mode:%x" % byte)
-        if (byte & mask) == (onoff << shift):
-            print("Sensor Turned in to required Self Test mode")
+    def _set_power_mode(self):
+        """
+        The sensor can run in normal or low power mode
+        For the power mode set the following bits of CTRL_REG2 register (0x2B).
+                            Low         Normal      Mask
+        Sleep Mode          0b11        0b00        0b00011000
+        Auto Sleep Flag     0b1         0b0         0b00000100
+        Active Mode         0b11        0b00        0b00000011
+
+        Therefore:
+        - Low Power Mode    0b00011111
+        - Normal Mode       0b00000000
+        """
+        reg_addr = 0x2b
+        mask = 0b00011111
+        shift = 7
+        if self.calibration_data['low_power_mode'] == True:
+            mode = 0b00011111
         else:
-            print("Sensor Not in the required Self Test mode")
-    else:
-        logging.debug("Sensor already in required Self Test mode")
-    return
+            mode = 0b00000000
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Rs2] Power Mode bytes before setting power mode (%x):%x" % (reg_addr,byte))
+        if (byte & mask) != mode:
+            # Modify the register to set bits 4 - 0 to the required mode
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Rs2] Power Mode bytes to write to turn on the the required power mode %x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Rs2] Power Mode bytes after turning on the required power mode:%x" % byte)
+            if (byte & mask) == mode:
+                self.log.info("[Rs2] Sensor Turned in to required power mode")
+            else:
+                self.log.info("[Rs2] Sensor Not in the required power mode")
+        else:
+            self.log.info("[Rs2] Sensor already in required power mode")
+        return
+
+#-----------------------------------------------------------------------
+#
+#    S e n s o r   C a l c u l a t i o n   F u n c t i o n s
+#
+#    Specific functions to read the g forces
+#-----------------------------------------------------------------------
+
+
+    def _read_x_axis_data_registers(self):
+        """
+        Read the data out from the X Axis data registers 0x01 - msb, 0x02 bits 7 - 4 - lsb
+        """
+        data_addr = [0x02, 0x01]
+        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+        self.log.debug("[Rs2] X Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
+        data_out = (data_h << 4) + (data_l >> 4)
+        self.log.info("[Rs2] X Axis Data Register combined %x" % data_out)
+        return data_out
+
+    def _read_y_axis_data_registers(self):
+        """
+        Read the data out from the Y Axis data registers 0x03 - msb, 0x04 bits 7 - 4 - lsb
+        """
+        data_addr = [0x04, 0x03]
+        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+        self.log.debug("[Rs2] Y Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
+        data_out = (data_h << 4) + (data_l >> 4)
+        self.log.info("[Rs2] Y Axis Data Register combined %x" % data_out)
+        return data_out
+
+    def _read_z_axis_data_registers(self):
+        """
+        Read the data out from the Z Axis data registers 0x05 - msb, 0x06 bits 7 - 4 - lsb
+        """
+        data_addr = [0x06, 0x05]
+        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+        self.log.debug("[Rs2] Z Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
+        data_out = (data_h << 4) + (data_l >> 4)
+        self.log.info("[Rs2] Z Axis Data Register combined %x" % data_out)
+        return data_out
+    
+    def _fsr_multiplier(self):
+        """
+        Given the value from calibration data for the full scale range, calculate the mutiplier
+        The multipler is used to scale the readings from the sensor axis'
+        """
+        #TODO: Change these number to static variables
+        if self.calibration_data['full_scale_range'] == 2:
+            fsr_multiplier = 1/1024
+        elif self.calibration_data['full_scale_range'] == 4:
+            fsr_multiplier = 1/512
+        elif self.calibration_data['full_scale_range'] == 8:
+            fsr_multiplier = 1/256
+        else:
+            # default if calibration data incorrect.
+            fsr_multiplier = 1/1024
+            self.log.warning("[Rs2] Calibration data for Full Scale Range was invalid, using default of 8g")
+        self.log.info("[Rs2] Full Scale Range Multiplier is:%f" % fsr_multiplier)
+        return fsr_multiplier
+        
+    def _calculate_values(self):
+        """
+        Takes the readings and returns the x, y, z values
+        Given the current Full Scale Range multipler
+        """
+        x = self._read_x_axis_data_registers()
+        y = self._read_y_axis_data_registers()
+        z = self._read_z_axis_data_registers()
+
+        fsr = self._fsr_multiplier()
+        x = self._twos_compliment(x)
+        x = x * fsr
+        y = self._twos_compliment(y)
+        y = y * fsr
+        z = self._twos_compliment(z)
+        z = z * fsr
+        return [x, y, z]
+
+    def _calculate_avg_values(self):
+        """
+        Takes 10 sets of readings and returns the averaged x, y, z values
+        Given the current Full Scale Range multipler
+        """
+        avg_x = 0
+        avg_y = 0
+        avg_z = 0
+        fsr = self._fsr_multiplier()
+        qty_read = self.calibration_data['average_quantity']
+        if qty_read < AVG_QTY_MIN or qty_read > AVG_QTY_MAX:
+            self.log.warning("[Rs2] Calibration Data for the number of readings is invalid, using default of 10")
+            qty_read = AVG_QTY_DEFAULT
+            
+        for n in range(0,qty_read):
+            x = self._read_x_axis_data_registers()
+            y = self._read_y_axis_data_registers()
+            z = self._read_z_axis_data_registers()
+            x = self._twos_compliment(x)
+            x = x * fsr
+            y = self._twos_compliment(y)
+            y = y * fsr
+            z = self._twos_compliment(z)
+            z = z * fsr
+            avg_x = avg_x + x
+            avg_y = avg_y + y
+            avg_z = avg_z + z
+
+        avg_x = avg_x / qty_read
+        avg_y = avg_y / qty_read
+        avg_z = avg_z / qty_read
+
+        return [avg_x, avg_y, avg_z]
 
 
 #-----------------------------------------------------------------------
@@ -481,17 +615,10 @@ def SetSelfTest(onoff):
         if self.comms.repeated_start() == False:
             return False
         
-        needs to set the FSR
+        self._set_full_scale_mode()
         
-        if self.calibration_data['low_power_mode'] == False:
-            # Only start if NOT in low power mode
-            set the sensor to low power mode.
-        else normal mode
-
-
-        if 'modify here' == False:
-            return False
-        
+        self._set_power_mode()      # Uses calibraiton data to determine mode of operation
+                
         return True
     
     def _start(self):
@@ -511,8 +638,12 @@ def SetSelfTest(onoff):
         Modify this function to return the value read from the sensor
         If no value is available, return zero or a default value
         """
-        needs to take into account single or average mode
-        return [value]
+        if self.calibration_data['single_mode'] == True:
+            value = self._calculate_values()
+        else:
+            value = self._calculate_avg_values()
+        # No need to return value as a list ([value]) as it is already a list from the calculate functions
+        return value
 
     def _stop(self):
         """
@@ -536,29 +667,61 @@ def SetSelfTest(onoff):
         now = str(datetime.now())
         self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
         return str(now[:23])
+    
+    def _twos_compliment(self,value):
+        """
+        Convert the given 16bit hex value to decimal using 2's compliment
+        """
+        return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
+
+
 
 def SoftwareReset():
     # Perform a Software Reset using CTRL_Register 0x2b
     # After the software reset, it automatically clears the bit so no need to check / merge
     reg_addr = 0x0e
     value = 0b01000000
-    byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-    logging.info ("Control Register 2 before enabling Software Reset (%x):%x" % (reg_addr,byte))
+    byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+    self.log.info ("[Rs2] Control Register 2 before enabling Software Reset (%x):%x" % (reg_addr,byte))
     # Modify the register to set bit 6 to 0b1
     towrite = byte | value
-    logging.debug("Byte to write to perform Software Reset %x" % towrite)
-    bus.write_byte_data(SENSOR_ADDR, reg_addr, towrite)
+    self.log.debug("[Rs2] Byte to write to perform Software Reset %x" % towrite)
+    self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
     time.sleep(0.5)
     in_st = 1
     while in_st:
         # Wait while the Software Reset runs
-        byte = bus.read_byte_data(SENSOR_ADDR,reg_addr)
-        logging.info ("Control Register 2 After enabling Software Reset:%x" % byte)
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Rs2] Control Register 2 After enabling Software Reset:%x" % byte)
         in_st = (byte & 0b01000000) >> 6
         if in_st == 0b1:
             print("Sensor In Software Reset")
     print ("Software Reset Completed")
-    logging.debug("Software Reset Completed")
+    self.log.debug("[Rs2] Software Reset Completed")
+    return
+
+def SetSelfTest(onoff):
+    # To activate the self-test by setting the ST bit in the CTRL_REG2 register (0x2B).
+    # Enable the Self Test using CTRL_Register 0x2b
+    reg_addr = 0x2b
+    mask = 0b10000000
+    shift = 7
+    byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+    self.log.info ("[Rs2] Self Test byte before setting Self Test bit (%x):%x" % (reg_addr,byte))
+    if (byte & mask) != (onoff << shift):
+        # Modify the register to set bit 7 to on or off
+        towrite = (byte & ~mask) | (onoff << shift)
+        self.log.debug("[Rs2] Self Test Byte to write to turn on the Self Test %x" % towrite)
+        self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+        time.sleep(WAITTIME)
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Rs2] Self Test After turning on the required mode:%x" % byte)
+        if (byte & mask) == (onoff << shift):
+            self.log.info("[Rs2] Sensor Turned in to required Self Test mode")
+        else:
+            self.log.info("[Rs2] Sensor Not in the required Self Test mode")
+    else:
+        self.log.info("[Rs2] Sensor already in required Self Test mode")
     return
 
 def SelfTest():
@@ -619,6 +782,8 @@ def SelfTest():
 
     # Check for Self Test Pass
     # X increase of 90, y increase of 104, z increase of 782 (these are non calibrated!)
+    
+    #BUG: I have changed the calculateavgvalues to make them calibrated!!
     if (in_selftest[0] - out_selftest[0]) > (90 * 0.75):
         print("X - PASS")
     else:
@@ -634,105 +799,7 @@ def SelfTest():
 
     return
 
-#-----------------------------------------------------------------------
-#
-#    S e n s o r   C a l c u l a t i o n   F u n c t i o n s
-#
-#    Specific functions to read the g forces
-#-----------------------------------------------------------------------
-
-
-def ReadXAxisDataRegisters():
-    # Read the data out from the X Axis data registers 0x01 - msb, 0x02 bits 7 - 4 - lsb
-    data_addr = [0x02, 0x01]
-    data_l = bus.read_byte_data(SENSOR_ADDR,data_addr[0])
-    data_h = bus.read_byte_data(SENSOR_ADDR,data_addr[1])
-    logging.debug("X Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-    data_out = (data_h << 4) + (data_l >> 4)
-    logging.info("X Axis Data Register combined %x" % data_out)
-    return data_out
-
-def ReadYAxisDataRegisters():
-    # Read the data out from the Y Axis data registers 0x03 - msb, 0x04 bits 7 - 4 - lsb
-    data_addr = [0x04, 0x03]
-    data_l = bus.read_byte_data(SENSOR_ADDR,data_addr[0])
-    data_h = bus.read_byte_data(SENSOR_ADDR,data_addr[1])
-    logging.debug("Y Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-    data_out = (data_h << 4) + (data_l >> 4)
-    logging.info("Y Axis Data Register combined %x" % data_out)
-    return data_out
-
-def ReadZAxisDataRegisters():
-    # Read the data out from the Z Axis data registers 0x05 - msb, 0x06 bits 7 - 4 - lsb
-    data_addr = [0x06, 0x05]
-    data_l = bus.read_byte_data(SENSOR_ADDR,data_addr[0])
-    data_h = bus.read_byte_data(SENSOR_ADDR,data_addr[1])
-    logging.debug("Z Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-    data_out = (data_h << 4) + (data_l >> 4)
-    logging.info("Z Axis Data Register combined %x" % data_out)
-    return data_out
-
-def CalculateValues(fsr):
-    # Takes the readings and returns the x, y, z values
-    # Given the current Full Scale Range
-    x = ReadXAxisDataRegisters()
-    y = ReadYAxisDataRegisters()
-    z = ReadZAxisDataRegisters()
-
-    x = TwosCompliment(x)
-    x = x * fsr
-    y = TwosCompliment(y)
-    y = y * fsr
-    z = TwosCompliment(z)
-    z = z * fsr
-    return [x, y, z]
-
-def CalculateAvgValues(fsr):
-    # Takes 10 sets of readings and returns the averaged x, y, z values
-    # Given the current Full Scale Range
-    avg_x = 0
-    avg_y = 0
-    avg_z = 0
-    for n in range(0,10):
-        x = ReadXAxisDataRegisters()
-        y = ReadYAxisDataRegisters()
-        z = ReadZAxisDataRegisters()
-        x = TwosCompliment(x)
-        #x = x * fsr
-        y = TwosCompliment(y)
-        #y = y * fsr
-        z = TwosCompliment(z)
-        #z = z * fsr
-        avg_x = avg_x + x
-        avg_y = avg_y + y
-        avg_z = avg_z + z
-
-    avg_x = avg_x / 10
-    avg_y = avg_y / 10
-    avg_z = avg_z / 10
-
-    return [avg_x, avg_y, avg_z]
-
    
-#-----------------------------------------------------------------------
-#
-#    M i s c e l l a n e o u s    F u n c t i o n s
-#
-#-----------------------------------------------------------------------
-
-    def _timestamp(self):
-        """
-        Generate a timestamp of the correct format
-        """
-        now = str(datetime.now())
-        self.log.debug("[Ps3] Generated timestamp %s" % now[:23])
-        return str(now[:23])
-
-    def _twos_compliment(self,value):
-        """
-        Convert the given 16bit hex value to decimal using 2's compliment
-        """
-        return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
 
 
 #-----------------------------------------------------------------------

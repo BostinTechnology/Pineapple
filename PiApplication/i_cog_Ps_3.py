@@ -25,6 +25,7 @@ altimeter_mode          - When set to True, sensor to be in Altimeter mode, else
 import logging
 import time
 from datetime import datetime
+import sys
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -56,7 +57,10 @@ class iCog():
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
             self.log.error("[Ps3] Failed to decode calibration data, using default values. Consider resetting it")
-        self._setup_sensor()
+        if self._setup_sensor() == False:
+            self.log.critical("[Ps3] Failed to setup sensor for use")
+            print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
+            sys.exit()
         return
     
     def StartSensor(self):

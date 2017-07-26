@@ -21,6 +21,7 @@ TODO: Modify to store the actual values in the calibration data and convert on w
 import logging
 import time
 from datetime import datetime
+import sys
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -53,7 +54,10 @@ class iCog():
             response = self._load_defaults()
             self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
         self.log.info("[Ts1] Calibration Data\n:%s" % self.calibration_data)
-        self._setup_sensor()
+        if self._setup_sensor() == False:
+            self.log.critical("[Ls1] Failed to setup sensor for use")
+            print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
+            sys.exit()
         return
     
     def StartSensor(self):

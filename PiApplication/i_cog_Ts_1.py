@@ -29,6 +29,7 @@ import logging
 import time
 from datetime import datetime
 from datetime import timedelta
+import sys
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -87,7 +88,10 @@ class iCog():
             response = self._load_defaults()
             self.log.error("[Ts1] Failed to decode calibration data, using default values. Consider resetting it")
         self.log.info("[Ts1] Calibration Data\n:%s" % self.calibration_data)
-        self._setup_sensor()
+        if self._setup_sensor() == False:
+            self.log.critical("[Ts2] Failed to setup sensor for use")
+            print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
+            sys.exit()
         return
     
     def StartSensor(self):

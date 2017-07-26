@@ -14,7 +14,13 @@ Command Line Options
 TODO: need to wait for time without one of the cores running continually in a time loop
 
 TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
-        data to screen, only wany critical messages there.
+        data to screen, only wany critical user messages there.
+
+TODO: Consider having a calibration flag to indicate that calibration data has been set. When I first use a sensor
+        it is not configured and can have literally any settings.
+        
+TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails to log anything outside of the 
+        interrupt routine so i have no idea if it has turned the sensor off.
 """
 
 from datetime import datetime
@@ -259,6 +265,11 @@ def Start(cust_info):
     except KeyboardInterrupt:
         # CTRL - C entered
         print(" CTRL-C entered")
+        gbl_log.debug("[CTRL] User Interrupt occurred (Ctrl-C)")
+        icog.EndReadings()
+        gbl_log.info("[CTRL] End of Processing")
+        
+        #TODO: Need to add in some functionality here to stop the sensor.
     except:
         #Error occurrred
         gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
