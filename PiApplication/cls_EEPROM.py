@@ -269,6 +269,9 @@ class ID_IoT():
         self.io_1 = row_10[10:12]
         self.io_2 = row_10[12:14]
         
+        #TODO: What validation can be completed here to check the values returned. Probably need to do
+        #       something based on bus type.
+        
         self.log.info("[EEPROM] Device Connectivity Data - bus type:%s" % self.bustype)
         self.log.info("[EEPROM] Device Connectivity Data - sensor address:%s" % self.sensoraddress)
         self.log.info("[EEPROM] Device Connectivity Data - SPI bus:%s" % self.spi_bus)

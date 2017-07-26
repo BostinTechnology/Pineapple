@@ -47,8 +47,8 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x44
 # The time between a write and subsequent read
 WAITTIME = 0.5
-MVDATA_TYPE = 1
-MVDATA_UNITS = 'lx'
+MVDATA_TYPE = [1]
+MVDATA_UNITS = ['lx']
 
 class iCog():
     
@@ -108,7 +108,7 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._stop()
         
-        mvdata = [[MVDATA_TYPE, value, MVDATA_UNITS, timestamp]]
+        mvdata = [[MVDATA_TYPE[0], value, MVDATA_UNITS[0], timestamp]]
         
         return mvdata
     
@@ -273,19 +273,9 @@ class iCog():
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
         # example below
-        self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
-        self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
-        self.calibration_data['adc_resolution'] = (data[1][1] & 0b00001100) >> 2     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
-
-        """
-        #Test Data - Example Below
-        self.calibration_data['low_power_mode'] = False
-        self.calibration_data['read_frequency'] = 10
-        # Unique Data values
-        self.calibration_data['light_mode'] = 0
-        self.calibration_data['full_scale_range'] = 1
-        self.calibration_data['adc_resolution'] = 0
-        """
+        # Configure Sensor Specific data
+        data[1][0] = self.calibration_data['avg_temp_samples']      #conversion is completed when writing values to the sensor
+        data[1][1] = self.calibration_data['avg_humd_samples']      #conversion is completed when writing values to the sensor
         
         return True
     
@@ -360,7 +350,7 @@ class iCog():
         Modify this function to return the value read from the sensor
         If no value is available, return zero or a default value
         """
-        return value
+        return [value]
 
     def _stop(self):
         """

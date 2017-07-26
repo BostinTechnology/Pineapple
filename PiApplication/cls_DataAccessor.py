@@ -41,6 +41,8 @@ TODO: db version check is only completed at startup or first connection. If the 
     there is no check to resolve it.
     
 TODO: Need to improve the testing aspects to gaion good coverage
+
+TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
 """
 
 #TODO: I write stuff to file, but do I ever read it back? I should on start / load
@@ -114,7 +116,7 @@ class DataAccessor:
         - More data (if so repeat read records onwards)
         - Return to start
         """
-        print("Transmitting Data")
+        #print("Transmitting Data")
         if self.db_ok == False:
             # Not yet validated the database version, check again now. If still unknown, just return
             self.log.debug("[DAcc] db version is still undertermined, checking again now")
@@ -161,7 +163,7 @@ class DataAccessor:
         """
         Request the database version to work with
         """
-        print("db version check is not yet implemented")
+        #print("db version check is not yet implemented")
         self.log.warning("[DAcc] db version check is not yet implemented")
         self.db_version = 0.1
         return
@@ -197,14 +199,18 @@ class DataAccessor:
         """
         valid_data_record = True
         for item in dataset:
-            if str(item[0]).isdigit() == False:
+#            if str(item[0]).isdigit() == False:
+            if isinstance(item[0], (int, float)) == False:
                 self.log.info("[DAcc] 1st part (type) of the dataset failed as it is not a number, dataset:%s" % dataset)
                 valid_data_record = False
             else:
                 if item[0] < 1 or item[0] > 4:
                     self.log.info("[DAcc] 1st part (type) of the dataset failed as it is outside valid range (1-4), dataset:%s" % dataset)
 
-            if str(item[1]).isdigit() == False:
+            #BUG: This fails if the number is a float as it takes the '.' as a string
+            #TODO: Need to handle the different data types
+#            if str(item[1]).isdigit() == False:
+            if isinstance(item[1], (int, float)) == False:
                 self.log.info("[DAcc] 2nd part (value) of the dataset failed as it not a number, dataset:%s" % dataset)
                 valid_data_record = False
             
@@ -275,7 +281,7 @@ class DataAccessor:
         """
         
         #TODO: Implement Connection Check
-        print("Checking for connection is not yet implemented")
+        #print("Checking for connection is not yet implemented")
         self.log.warning("[DAcc] Checking for connection is not yet implemented")
         
         return True
@@ -325,7 +331,7 @@ class DataAccessor:
                 self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
                 
                 #TODO: Send the data record here
-                print("Sending of Records is not yet implemented\n:%s" % data_in)
+                #print("Sending of Records is not yet implemented\n:%s" % data_in)
                 self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
                 
                 #TODO: set the true / false flag accordingly

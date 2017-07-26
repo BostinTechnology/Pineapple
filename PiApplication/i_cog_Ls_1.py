@@ -13,6 +13,9 @@ light_mode              - 0 = IR mode, 1 = Ambient Light Sensing (0 = IR mode, 1
 full_scale_range        - 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
 adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
 
+TODO: Modify to store the actual values in the calibration data and convert on writing / using.
+        e.g. store ALS or IR, not 1 or 0
+        Will also need to modify the enumerations section
 """
 
 import logging
@@ -30,8 +33,8 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x44
 # The time between a write and subsequent read
 WAITTIME = 0.5
-MVDATA_TYPE = 1
-MVDATA_UNITS = 'lx'
+MVDATA_TYPE = [1]
+MVDATA_UNITS = ['lx']
 
 class iCog():
     
@@ -49,6 +52,7 @@ class iCog():
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
             self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
+        self.log.info("[Ts1] Calibration Data\n:%s" % self.calibration_data)
         self._setup_sensor()
         return
     
@@ -91,7 +95,7 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._stop()
         
-        mvdata = [[MVDATA_TYPE, value, MVDATA_UNITS, timestamp]]
+        mvdata = [[MVDATA_TYPE[0], value, MVDATA_UNITS[0], timestamp]]
         
         return mvdata
     
@@ -301,7 +305,7 @@ class iCog():
         self.calibration_data['full_scale_range'] = 1
         self.calibration_data['adc_resolution'] = 0
         """
-        
+        #TODO: Need to add some validation here before returning.
         return True
     
     def _load_defaults(self):

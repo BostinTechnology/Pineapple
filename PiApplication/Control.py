@@ -11,6 +11,7 @@ Command Line Options
     - Set Customer Parameters                       -a --setinfo
     - Reset                                         -t --reset
 
+TODO: need to wait for time without one of the cores running continually in a time loop
 """
 
 from datetime import datetime

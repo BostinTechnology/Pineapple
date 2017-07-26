@@ -4,15 +4,6 @@ This is a template class, it is created to develop the template for the
 sensors to actually be based on
 
 When using the class as the template, the following actions are required.
-- Set the Sensor Address and other defaults
-- Write sensor specific functions
-- Modify the following functions
-    - ReadValue to call the right read_value functions
-    - _setup_sensor
-    - _start
-    - _read_value (change to value being read, e.g. lux)
-    - _stop
-- Write the requried test functions
 
 
 Variables in the calibration dictionary
@@ -30,6 +21,9 @@ avg_humd_samples        - The number of samples used to calculate the HUMIDITY r
 #BUG: The Wait time for data to be available needs to be based on the various settings
 #       at the moment it is set to 10 seconds that appears to work.
 #BUG: when passing data to the data accessor, it is rejecting the values, even though they are floating point numbers
+
+#TODO:- Write the requried test functions
+#TODO: Implement something that also resets the sensor - there is a command for it
 
 import logging
 import time
@@ -57,6 +51,11 @@ DEFAULT_HUMID = -1
 # The items listed below MUST match the data structure returned from the _read_value function
 MVDATA_TYPE = [1,1]
 MVDATA_UNITS = ['DegC','rH']
+
+# Conversion from numeric to binary for the sample quantity
+# NOTE: The zero key is added as the default and to cater for when there is no calibration data set.
+AVGT = {0:16, 2:0, 4:1, 8:2, 16:3, 32:4, 64:5, 128:6, 256:7}
+AVGH = {0:32, 4:0, 8:1, 16:2, 32:3, 64:4, 128:5, 256:7, 512:8}
 
 class iCog():
     
@@ -87,6 +86,7 @@ class iCog():
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
             self.log.error("[Ts1] Failed to decode calibration data, using default values. Consider resetting it")
+        self.log.info("[Ts1] Calibration Data\n:%s" % self.calibration_data)
         self._setup_sensor()
         return
     
@@ -243,40 +243,47 @@ class iCog():
         self.log.info("[Ts1] User setting specific configuration")
         print("Setting Ts1 Specific Configuration Parameters\n")
         
-        #TODO: Set the humidty and temperature resolution mode
-        
-        # Example included below - change to what is required
+        # Get the choices for the temperature resolution mode
+        choices = []
+        for item in AVGT:
+            choices.append(item)
+        choices.sort()
         print("Temperature Mode : Select the quantity of readings to be averaged")
-        temp_readings = [2,4,8,16,32,64,128,256]
+        #temp_readings = [2,4,8,16,32,64,128,256]
         choice = ""
         while choice == "":
-            choice = input("Qty of readings:%s?" % temp_readings)
+            choice = input("Qty of readings:%s?" % choices)
             if choice.isdigit():
-                if int(choice) in temp_readings:
+                if int(choice) in AVGT.keys():
                     print("valid value:%s" % choice)
                     self.calibration_data['avg_temp_samples'] = int(choice)
                 else:
-                    print("Please choose a number from: %s" % temp_readings)
+                    print("Please choose a number from: %s" % choices)
                     choice = ""
             else:
-                print("Please enter a number from: %s" % temp_readings)
+                print("Please enter a number from: %s" % choices)
                 choice = ""
         self.log.debug("[Ts1] Temperature Resolution mode choice:%s" % choice)
 
+        # Get the choices for the humidity readings
+        choices = []
+        for item in AVGH:
+            choices.append(item)
+        choices.sort()        
         print("Humidity Mode : Select the quantity of readings to be averaged")
-        temp_readings = [4,8,16,32,64,128,256, 512]
+        #temp_readings = [4,8,16,32,64,128,256, 512]
         choice = ""
         while choice == "":
-            choice = input("Qty of readings:%s?" % temp_readings)
+            choice = input("Qty of readings:%s?" % choices)
             if choice.isdigit():
-                if int(choice) in temp_readings:
+                if int(choice) in AVGH.keys():
                     print("valid value:%s" % choice)
                     self.calibration_data['avg_humd_samples'] = int(choice)
                 else:
-                    print("Please choose a number from: %s" % temp_readings)
+                    print("Please choose a number from: %s" % choices)
                     choice = ""
             else:
-                print("Please enter a number from: %s" % temp_readings)
+                print("Please enter a number from: %s" % choices)
                 choice = ""
         self.log.debug("[Ts1] Humidity Resolution mode choice:%s" % choice)
 
@@ -297,8 +304,8 @@ class iCog():
         data[0][3] = (self.calibration_data['read_frequency']* 10) & 0x0000ff
 
         # Configure Sensor Specific data
-        data[1][0] = self.calibration_data['avg_temp_samples'] & 0b00000111
-        data[1][1] = self.calibration_data['avg_humd_samples'] & 0b00000111
+        data[1][0] = self.calibration_data['avg_temp_samples']      #conversion is completed when writing values to the sensor
+        data[1][1] = self.calibration_data['avg_humd_samples']      #conversion is completed when writing values to the sensor
         
         
         self.log.debug("[Ts1] Data bytes to be written:%s" % data)
@@ -318,9 +325,10 @@ class iCog():
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
-        self.calibration_data['avg_temp_samples'] = data[1][0] & 0b00000111
-        self.calibration_data['avg_humd_samples'] = data[1][1] & 0b00000111
+        self.calibration_data['avg_temp_samples'] = data[1][0]      #conversion is completed when writing values to the sensor
+        self.calibration_data['avg_humd_samples'] = data[1][1]      #conversion is completed when writing values to the sensor
         
+        #TODO: Need to have some validation here or just return - no need for return True
         return True
     
     def _load_defaults(self):
@@ -344,23 +352,6 @@ class iCog():
 #    Specific functions required for the sensor
 #-----------------------------------------------------------------------
 
-    def _xxx(self):
-        """
-        do something
-        """
-        
-        #example here
-        """
-        Read the 2 8 bit registers that contain the ADC value
-        """
-        data_addr = [0x02, 0x03]
-        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
-        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
-        self.log.info ("[Ls1] Data Register values (0x03/0x02):%x /%x" % (data_h, data_l))
-        data_out = (data_h << 8) + data_l
-        self.log.debug("[Ls1] Data Register combined %x" % data_out)
-        return data_out
-
     def _set_temp_samples(self):
         """
         Set bit 7 of the CTRL Register 0x20 to 1 and bits 1 & 0 to 0b 00
@@ -368,7 +359,7 @@ class iCog():
         status = False
         reg_addr = 0x10
         mask = 0b00111000
-        mode = self.calibration_data['avg_temp_samples'] << 3
+        mode = AVGT[self.calibration_data['avg_temp_samples']] << 3
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Temperature Samples Register Before turning on Sensor:0x%x" % byte)
         if (byte & mask) != mode:
@@ -378,15 +369,15 @@ class iCog():
             self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
             time.sleep(WAITTIME)
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-            self.log.info ("[Ts1] Temperature Samples Register after setting:0x%x" % byte)
+            self.log.debug ("[Ts1] Temperature Samples Register after setting:0x%x" % byte)
             if (byte & mask) == mode:
-                self.log.debug("[Ts1] Temperature Samples Register set")
+                self.log.info("[Ts1] Temperature Samples Register set")
                 status = True
             else:
-                self.log.debug("[Ts1] Temperature Samples Register Failed to set")
+                self.log.info("[Ts1] Temperature Samples Register Failed to set")
                 status = False
         else:
-            self.log.debug("[Ts1] Temperature Samples Register already set")
+            self.log.info("[Ts1] Temperature Samples Register already set")
             status = True
         return status
 
@@ -397,7 +388,7 @@ class iCog():
         status = False
         reg_addr = 0x10
         mask = 0b00000111
-        mode = self.calibration_data['avg_humd_samples']
+        mode = AVGH[self.calibration_data['avg_humd_samples']]
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Humidity Samples Register Before turning on Sensor:0x%x" % byte)
         if (byte & mask) != mode:
@@ -646,6 +637,7 @@ class iCog():
         reg_addr = 0x27
         mask = 0b00000001
         temp = False
+        #TODO: Need to modify the wait time based on the number of readings to take.
         endtime = datetime.now() + timedelta(seconds=TEMP_DA_WAIT_TIME)
         self.log.info("[Ts1] Waiting for the Temperature data available flag (bit1, 0x27) to be set")
         while temp == False and datetime.now() < endtime:
@@ -716,10 +708,10 @@ class iCog():
         Return either False - unsuccessful, or True if successful
         """
         
-        if self._set_humid_samples == False:
+        if self._set_humid_samples() == False:
             return False
 
-        if self._set_temp_samples == False:
+        if self._set_temp_samples() == False:
             return False
         
         self._read_h0_out()

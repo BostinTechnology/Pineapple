@@ -82,7 +82,7 @@ class i2c_comms():
                 response = []
                 self.log.debug("[I2C COMMS] Response received from sensor failed, returned:%s" % response)
                 break
-        self.log.debug("[I2C COMMS] Data bytes returned: %s" % response)
+        self.log.info("[I2C COMMS] Data bytes returned: %s" % response)
         return response
 
     def write_data_bytes(self, sens_addr, start_byte, data_bytes):
@@ -115,7 +115,30 @@ class i2c_comms():
                         % (sens_addr, addr_byte, data_byte))
         response = self._write_byte(sens_addr, addr_byte, data_byte)
         return response
-        
+    
+    def repeated_start(self, repeated=True):
+        """
+        This function sets the I2C bus to use Repeated Start Mode
+        This mode sets the i2c bus to send the start parameters for each command
+            (see www.i2c-bus.org/repeated-start-condition)
+        This is achieved on the Pi manually by
+        1. Navigate to /sys/module/i2c_bcm2708/parameters
+        2. Modify 'combined'
+            sudo nano combined
+            change N to Y
+            Save and Exit
+        Command to run as Superuser is
+            echo -n 1 > /sys/module/i2c_bcm2708/parameters/combined
+        """
+        self.log.info("[I2C COMMS] Setting Repeated Start for I2C comms")
+        try:
+            response = subprocess.call(["echo -n 1 > /sys/module/i2c_bcm2708/parameters/combined"], shell=True)
+            self.log.debug("[I2C COMMS] Used subprocess call to set Repeated Start command and got this response %x" % response)
+        except:
+            e = sys.exc_info()
+            self.log.critical("[I2C COMMS] Failed to Set Repeated Start mode, program aborted with response %s: %s" % (e[0], e[1]))
+            return False
+        return
 #-----------------------------------------------------------------------
 #
 #    P R I V A T E   F U N C T I O N S
@@ -148,8 +171,8 @@ class i2c_comms():
             self.log.warning("[I2C COMMS] Unable to read byte:%s from i2c device:%s and got this response:%s"
                 %(byte_no, addr, value))
             self.log.exception("[I2C COMMS] _read_byte Exception Data")
-            value = ''
-        self.log.info("[I2C COMMS] Read Byte from address:%s from i2c device:%s and got this response:%s" 
+            value = 0
+        self.log.debug("[I2C COMMS] Read Byte from address:%s from i2c device:%s and got this response:%s" 
                         % (byte_no, addr, value))
         return value
     
