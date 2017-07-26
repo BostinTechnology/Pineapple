@@ -521,7 +521,7 @@ class iCog():
                 status = True
         else:
             self.log.debug("[Ls1] Sensor already Turned off")
-        return
+        return status
     
 #-----------------------------------------------------------------------
 #

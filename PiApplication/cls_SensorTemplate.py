@@ -17,6 +17,7 @@ When using the class as the template, the following actions are required.
     - _setup_sensor
     - _start
     - _read_value
+        - modify the MVDATA variables to match the data being returned
     - _stop
 - Write the requried test functions
 
@@ -253,7 +254,9 @@ class iCog():
         #example below
         data[1][0] = self.calibration_data['light_mode'] & 0b00000001
         data[1][1] = (self.calibration_data['full_scale_range'] & 0b00000011) + ((self.calibration_data['adc_resolution'] & 0b00000011) << 2)
-        
+        data[1][2] = (self.calibration_data['baro_pressure_offset'] & 0xff0000) >> 16
+        data[1][3] = (self.calibration_data['baro_pressure_offset'] & 0x00ff00) >> 8
+        data[1][4] = (self.calibration_data['baro_pressure_offset'] & 0x0000ff)
         
         self.log.debug("[XXXX] Data bytes to be written:%s" % data)
         return data
@@ -274,9 +277,9 @@ class iCog():
         # Unique Data values
         # example below
         # Configure Sensor Specific data
-        data[1][0] = self.calibration_data['avg_temp_samples']      #conversion is completed when writing values to the sensor
-        data[1][1] = self.calibration_data['avg_humd_samples']      #conversion is completed when writing values to the sensor
-        
+        self.calibration_data['altimeter_mode'] = data[1][0]
+        self.calibration_data['baro_pressure_offset'] = ((data[1][2] << 16) + (data [1][3] << 8) + data[1][4])
+       
         return True
     
     def _load_defaults(self):

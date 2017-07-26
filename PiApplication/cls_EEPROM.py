@@ -11,6 +11,8 @@ On intialisation, the EEPROM class should
 
 """
 
+#TODO: Need to add a generic comms check before I start reading MAP version etc. Ps3 doesn't appeara to have a working ID_IoT chip and so fails horribly.
+
 import random
 import sys
 import logging
@@ -210,6 +212,7 @@ class ID_IoT():
         returns status if the read was successful.
         """
         
+        #TODO: Need to do something here to capture the failure if I can't read the ID_IoT chip.
         self.map_version = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_MAP_VERSION, 2)
         
         self.eeprom_checksum = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_CHECKSUM, 2)

@@ -12,6 +12,9 @@ Command Line Options
     - Reset                                         -t --reset
 
 TODO: need to wait for time without one of the cores running continually in a time loop
+
+TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
+        data to screen, only wany critical messages there.
 """
 
 from datetime import datetime

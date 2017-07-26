@@ -733,6 +733,8 @@ class iCog():
         Wait until reading available first.
         Set the active / power down mode
         """
+        #TODO: remove the extra layer and put this functionality in StartReadings
+
         if self._turn_on_sensor() == False:
             return False
         
@@ -780,6 +782,7 @@ class iCog():
         """
         Stop the sensor from working
         """
+        #TODO: Remove the extra step and put the turn off sensor functionality here and move this bit to EndReadings
         if self._turn_off_sensor == False:
             return False
  

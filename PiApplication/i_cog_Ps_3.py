@@ -279,7 +279,7 @@ class iCog():
         Given the Calibration data, convert it into the useful dictionary of information
         The calibration data passed in is a list of 6 lists of 16 bytes of data
         """
-        if len(data[0]) < 4 or len(data[1]) < 2:
+        if len(data[0]) < 4 or len(data[1]) < 4:
             self.log.info("[Ps3] dataset is too short, using defaults. Dataset received:%s" % data)
             self.log.error("[Ps3] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
@@ -635,6 +635,7 @@ class iCog():
         Start the sensor working, returning False if unsuccessful, or True if successful.
         Stablise the values being read
         """
+        #TODO: remove the extra layer and put this functionality in StartReadings
         if self._turn_on_sensor() == False:
             return False
  
@@ -657,9 +658,10 @@ class iCog():
         """
         Set the operation mode to standby
         """
+        #TODO: Remove the extra step and put the turn off sensor functionality here and move this bit to EndReadings
         if self._turn_off_sensor == False:
             return False
-        return
+        return True
     
 #-----------------------------------------------------------------------
 #
