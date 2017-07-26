@@ -87,15 +87,13 @@ class DataAccessor:
     def DataIn(self,data):
         """
         Receive the data, this is expected to be in the following format
-        [type, value, units]
+        [[type, value, units, timestamp],[type, value, units, timestamp]]
         Process
         - Data In
         - Write to file
         There is no response
         """
         
-        #BUG: Needs to accept data structures with multiple datasets in them
-        # [[x,y,z],[a,b,c]]
         if self._validate_data(data):
             self._write_data_to_file(data)
         else:

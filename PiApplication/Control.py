@@ -13,8 +13,6 @@ Command Line Options
 
 """
 
-#TODO: Convert datafile.txt to python script
-
 from datetime import datetime
 from datetime import timedelta
 

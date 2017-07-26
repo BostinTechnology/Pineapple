@@ -141,11 +141,21 @@ class iCog():
         
         return self.calibration_data['read_frequency']
 
-#-----------------------------------------------------------------------
+#=======================================================================
 #
 #    P R I V A T E   F U N C T I O N S
 #
+#    Not to be Called Directly from outside call
+#
+#=======================================================================
+
 #-----------------------------------------------------------------------
+#
+#    C o n f i g u r a t i o n   F u n c t i o n s
+#
+#    Used to setup / read / write calibration data
+#-----------------------------------------------------------------------
+
 
     def _set_standard_config(self):
         """
@@ -248,11 +258,14 @@ class iCog():
         """
         #Initially set the dataset to be the default and changed the required bytes
         data = DEFAULT_CONFIG
+        
+        # Configure Standard data
         data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
         data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
         data[0][2] = ((self.calibration_data['read_frequency']* 10) & 0x00ff00) >> 8
         data[0][3] = (self.calibration_data['read_frequency']* 10) & 0x0000ff
         
+        # Configure Sensor Specific data
         data[1][0] = self.calibration_data['light_mode'] & 0b00000001
         data[1][1] = (self.calibration_data['full_scale_range'] & 0b00000011) + ((self.calibration_data['adc_resolution'] & 0b00000011) << 2)
         
@@ -270,7 +283,7 @@ class iCog():
             self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
         
-        # Common Data values
+        # Standard Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
@@ -303,16 +316,14 @@ class iCog():
             sys.exit()
         return True
 
-    def _setup_sensor(self):
-        """
-        Taking the calibration data, write it to the sensor
-        """
-        
-        if self._sensor_range_resolution() == False:
-            return False
-        
-        return True
-    
+
+#-----------------------------------------------------------------------
+#
+#    S e n s o r   S e t u p   F u n c t i o n s
+#
+#    Specific functions required for the sensor
+#-----------------------------------------------------------------------
+
     def _set_light_mode(self):
         """
         Set bits 5-7 of the Command Register 0x00 to 0b101
@@ -389,9 +400,27 @@ class iCog():
         self.log.debug("[Ls1] Data Register combined %x" % data_out)
         return data_out
     
+#-----------------------------------------------------------------------
+#
+#    S t a r t / S t o p / R e a d   F u n c t i o n s
+#
+#    Used to perform the basic sensor functions.
+#-----------------------------------------------------------------------
+    
+    def _setup_sensor(self):
+        """
+        Do all that is required to setup the sensor before starting
+        Return either False - unsuccessful, or True if successful
+        """
+        
+        if self._sensor_range_resolution() == False:
+            return False
+        
+        return True
+    
     def _start(self):
         """
-        Start the sensor working
+        Start the sensor working, returning False if unsuccessful, or True if successful.
         Stablise the values being read
         """
         if self._set_light_mode() == False:
@@ -400,6 +429,11 @@ class iCog():
         return True
 
     def _read_lux(self):
+        """
+        Modify this function to return the value read from the sensor
+        If no value is available, return zero or a default value
+        """
+
         # Determine the scaling factor for the full scale range
         if self.calibration_data['light_mode'] == 0:
             # In IR mode,the fsr is 65535
@@ -482,6 +516,12 @@ class iCog():
             self.log.debug("[Ls1] Sensor already Turned off")
         return
     
+#-----------------------------------------------------------------------
+#
+#    M i s c e l l a n e o u s    F u n c t i o n s
+#
+#-----------------------------------------------------------------------
+
     def _timestamp(self):
         """
         Generate a timestamp of the correct format
@@ -489,6 +529,13 @@ class iCog():
         now = str(datetime.now())
         self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
         return str(now[:23])
+
+
+#-----------------------------------------------------------------------
+#
+#    T E S T   M O D U L E S
+#
+#-----------------------------------------------------------------------
 
 def main():
     print("start")
