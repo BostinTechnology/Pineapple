@@ -6,12 +6,12 @@ sensors to actually be based on
 When using the class as the template, the following actions are required.
 - Write sensor specific functions
     - self test - not sure how I can use this, maybe as part of reset calibration?
-    - software reset - also maybe as part of reset calibration?
     - sensor zeroing - resetting the sensor to be zero using the offsets
         zero_g_x_offset         - The offset value to be stored to realign the sensor after mounting
         zero_g_y_offset         - ditto
         zero_g_z_offset         - ditto
-        
+    #TODO: Need to validate the offset routines for creating the values used.
+    #TODO: Need to validate the routines to store the values
 - review app note
     AN4083, Data Manipulation and Basic Settings for Xtrinsic MMA865xFC Accelerometers
 - Write the requried test functions
@@ -32,6 +32,13 @@ zero_g_x_offset         - The offset value to be stored to realign the sensor af
 zero_g_y_offset         - ditto
 zero_g_z_offset         - ditto
 """
+
+#BUG: The value measured must be wrong, but it is also wrong on the icog software. 
+#       I can't believe that I get in the region of 1g when sitting still.
+#       I think it is the way it is reading the number out of the registers, as it assumes a 12.4 format
+#       I wonder if the sensor actually has it in some oher format at the beginning.
+
+
 
 import logging
 import time
@@ -152,6 +159,7 @@ class iCog():
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
         
+        self._software_reset()
         # Send the calibration data to write back to the ID_IoT
         
         return DEFAULT_CONFIG
@@ -278,6 +286,32 @@ class iCog():
         else:
             self.calibration_data['average_quantity'] = AVG_QTY_DEFAULT
             self.log.debug("[Rs2] Average Quantity of Readings set to default as operating in single mode")
+        
+        print("Zero Offset Setting")
+        print("Set the x, y and z axis offsets to ensure the current readings are zero")
+        choice = ""
+        while choice == "":
+            choice = input("Do you want to set the zero offsets? (y/n)?")
+            if choice.upper() == "Y":
+                print("Please ensure the sensor is in the correct location / orientation")
+                ready = ""
+                while ready == "":
+                    ready = input("press 'y' to set offsets or 'a' to abort (y/a)?")
+                    if choice.upper() == "Y":
+                        print("Performing offset reset")
+                        self._zero_g_readings()
+                    elif choice.upper() == "A":
+                        print("Current offsets will be used")
+                    else:
+                        print("Please choose Y or A")
+                        ready = ""
+                self.log.debug("[Rs2] Ready to set offsets choice:%s" % ready)
+            elif choice.upper() =="N":
+                print("Current offsets will be used")
+            else:
+                print("Please choose y or n")
+                choice = ""
+        self.log.debug("[Rs2] Setting x,y and z offsets choice:%s" % choice)
 
         self.log.debug("[Rs2] New Configuration Parameters:%s" % self.calibration_data)
         return
@@ -410,22 +444,31 @@ class iCog():
             status = True
         return status
 
-    def _set_full_scale_mode(self):
+    def _set_full_scale_mode(self, override=0):
         """
         Set the Full Scale Mode in the XYZ_DATA_CFG Register 0x0E
         mode can be either 2g (0b00), 4g (0b01) or 8g (0b10)
+        override allows a specific value to be set, ignoring the calibration _data - used in setup
         """
         reg_addr = 0x0e
         mask = 0b00000011
-        if self.calibration_data['full_scale_range'] == 2:
-            mode = 0b00
-        elif self.calibration_data['full_scale_range'] == 4:
-            mode = 0b01
-        elif self.calibration_data['full_scale_range'] == 8:
-            mode = 0b10
+        if override in [2,4,8]:
+            if override == 2:
+                mode = 0b00
+            elif override == 4:
+                mode = 0b01
+            elif override == 8:
+                mode = 0b10
         else:
-            self.log.warning("[Rs2] Unable to determine full scale range, using 8g")
-            mode = 0b10
+            if self.calibration_data['full_scale_range'] == 2:
+                mode = 0b00
+            elif self.calibration_data['full_scale_range'] == 4:
+                mode = 0b01
+            elif self.calibration_data['full_scale_range'] == 8:
+                mode = 0b10
+            else:
+                self.log.warning("[Rs2] Unable to determine full scale range, using 8g")
+                mode = 0b10
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.debug("[Rs2] XYZ_DATA_CFG Register before setting Full Scale Mode(%x):%x" % (reg_addr,byte))
         self.log.info("[Rs2] Requested Full Scale mode of operation %x" % mode)
@@ -484,6 +527,67 @@ class iCog():
             self.log.info("[Rs2] Sensor already in required power mode")
         return
 
+    def _zero_g_readings(self):
+        """
+        Method reads the current offset values and then converts them to the offsets
+        and to the calibration_data
+        The routine assumes the sensor has already been located correctly.
+        """
+        self.log.info("[Rs2] Generating the zero g offset values")
+        # Read current values
+        self._turn_off_sensor()
+        self._set_full_scale_mode(4)
+        self._turn_on_sensor()
+        x_reading = self._read_x_axis_data_registers()
+        y_reading = self._read_y_axis_data_registers()
+        z_reading = self._read_z_axis_data_registers()
+        self._turn_off_sensor()
+        
+        self.log.debug("[Rs2] Readings taken from the sensor (x:y:z) : %x:%x:%x" % (x_reading,y_reading,z_reading))
+        # 2's compliment and multiple by scaling factor of 1/512 as in 4g mode
+        
+        x_out = self._twos_compliment(x_reading) * 1/512
+        y_out = self._twos_compliment(y_reading) * 1/512
+        z_out = self._twos_compliment(z_reading) * 1/512
+        self.log.debug("[Rs2] Readings converted to actual g values (x:y:z) : %x:%x:%x" % (x_out,y_out,z_out))
+        
+        # Write offsets to calibration_data. Note:the data is not written to the chip as this
+        #   is done as part of the setup_sensor routine
+        #   Only 8 bits are stored
+        self.calibration_data['zero_g_x_offset'] = x_out >> 8
+        self.calibration_data['zero_g_y_offset'] = y_out >> 8
+        self.calibration_data['zero_g_z_offset'] = z_out >> 8
+        return
+        
+    
+    def _set_offset_registers(self):
+        """
+        Routine to write the offset values from calibration_data to the sensor
+        """
+        self.log.info("[Rs2] Setting the offset registers")
+        reg_addr = [0x2f, 0x30, 0x31]
+        # The value to be written is stored in the upper 8 bits of the offset value only
+        setting = [self.calibration_data['zero_g_x_offset'] >> 8,
+                    self.calibration_data['zero_g_y_offset'] >> 8,
+                    self.calibration_data['zero_g_z_offset'] >> 8]
+        register["x","y","z"]
+        for i in range(0,len(reg_addr)-1):
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr[i])
+            self.log.info ("[Rs2] Offset Register %x  before setting the required offset (%x):%x" % (register[i],reg_addr[i],byte))
+            if byte != setting[i]:
+                self.log.debug("[Rs2] Offset Register %x required to be updated with %x" % (register[i],setting[i]))
+                self.comms.write_data_byte(SENSOR_ADDR, reg_addr, setting[i])
+                time.sleep(WAITTIME)
+                byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+                self.log.info ("[Rs2] Offset Register %x after turning on the required power mode:%x" % (register[i],byte))
+                if byte  == setting[i]:
+                    self.log.info("[Rs2] Offset Register %x set to the required offset" % register[i])
+                else:
+                    self.log.info("[Rs2] Offset Register %x NOT turned to the required offset" % register[i])
+            else:
+                self.log.info("[Rs2] Offset Register %x already set to the required offset" % register[i])
+            return
+        return True
 #-----------------------------------------------------------------------
 #
 #    S e n s o r   C a l c u l a t i o n   F u n c t i o n s
@@ -615,9 +719,13 @@ class iCog():
         if self.comms.repeated_start() == False:
             return False
         
+        self._turn_off_sensor()
+        
         self._set_full_scale_mode()
         
         self._set_power_mode()      # Uses calibraiton data to determine mode of operation
+        
+        self._set_offset_registers()
                 
         return True
     
@@ -642,7 +750,7 @@ class iCog():
             value = self._calculate_values()
         else:
             value = self._calculate_avg_values()
-        # No need to return value as a list ([value]) as it is already a list from the calculate functions
+        # Below: No need to return value as a list ([value]) as it is already a list from the calculate functions
         return value
 
     def _stop(self):
@@ -673,32 +781,44 @@ class iCog():
         Convert the given 16bit hex value to decimal using 2's compliment
         """
         return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
+    
+    def _create_2s_c(self,value):
+        """
+        Given the value, return a binary representation in 2's c for it
+        """
+        twos_c = 0
+        if value < 0:
+            twos_c = 0b1000000000000000 | (value & 0b0111111111111111)
+        else:
+            twos_c = (value & 0b0111111111111111)
+        return twos_c
 
-
-
-def SoftwareReset():
-    # Perform a Software Reset using CTRL_Register 0x2b
-    # After the software reset, it automatically clears the bit so no need to check / merge
-    reg_addr = 0x0e
-    value = 0b01000000
-    byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-    self.log.info ("[Rs2] Control Register 2 before enabling Software Reset (%x):%x" % (reg_addr,byte))
-    # Modify the register to set bit 6 to 0b1
-    towrite = byte | value
-    self.log.debug("[Rs2] Byte to write to perform Software Reset %x" % towrite)
-    self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
-    time.sleep(0.5)
-    in_st = 1
-    while in_st:
-        # Wait while the Software Reset runs
+    def _software_reset():
+        """
+        Perform a Software Reset using CTRL_Register 0x2b
+        After the software reset, it automatically clears the bit so no need to check / merge
+        """
+        reg_addr = 0x0e
+        value = 0b01000000
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-        self.log.info ("[Rs2] Control Register 2 After enabling Software Reset:%x" % byte)
-        in_st = (byte & 0b01000000) >> 6
-        if in_st == 0b1:
-            print("Sensor In Software Reset")
-    print ("Software Reset Completed")
-    self.log.debug("[Rs2] Software Reset Completed")
-    return
+        self.log.info ("[Rs2] Control Register 2 before enabling Software Reset (%x):%x" % (reg_addr,byte))
+        # Modify the register to set bit 6 to 0b1
+        towrite = byte | value
+        self.log.debug("[Rs2] Byte to write to perform Software Reset %x" % towrite)
+        self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+        time.sleep(0.5)
+        in_st = 1
+        while in_st:
+            # Wait while the Software Reset runs
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Rs2] Control Register 2 After enabling Software Reset:%x" % byte)
+            in_st = (byte & 0b01000000) >> 6
+            if in_st == 0b1:
+                print("Sensor In Software Reset")
+        print ("Software Reset Completed")
+        self.log.debug("[Rs2] Software Reset Completed")
+        return
+
 
 def SetSelfTest(onoff):
     # To activate the self-test by setting the ST bit in the CTRL_REG2 register (0x2B).

@@ -422,6 +422,7 @@ class iCog():
         Return either False - unsuccessful, or True if successful
         """
         
+        # TODO: Do I need to set the sensor off first?
         if self._sensor_range_resolution() == False:
             return False
         

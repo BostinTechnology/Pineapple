@@ -138,6 +138,8 @@ class iCog():
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
         
+        #self._software_reset()     to be added and tested.
+        
         # Send the calibration data to write back to the ID_IoT
         
         return DEFAULT_CONFIG
@@ -224,7 +226,7 @@ class iCog():
             choice = input("Do you want the sensor to work in Alitude mode? (y/n)?")
             if choice.upper() == "Y":
                 self.calibration_data['altimeter_mode'] = True
-            elif choice.upper() =="I":
+            elif choice.upper() =="N":
                 self.calibration_data['altimeter_mode'] = False
             else:
                 print("Please choose Y or N")
@@ -628,6 +630,7 @@ class iCog():
         if self.comms.repeated_start() == False:
             return False
         
+        # TODO: Ensure sensor is turned off
         self._set_normal_output_mode()
         self._set_altimeter_mode()
         self._set_barometric_input()

@@ -711,7 +711,7 @@ class iCog():
             once read, only re-read after reset
         Return either False - unsuccessful, or True if successful
         """
-        
+        # TODO: Do I need to set the sensor off first?
         if self._set_humid_samples() == False:
             return False
 
