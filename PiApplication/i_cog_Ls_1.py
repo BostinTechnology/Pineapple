@@ -299,6 +299,8 @@ class iCog():
         self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
         self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
         self.calibration_data['adc_resolution'] = (data[1][1] & 0b00001100) >> 2     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
+        
+        self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
 
         """
         #Test Data

@@ -43,6 +43,7 @@ zero_g_z_offset         - ditto
 import logging
 import time
 from datetime import datetime
+from datetime import timedelta
 import sys
 
 # This is the default configuration to be used
@@ -63,6 +64,9 @@ MVDATA_UNITS = ['g x-axis','g y-axis','g z-axis']
 AVG_QTY_MAX = 250           # The maximum permissible quantity of readings
 AVG_QTY_MIN = 1             # The minimum permissable quantity of readings
 AVG_QTY_DEFAULT = 10        # The default value if one is not available
+
+# The time to wait for the data avaiable flag to be set
+DATA_WAIT_TIME = 10
 
 class iCog():
     
@@ -364,6 +368,8 @@ class iCog():
         self.calibration_data['zero_g_y_offset'] = data[1][4]
         self.calibration_data['zero_g_z_offset'] = data[1][5]
         
+        self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
+
         return True
     
     def _load_defaults(self):
@@ -444,6 +450,32 @@ class iCog():
             status = True
         return status
 
+    def _data_available(self, axis='a'):
+        """
+        Waits until the data available flag is set
+        """
+        reg_addr = 0x00
+        if axis.upper() not in ['X','Y','Z']:
+            # Set a default to be all axis'
+            axis = 'a'
+        if axis.upper() == 'X':
+            mask = 0b00000001
+        elif axis.upper() == 'Y':
+            mask = 0b00000010
+        elif axis.upper() == 'Z':
+            mask = 0b00000100
+        else:
+            mask = 0b00001000
+        available = False
+        #TODO: Need to modify the wait time based on the number of readings to take.
+        endtime = datetime.now() + timedelta(seconds=DATA_WAIT_TIME)
+        self.log.info("[Rs2] Waiting for the data available flag to be set for axis %s" % axis)
+        while available == False and datetime.now() < endtime:
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            available = byte & mask
+        self.log.debug("[Rs2] Data Status (1=data available) set for axis %s : %s" % (axis,available))
+        return available
+        
     def _set_full_scale_mode(self, override=0):
         """
         Set the Full Scale Mode in the XYZ_DATA_CFG Register 0x0E
@@ -527,6 +559,32 @@ class iCog():
             self.log.info("[Rs2] Sensor already in required power mode")
         return
 
+    def _set_fifo_disabled(self):
+        """
+        The sensor can run in FIFO mode where the buffer contains upto 32 readings.
+        For our initial setup, this is disabled
+        """
+        reg_addr = 0x09
+        mask = 0b11000000
+        mode = 0b00000000
+        byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+        self.log.info ("[Rs2] FIFO Mode before disabling (%x):%x" % (reg_addr,byte))
+        if (byte & mask) != mode:
+            # Modify the register to set bits 4 - 0 to the required mode
+            towrite = (byte & ~mask) | mode
+            self.log.debug("[Rs2] FIFO Mode bytes to write to disable FIFO %x" % towrite)
+            self.comms.write_data_byte(SENSOR_ADDR, reg_addr, towrite)
+            time.sleep(WAITTIME)
+            byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
+            self.log.info ("[Rs2] FIFO Mode bytes after disabling FIFO:%x" % byte)
+            if (byte & mask) == mode:
+                self.log.info("[Rs2] FIFO mode disabled")
+            else:
+                self.log.info("[Rs2] FIFO mode Not idisabled")
+        else:
+            self.log.info("[Rs2] Sensor already in FIFO mode")
+        return
+
     def _zero_g_readings(self):
         """
         Method reads the current offset values and then converts them to the offsets
@@ -538,55 +596,97 @@ class iCog():
         self._turn_off_sensor()
         self._set_full_scale_mode(4)
         self._turn_on_sensor()
-        x_reading = self._read_x_axis_data_registers()
-        y_reading = self._read_y_axis_data_registers()
-        z_reading = self._read_z_axis_data_registers()
+        x_reading = 0
+        y_reading = 0
+        z_reading = 0
+        for n in range(0,10):
+            if self._data_available():
+                x_reading = x_reading + self._read_x_axis_data_registers()
+                y_reading = y_reading + self._read_y_axis_data_registers()
+                z_reading = z_reading + self._read_z_axis_data_registers()
         self._turn_off_sensor()
+        
+        x_reading = x_reading / 10
+        y_reading = y_reading / 10
+        z_reading = z_reading / 10
         
         self.log.debug("[Rs2] Readings taken from the sensor (x:y:z) : %x:%x:%x" % (x_reading,y_reading,z_reading))
         # 2's compliment and multiple by scaling factor of 1/512 as in 4g mode
         
-        x_out = self._twos_compliment(x_reading) * 1/512
-        y_out = self._twos_compliment(y_reading) * 1/512
-        z_out = self._twos_compliment(z_reading) * 1/512
-        self.log.debug("[Rs2] Readings converted to actual g values (x:y:z) : %x:%x:%x" % (x_out,y_out,z_out))
+        #x_out = self._twos_compliment12(x_reading) * 1/512
+        #y_out = self._twos_compliment12(y_reading) * 1/512
+        #z_out = self._twos_compliment12(z_reading) * 1/512
+        #self.log.debug("[Rs2] Readings converted to actual g values (x:y:z) : %x:%x:%x" % (x_out,y_out,z_out))
         
         # Write offsets to calibration_data. Note:the data is not written to the chip as this
         #   is done as part of the setup_sensor routine
-        #   Only 8 bits are stored
-        self.calibration_data['zero_g_x_offset'] = x_out >> 8
-        self.calibration_data['zero_g_y_offset'] = y_out >> 8
-        self.calibration_data['zero_g_z_offset'] = z_out >> 8
+        #   Only 8 bits from the 1are stored
+        #self.calibration_data['zero_g_x_offset'] = x_out >> 8
+        #self.calibration_data['zero_g_y_offset'] = y_out >> 8
+        #self.calibration_data['zero_g_z_offset'] = z_out >> 8
+        
+        x_out = (int(x_reading) >> 4) & 0b11111111
+        y_out = (int(y_reading) >> 4) & 0b11111111
+        z_out = (int(z_reading) >> 4) & 0b11111111
+        self.log.debug("[Rs2] 8 bit value to be used to calculate the offset (x,y,z):%x : %x : %x" % (x_out,y_out, z_out))
+        
+        if (x_out & 0b10000000) > 0:
+            # offset needs to be the positive equivalent
+            x_offset = 0x100 - x_out
+        else:
+            x_offset = (~x_out) + 1
+        
+        if (y_out & 0b10000000) > 0:
+            # offset needs to be the positive equivalent
+            y_offset = 0x100 - y_out
+        else:
+            y_offset = (~y_out) + 1
+        # The z axis returns 1 g as its default position, which is 0x200. But only the top 8 bits are used
+        #   so the compare value is 0x20 higher than it should be, reduce it by 0x20
+        z_out = z_out - 0x20
+        
+        if (z_out & 0b10000000) > 0:
+            # offset needs to be the positive equivalent
+            z_offset = 0x100 - z_out
+        else:
+            z_offset = (~z_out) + 1
+            
+        # The value stored is the value received, 
+        self.calibration_data['zero_g_x_offset'] = x_offset
+        self.calibration_data['zero_g_y_offset'] = y_offset
+        self.calibration_data['zero_g_z_offset'] = z_offset
         return
         
     
     def _set_offset_registers(self):
         """
         Routine to write the offset values from calibration_data to the sensor
+        ideally, the x and y should be reading zero, the z = 1g
         """
         self.log.info("[Rs2] Setting the offset registers")
         reg_addr = [0x2f, 0x30, 0x31]
-        # The value to be written is stored in the upper 8 bits of the offset value only
-        setting = [self.calibration_data['zero_g_x_offset'] >> 8,
-                    self.calibration_data['zero_g_y_offset'] >> 8,
-                    self.calibration_data['zero_g_z_offset'] >> 8]
-        register["x","y","z"]
-        for i in range(0,len(reg_addr)-1):
+        setting = [self.calibration_data['zero_g_x_offset'],
+                    self.calibration_data['zero_g_y_offset'],
+                    self.calibration_data['zero_g_z_offset']]
+        # Calibration data is storing the values to be written.
+        register = ["x","y","z"]
+        for i in range(0,len(reg_addr)):
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr[i])
-            self.log.info ("[Rs2] Offset Register %x  before setting the required offset (%x):%x" % (register[i],reg_addr[i],byte))
+            self.log.info ("[Rs2] Offset Register %s  before setting the required offset (%x):%x" % (register[i],reg_addr[i],byte))
             if byte != setting[i]:
-                self.log.debug("[Rs2] Offset Register %x required to be updated with %x" % (register[i],setting[i]))
-                self.comms.write_data_byte(SENSOR_ADDR, reg_addr, setting[i])
+                self.log.debug("[Rs2] Offset Register %s required to be updated with %x" % (register[i],setting[i]))
+                self.comms.write_data_byte(SENSOR_ADDR, reg_addr[i], setting[i])
                 time.sleep(WAITTIME)
-                byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
-                self.log.info ("[Rs2] Offset Register %x after turning on the required power mode:%x" % (register[i],byte))
+                byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr[i])
+                self.log.info ("[Rs2] Offset Register %s after setting the required offset:%x" % (register[i],byte))
                 if byte  == setting[i]:
-                    self.log.info("[Rs2] Offset Register %x set to the required offset" % register[i])
+                    self.log.info("[Rs2] Offset Register %s set to the required offset" % register[i])
                 else:
-                    self.log.info("[Rs2] Offset Register %x NOT turned to the required offset" % register[i])
+                    self.log.info("[Rs2] Offset Register %s NOT turned to the required offset" % register[i])
             else:
-                self.log.info("[Rs2] Offset Register %x already set to the required offset" % register[i])
-            return
+                self.log.info("[Rs2] Offset Register %s already set to the required offset" % register[i])
+
+        #TODO: Need to add some validation here to check all is ok.
         return True
 #-----------------------------------------------------------------------
 #
@@ -600,36 +700,45 @@ class iCog():
         """
         Read the data out from the X Axis data registers 0x01 - msb, 0x02 bits 7 - 4 - lsb
         """
-        data_addr = [0x02, 0x01]
-        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
-        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
-        self.log.debug("[Rs2] X Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-        data_out = (data_h << 4) + (data_l >> 4)
-        self.log.info("[Rs2] X Axis Data Register combined %x" % data_out)
+        if self._data_available('x'):
+            data_addr = [0x02, 0x01]
+            data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+            data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+            self.log.debug("[Rs2] X Axis Data Register values (%x/%x):%x / %x" % (data_addr[0], data_addr[1], data_h, data_l))
+            data_out = (data_h << 4) + (data_l >> 4)
+            self.log.info("[Rs2] X Axis Data Register combined %x" % data_out)
+        else:
+            data_out = 0x7ff
         return data_out
 
     def _read_y_axis_data_registers(self):
         """
         Read the data out from the Y Axis data registers 0x03 - msb, 0x04 bits 7 - 4 - lsb
         """
-        data_addr = [0x04, 0x03]
-        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
-        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
-        self.log.debug("[Rs2] Y Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-        data_out = (data_h << 4) + (data_l >> 4)
-        self.log.info("[Rs2] Y Axis Data Register combined %x" % data_out)
+        if self._data_available('y'):        
+            data_addr = [0x04, 0x03]
+            data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+            data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+            self.log.debug("[Rs2] Y Axis Data Register values (%x/%x):%x / %x" % (data_addr[0], data_addr[1], data_h, data_l))
+            data_out = (data_h << 4) + (data_l >> 4)
+            self.log.info("[Rs2] Y Axis Data Register combined %x" % data_out)
+        else:
+            data_out = 0x7ff
         return data_out
 
     def _read_z_axis_data_registers(self):
         """
         Read the data out from the Z Axis data registers 0x05 - msb, 0x06 bits 7 - 4 - lsb
         """
-        data_addr = [0x06, 0x05]
-        data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
-        data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
-        self.log.debug("[Rs2] Z Axis Data Register values (%x/%x):%x /%x" % (data_addr[0], data_addr[1], data_h, data_l))
-        data_out = (data_h << 4) + (data_l >> 4)
-        self.log.info("[Rs2] Z Axis Data Register combined %x" % data_out)
+        if self._data_available('z'):         
+            data_addr = [0x06, 0x05]
+            data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
+            data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
+            self.log.debug("[Rs2] Z Axis Data Register values (%x/%x):%x / %x" % (data_addr[0], data_addr[1], data_h, data_l))
+            data_out = (data_h << 4) + (data_l >> 4)
+            self.log.info("[Rs2] Z Axis Data Register combined %x" % data_out)
+        else:
+            data_out = 0x7ff
         return data_out
     
     def _fsr_multiplier(self):
@@ -661,12 +770,16 @@ class iCog():
         z = self._read_z_axis_data_registers()
 
         fsr = self._fsr_multiplier()
-        x = self._twos_compliment(x)
+        x = self._twos_compliment12(x)
+        self.log.debug("[Rs2] 2's Compliment of X axis:%f" % x)
         x = x * fsr
-        y = self._twos_compliment(y)
+        y = self._twos_compliment12(y)
+        self.log.debug("[Rs2] 2's Compliment of Y axis:%f" % y)
         y = y * fsr
-        z = self._twos_compliment(z)
+        z = self._twos_compliment12(z)
+        self.log.debug("[Rs2] 2's Compliment of Z axis:%f" % z)
         z = z * fsr
+        self.log.info("[Rs2] Calculated values of the x,y,z axis: %f : %f : %f" % (x,y,z))
         return [x, y, z]
 
     def _calculate_avg_values(self):
@@ -687,11 +800,11 @@ class iCog():
             x = self._read_x_axis_data_registers()
             y = self._read_y_axis_data_registers()
             z = self._read_z_axis_data_registers()
-            x = self._twos_compliment(x)
+            x = self._twos_compliment12(x)
             x = x * fsr
-            y = self._twos_compliment(y)
+            y = self._twos_compliment12(y)
             y = y * fsr
-            z = self._twos_compliment(z)
+            z = self._twos_compliment12(z)
             z = z * fsr
             avg_x = avg_x + x
             avg_y = avg_y + y
@@ -723,7 +836,9 @@ class iCog():
         
         self._set_full_scale_mode()
         
-        self._set_power_mode()      # Uses calibraiton data to determine mode of operation
+        self._set_fifo_disabled()
+        
+        self._set_power_mode()      # Uses calibration data to determine mode of operation
         
         self._set_offset_registers()
                 
@@ -776,21 +891,21 @@ class iCog():
         self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
         return str(now[:23])
     
-    def _twos_compliment(self,value):
+    def _twos_compliment12(self,value):
         """
-        Convert the given 16bit hex value to decimal using 2's compliment
+        Convert the given 12bit hex value to decimal using 2's compliment
         """
-        return -(value & 0b1000000000000000) | (value & 0b0111111111111111)
+        return -(value & 0b100000000000) | (value & 0b011111111111)
     
-    def _create_2s_c(self,value):
+    def _create_2s_c12(self,value):
         """
         Given the value, return a binary representation in 2's c for it
         """
         twos_c = 0
         if value < 0:
-            twos_c = 0b1000000000000000 | (value & 0b0111111111111111)
+            twos_c = 0b100000000000 | (value & 0b011111111111)
         else:
-            twos_c = (value & 0b0111111111111111)
+            twos_c = (value & 0b011111111111)
         return twos_c
 
     def _software_reset():

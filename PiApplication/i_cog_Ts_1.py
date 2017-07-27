@@ -332,6 +332,8 @@ class iCog():
         self.calibration_data['avg_temp_samples'] = data[1][0]      #conversion is completed when writing values to the sensor
         self.calibration_data['avg_humd_samples'] = data[1][1]      #conversion is completed when writing values to the sensor
         
+        self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
+
         #TODO: Need to have some validation here or just return - no need for return True
         return True
     

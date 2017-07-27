@@ -185,7 +185,7 @@ def SetupSensor():
         gbl_log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
         gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
-    gbl_log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
+    gbl_log.info("[CTRL] Loading of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
     
     # Open the right bus connection to work with the icog connected
     reqd_bus = eeprom.ReturnBusType()
@@ -206,7 +206,7 @@ def SetupSensor():
     gbl_log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
     icog = imported_icog.iCog(icog_connection, calib_data)
-    gbl_log.debug("[CTRL] imported icog:%s" % icog)
+    gbl_log.debug("[CTRL] Initialised icog:%s" % icog)
 
     return (icog, eeprom)
     

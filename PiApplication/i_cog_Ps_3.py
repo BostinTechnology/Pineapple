@@ -298,6 +298,8 @@ class iCog():
         self.calibration_data['altimeter_mode'] = data[1][0]
         self.calibration_data['baro_pressure_offset'] = ((data[1][1] << 16) + (data [1][2] << 8) + data[1][3])
         
+        self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
+
         #TODO: Need to add some calibration validation rather than just returning True
         return True
     
