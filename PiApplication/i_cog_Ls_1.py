@@ -17,6 +17,7 @@ adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
 
 import logging
 import time
+from datetime import datetime
 
 # This is the default configuration to be used
 DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -29,6 +30,8 @@ DEFAULT_CONFIG = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 SENSOR_ADDR = 0x44
 # The time between a write and subsequent read
 WAITTIME = 0.5
+MVDATA_TYPE = 1
+MVDATA_UNITS = 'lx'
 
 class iCog():
     
@@ -45,8 +48,7 @@ class iCog():
         if self._decode_calib_data(calib) == False:
             # Failed to decode the configuration, prompt the user and use the defaults
             response = self._load_defaults()
-            log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
-            #TODO: Write calibration data back to the ID_IoT
+            self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
         self._setup_sensor()
         return
     
@@ -73,21 +75,24 @@ class iCog():
     
     def ReadValue(self):
         """
-        Return the current value from the sensor
+        Return the current value from the sensor, in the correct format
         In Low Power mode start / read and end the sensor
+        This should return a list of lists, each inner list is a set of values
         """
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._start()
             
         value = self._read_lux()
-    #BUG: Returns a number, not in the correct json format
+        timestamp = self._timestamp()
         
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._stop()
         
-        return value
+        mvdata = [[MVDATA_TYPE, value, MVDATA_UNITS, timestamp]]
+        
+        return mvdata
     
     def SetCalibration(self):
         """
@@ -98,12 +103,11 @@ class iCog():
         if no data is returned, no data is written
         """
         
-        HERE!! the funciton below is written but not tested
         self._set_standard_config()
 
         self._set_specific_config()
 
-        self._build_config_array()
+        calib = self._build_calib_data()
         return calib
     
     def ResetCalibration(self):
@@ -146,8 +150,11 @@ class iCog():
     def _set_standard_config(self):
         """
         Set the standard parameters for the configuration
+        low_power_mode          - For when operating in reduced power consumption mode (True = Low Power Mode)
+        read_frequency          - The time between reading of values, converted to seconds
         """
         print("Setting Standard Configuration Parameters")
+        self.log.info("[Ls1] Setting Standard Configuration Parameters")
         choice = ""
         while choice == "":
             choice = input("Do you want the sensor to operate in Low Power Mode (y/n)")
@@ -158,16 +165,20 @@ class iCog():
             else:
                 print("Please choose Y or N")
                 choice = ""
+        self.log.debug("[Ls1] Low Power Mode choice:%s" % choice)
         
         choice = 0
-        while choice = 0:
+        while choice == 0:
             choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
             if choice.isdigit():
+                choice = int(choice)
                 if choice >= 0.1 and choice <= 16416000:
                     self.calibration_data['read_frequency'] = choice
                 else:
                     choice = 0
-            else choice = 0
+            else:
+                choice = 0
+        self.log.debug("[Ls1] Read Frequency choice:%s" % choice)
         
         return
         
@@ -178,40 +189,96 @@ class iCog():
         full_scale_range        - 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
         adc_resolution          - 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
         """
-        
-        #TODO as nothing done yet
-        print("To Be implemented")
+        self.log.info("[Ls1] User setting specific configuration")
+        print("Setting Ls1 Specific Configuration Parameters\n")
+        print("Light Mode")
+        print("IR - Infrared Mode  -  ALS - Ambient Light Sensing Mode")
+        choice = ""
+        while choice == "":
+            choice = input("DO you want the sensor to work in IR or ALS mode? (i/a)?")
+            if choice.upper() == "A":
+                self.calibration_data['light_mode'] = 1
+            elif choice.upper() =="I":
+                self.calibration_data['light_mode'] = 0
+            else:
+                print("Please choose I or A")
+                choice = ""
+        self.log.debug("[Ls1] IR / ALS mode choice:%s" % choice)
+
+        print("Full Scale Range")
+        print("0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX")
+        choice = ""
+        while choice == "":
+            choice = input("Which Full Scale value is required? (0,1,2,3)?")
+            if choice.isdigit():
+                choice = int(choice)
+                if choice >= 0 and choice <=3:
+                    self.calibration_data['full_scale_range'] = choice
+                else:
+                    print("Please choose either 0, 1, 2 or 3")
+                    choice = ""
+            else:
+                print("Please choose either 0, 1, 2 or 3")
+                choice = ""
+        self.log.debug("[Ls1] Full Scale Range choice:%s" % choice)
+
+        print("ADC Resolution")
+        print("0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC")
+        choice = ""
+        while choice == "":
+            choice = input("Which ADC Resolution value is required? (0,1,2,3)?")
+            if choice.isdigit():
+                choice = int(choice)
+                if choice >= 0 and choice <=3:
+                    self.calibration_data['adc_resolution'] = choice
+                else:
+                    print("Please choose either 0, 1, 2 or 3")
+                    choice = ""
+            else:
+                print("Please choose either 0, 1, 2 or 3")
+                choice = ""
+        self.log.debug("[Ls1] ADC Resolution choice:%s" % choice)
+
+        self.log.debug("[Ls1] New Configuration Parameters:%s" % self.calibration_data)
         return
     
-    def _build_config_array(self):
+    def _build_calib_data(self):
         """
         Take the self.calibration_data and convert it to bytes to be written
         """
+        #Initially set the dataset to be the default and changed the required bytes
+        data = DEFAULT_CONFIG
+        data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
+        data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
+        data[0][2] = ((self.calibration_data['read_frequency']* 10) & 0x00ff00) >> 8
+        data[0][3] = (self.calibration_data['read_frequency']* 10) & 0x0000ff
         
-        print("To be implemented")
-        return
+        data[1][0] = self.calibration_data['light_mode'] & 0b00000001
+        data[1][1] = (self.calibration_data['full_scale_range'] & 0b00000011) + ((self.calibration_data['adc_resolution'] & 0b00000011) << 2)
+        
+        
+        self.log.debug("[Ls1] Data bytes to be written:%s" % data)
+        return data
         
     def _decode_calib_data(self, data):
         """
         Given the Calibration data, convert it into the useful dictionary of information
         The calibration data passed in is a list of 6 lists of 16 bytes of data
         """
-        #TODO: Need to check the length of the incoming data, currently assuming it is the right size
-        
-        #TODO: Need to validate the dictionary, what happens if the value doesn't exist?
+        if len(data[0]) < 4 or len(data[1]) < 2:
+            self.log.info("[Ls1] dataset is too short, using defaults. Dataset received:%s" % data)
+            self.log.error("[Ls1] Failed to decode calibration data, using default values. Consider resetting it")
+            data = DEFAULT_CONFIG
         
         # Common Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
-        self.calibration_data['read_frequency'] = (data[0][1] << 16) + (data [0][2] << 8) + (data[0][3]) / 10   #divide by 10 as in tenths
+        self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
         self.calibration_data['light_mode'] = data[1][0] & 0b00000001         # 0 = IR mode, 1 = ALS mode
         self.calibration_data['full_scale_range'] = data[1][1] & 0b00000011   # 0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
         self.calibration_data['adc_resolution'] = (data[1][1] & 0b00001100) >> 2     # 0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
-        
-        self.log.info("[Ls1] Calibration Data:%s" % self.calibration_data)
-        self.log.warning("[Ls1] _decode_calib_data doesn't validate incoming data currently")
 
-        """"""
+        """
         #Test Data
         self.calibration_data['low_power_mode'] = False
         self.calibration_data['read_frequency'] = 10
@@ -219,7 +286,7 @@ class iCog():
         self.calibration_data['light_mode'] = 0
         self.calibration_data['full_scale_range'] = 1
         self.calibration_data['adc_resolution'] = 0
-        """"""
+        """
         
         return True
     
@@ -231,7 +298,6 @@ class iCog():
             # Failed to decode the default configuration, need to abort
             self.log.critical("[Ls1] Unable to load Default Configuration")
             print("\nCRITICAL ERROR, Unable to Load Default Configuration- contact Support\n")
-            self.log.exception("[Ls1] ResetConfig Exception Data")
 
             #BUG: This is a poor solution, should return to the main menu with a better way out than this
             sys.exit()
@@ -415,6 +481,14 @@ class iCog():
         else:
             self.log.debug("[Ls1] Sensor already Turned off")
         return
+    
+    def _timestamp(self):
+        """
+        Generate a timestamp of the correct format
+        """
+        now = str(datetime.now())
+        self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
+        return str(now[:23])
 
 def main():
     print("start")

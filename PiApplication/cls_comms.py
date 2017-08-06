@@ -231,6 +231,7 @@ class SPi_comms():
         """
         print("SPI Comms are not supported")
         self.log.critical("[COMMS] SPI comms is currently not supported, pleae contact support")
+        print("\nError Occurred, program halted - contact support\n")
         sys.exit()
         
         #self.connection = ????
@@ -293,6 +294,7 @@ class Serial_comms():
         """
         print("Serial Comms are not supported")
         self.log.critical("[COMMS] Serial comms is currently not supported, pleae contact support")
+        print("\nError Occurred, program halted - contact support\n")
         sys.exit()
         
         #self.connection = ????

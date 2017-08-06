@@ -9,8 +9,6 @@ On intialisation, the EEPROM class should
 - read the values from the iCog EEPROM
 - load the datafile and set additional acronymn data
 
-TODO: Need functions to write calibration data
-
 """
 
 import random
@@ -18,6 +16,7 @@ import sys
 import logging
 
 import Standard_Settings as SS
+import dict_Datafile as DF
 
 ID_IOT_CHIP_ADDR = 0x50
 
@@ -41,10 +40,6 @@ class ID_IoT():
     """
 
     def __init__(self, comms_handler, read_chip=True):
-        #TODO: Read the EEPROM and process the data - could this be set globals function?
-        #       Check for a tuple first - if UUID matches, use the data
-        #       Create a iCOG class holding the sensor data
-        #       turple the data for future use
         """
         Initialises the values and checkes if they have been previously saved as a tuple
         
@@ -54,8 +49,6 @@ class ID_IoT():
         - load the datafile and set additional data
         """
         self.log = logging.getLogger()
-        #TODO: Not yet implemented
-        #readfrequency is the time between reading of values
 
         self._clear_data()
         self.comms = comms_handler
@@ -66,13 +59,12 @@ class ID_IoT():
             status = False
             print("Reading of chip disabled")
 
-        #TODO: Need to do something clever here
         self.log.info("[EEPROM] Initialisation of the EEPROM has been completed")
         self.eeprom_status = status
         return
     
     def ReturnEEPROMStatus(self):
-        return self.eeprom_status            #TODO: Make this mean something
+        return self.eeprom_status
     
     def ReturnUUID(self):
         return self.uuid
@@ -222,6 +214,8 @@ class ID_IoT():
         
         self.eeprom_checksum = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_CHECKSUM, 2)
         
+        self.log.info("[EEPROM] Map Version:%s" % self.map_version)
+        self.log.info("[EEPROM] EEPROM Checksum:%s" % self.eeprom_checksum)
         #TODO: Implement checksum check
         
         # Check if the map version is supported
@@ -230,7 +224,6 @@ class ID_IoT():
         else:
             self.log.critical("[EEPROM] Map Version read from Id_IOT is not supported, value received:%s" % self.map_version)
             print("\nCRITICAL ERROR, EEPROM Map Version is not supported- contact Support\n")
-            self.log.exception("[EEPROM] _read_sensor_data_from_eeprom Exception Data")
 
             sys.exit()
         
@@ -276,7 +269,16 @@ class ID_IoT():
         self.io_1 = row_10[10:12]
         self.io_2 = row_10[12:14]
         
-        #TODO: Add logging for all these values
+        self.log.info("[EEPROM] Device Connectivity Data - bus type:%s" % self.bustype)
+        self.log.info("[EEPROM] Device Connectivity Data - sensor address:%s" % self.sensoraddress)
+        self.log.info("[EEPROM] Device Connectivity Data - SPI bus:%s" % self.spi_bus)
+        self.log.info("[EEPROM] Device Connectivity Data - SPI CE Line:%s" % self.spi_celine)
+        self.log.info("[EEPROM] Device Connectivity Data - GPIO Pin:%s" % self.gpio_pin)
+        self.log.info("[EEPROM] Device Connectivity Data - Serial RTC CTS:%s" % self.serial_rtc_cts)
+        self.log.info("[EEPROM] Device Connectivity Data - Sensor Type:%s" % self.sensor_type)
+        self.log.info("[EEPROM] Device Connectivity Data - Minimum Revision:%s" % self.minimum_revision)
+        self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 1:%s" % self.io_1)
+        self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 2:%s" % self.io_2)
         
         # Read Calibration Values
         self.calibration_data = []
@@ -300,10 +302,35 @@ class ID_IoT():
                 self.sensor_part_number
                 self.sensor_type
                 self.sensor_manfacturer
-        #TODO: This should only be run if the customer hasn't set values first.
-        #TODO: Reading fo the datafile should only be done once and not for each sensor
         """
-        #TODO: Validate the error checking around this
+        self.log.info("[EEPROM] Reading the datafile for sensor information")
+            
+        # Uses the self.sensor_type read from the Device Connectivity Data
+        for element in DF.datafile:
+            if element[4] == self.sensor_type_code[0] and element[5] == self.sensor_type_code[1]:
+                self.log.debug("[EEPROM] Match found for Sensor and Description")
+                self.sensor_comms_file = element[0]
+                self.sensor_part_number = element[1]
+                self.sensor_type = element[2]
+                self.sensor_manufacturer = element[3]
+
+        if len(self.sensor_comms_file) < 1:
+            self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
+                
+        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
+            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
+        
+        return
+
+    def _set_additional_data_old(self):
+        """
+        Sets the additional information about the sensor, based on the data file
+        Loads the datafile into a 
+                self.sensor_comms_file
+                self.sensor_part_number
+                self.sensor_type
+                self.sensor_manfacturer
+        """
         self.datafile = []
         self.log.info("[EEPROM] Reading the datafile for sensor information")
         try:
@@ -313,7 +340,7 @@ class ID_IoT():
             data.close()
             self.log.debug("[EEPROM] datafile loaded %s" % lines)
         except:
-            self.log.critical("[EEPROM] Failed to Open datafile, please contact support", exc_info=True)
+            self.log.critical("[EEPROM] Failed to Open datafile, please contact support")
             self.log.exception("[EEPROM] _set_additional_data Exception Information")
             sys.exit()
 
@@ -339,7 +366,6 @@ class ID_IoT():
 
         if len(self.sensor_comms_file) < 1:
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
-            self.log.exception("[EEPROM] _set_additional_data Exception Information")
                 
         self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
             %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
@@ -358,7 +384,6 @@ class ID_IoT():
         if len(data) < 1:
             #No data received
             self.log.critical("[EEPROM] EEPROM UUID read from Id_IOT did not return any data, value received:%s" % data)
-            print("\nWARNING, EEPROM UUID Read Failure, using default - contact Support\n")
             self.uuid = 0xfa17ed
         else:
             #self.uuid = data[0] << 24 + data[1] << 16 + data[2] <<8 + data[3]
@@ -437,6 +462,7 @@ if __name__ == '__main__':
     
     import logging
     import logging.config
+    import dict_LoggingSetup
     SetupLogging()
     # use a default class for comms and therefore allow it to be dummy data.
     #import cls_comms
