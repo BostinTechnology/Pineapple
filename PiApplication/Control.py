@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Bostin Technology  (see www.BostinTechnology.com)
 
@@ -20,7 +21,11 @@ TODO: Consider having a calibration flag to indicate that calibration data has b
         it is not configured and can have literally any settings.
         
 TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails to log anything outside of the 
-        interrupt routine so i have no idea if it has turned the sensor off.
+        interrupt routine so i have no idea if it has turned the sensor off even though the loogin works at other times.
+        
+TODO: Make running the program easier, a single command would be great.
+
+TODO: I need to go through all the code and check for failure points and protect against them
 """
 
 from datetime import datetime
@@ -45,8 +50,8 @@ from cls_comms import i2c_comms
 from cls_comms import SPi_comms
 from cls_comms import Serial_comms
 import dict_LoggingSetup
-#import cls_SensorTemplate
-# The required iCog is imported in the code once it has been determined
+
+# Note: The required iCog is imported in the code once it has been determined
 
 
 # The following global variables are used.
@@ -275,6 +280,8 @@ def Start(cust_info):
         gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
         print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
         gbl_log.exception("[CTRL] Start reading loop Exception Data")
+    
+    #TODO: Do I add a finally clause here to close off the comms, regardless of the failure?
 
     return
 
@@ -303,13 +310,6 @@ def Reset():
         gbl_log.debug("[CTRL] Customer File in location deleted:%s" % filename)
         print("Customer data removed, will need to be re-entered on next startup")
     
-    return
-
-def NewSensor():
-    """
-    Perform the necessary actions to add a new sensor to the system
-    """
-    print ("Not yet Implemented")
     return
 
 def DisplayCal():
@@ -353,26 +353,13 @@ def SetCal():
     
 def DisplayCustomerParameters(cust_info):
     """
-    Perform the necessary actions to display the parameter data being used
+    Perform the necessary actions to display the customer information being used
     
     """
-    #BUG:
-            
-        #Setting                  Value
-        #==============================
-        #Traceback (most recent call last):
-          #File "Control.py", line 524, in <module>
-            #main()
-          #File "Control.py", line 511, in main
-            #DisplayCustomerParameters(customer_info)
-          #File "Control.py", line 345, in DisplayCustomerParameters
-            #print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
-        #NameError: name 'calib_data' is not defined
-
     print("Setting                  Value")
     print("==============================")
     for item in cust_info:
-        print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
+        print("%s%s" %( '{0: <25}'.format(item), cust_info[item]))
 
     return
     
@@ -450,7 +437,7 @@ def SplashScreen():
 
 def LoadCustomerInfo(dev):
     """
-    Load the Customer File infomration and return it in a decitionary
+    Load the Customer File infomration and return it in a dictionary
     customer_info = {"device" : UUID, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
 
     """
@@ -511,7 +498,7 @@ def main():
     
     # First print a 'splash screen'
     device_id = GetSerialNumber()
-    print("\nDevice ID: %s" % device_id)
+    print("\nDevice ID: %s" % device_id)        # TODO: This should probably get the info from cutomer info
     print("\nTo Exit, CTRL-c\n\n")
     
     #TODO: print out the values being used, especially if they are the defaults.

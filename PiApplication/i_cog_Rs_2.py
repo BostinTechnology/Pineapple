@@ -6,14 +6,7 @@ sensors to actually be based on
 When using the class as the template, the following actions are required.
 - Write sensor specific functions
     - self test - not sure how I can use this, maybe as part of reset calibration?
-    - sensor zeroing - resetting the sensor to be zero using the offsets
-        zero_g_x_offset         - The offset value to be stored to realign the sensor after mounting
-        zero_g_y_offset         - ditto
-        zero_g_z_offset         - ditto
-    #TODO: Need to validate the offset routines for creating the values used.
-    #TODO: Need to validate the routines to store the values
-- review app note
-    AN4083, Data Manipulation and Basic Settings for Xtrinsic MMA865xFC Accelerometers
+
 - Write the requried test functions
 
 
@@ -33,11 +26,12 @@ zero_g_y_offset         - ditto
 zero_g_z_offset         - ditto
 """
 
-#BUG: The value measured must be wrong, but it is also wrong on the icog software. 
-#       I can't believe that I get in the region of 1g when sitting still.
-#       I think it is the way it is reading the number out of the registers, as it assumes a 12.4 format
-#       I wonder if the sensor actually has it in some oher format at the beginning.
+#BUG: I have no confidence that the 2's compliment routines work correctly
 
+#BUG: There are a number of bits in the offset routines that are uncertain and may not work for other 
+#       values, e.g. averaging numbers as hex when they are 2's c numbers.
+#       Consider changing this to use converted numbers instead, but that requires the writing routine
+#       to convert the offsets back to 2's c.
 
 
 import logging
@@ -67,6 +61,9 @@ AVG_QTY_DEFAULT = 10        # The default value if one is not available
 
 # The time to wait for the data avaiable flag to be set
 DATA_WAIT_TIME = 10
+
+# The force applied to teh sensoe by gravity, 1.00 in 12bit hex
+GRAVITY = 0x200
 
 class iCog():
     
@@ -584,7 +581,7 @@ class iCog():
         else:
             self.log.info("[Rs2] Sensor already in FIFO mode")
         return
-
+    
     def _zero_g_readings(self):
         """
         Method reads the current offset values and then converts them to the offsets
@@ -596,58 +593,56 @@ class iCog():
         self._turn_off_sensor()
         self._set_full_scale_mode(4)
         self._turn_on_sensor()
-        x_reading = 0
-        y_reading = 0
-        z_reading = 0
+        x_avg = 0
+        y_avg = 0
+        z_avg = 0
+        
+        #BUG: I'm not sure this method of creating an averge of 10 will work as I am not confident that
+        #       python will treat these as 2's compliment numbers
+        
         for n in range(0,10):
-            if self._data_available():
-                x_reading = x_reading + self._read_x_axis_data_registers()
-                y_reading = y_reading + self._read_y_axis_data_registers()
-                z_reading = z_reading + self._read_z_axis_data_registers()
+            x_reading = self._read_x_axis_data_registers()
+            x_avg = x_avg + x_reading
+            y_reading = self._read_y_axis_data_registers()
+            y_avg = y_avg + y_reading
+            z_reading = self._read_z_axis_data_registers()
+            z_avg = z_avg + z_reading
+            print("Readings (x/y/z): %x / %x / %x" % (x_reading, y_reading, z_reading))
         self._turn_off_sensor()
         
-        x_reading = x_reading / 10
-        y_reading = y_reading / 10
-        z_reading = z_reading / 10
+        x_out = int(x_avg / 10)
+        y_out = int(y_avg / 10)
+        z_out = int(z_avg / 10)
         
-        self.log.debug("[Rs2] Readings taken from the sensor (x:y:z) : %x:%x:%x" % (x_reading,y_reading,z_reading))
-        # 2's compliment and multiple by scaling factor of 1/512 as in 4g mode
+        self.log.debug("[Rs2] Readings taken from the sensor (x:y:z) : %x:%x:%x" % (x_avg,y_avg,z_avg))
+
+        # TODO: Need to work out which axis has gravity applied to it, so one of the axis' will have approximately
+        # +/- 1g applied. Currently assumes it is the z axis
         
-        #x_out = self._twos_compliment12(x_reading) * 1/512
-        #y_out = self._twos_compliment12(y_reading) * 1/512
-        #z_out = self._twos_compliment12(z_reading) * 1/512
-        #self.log.debug("[Rs2] Readings converted to actual g values (x:y:z) : %x:%x:%x" % (x_out,y_out,z_out))
-        
-        # Write offsets to calibration_data. Note:the data is not written to the chip as this
-        #   is done as part of the setup_sensor routine
-        #   Only 8 bits from the 1are stored
-        #self.calibration_data['zero_g_x_offset'] = x_out >> 8
-        #self.calibration_data['zero_g_y_offset'] = y_out >> 8
-        #self.calibration_data['zero_g_z_offset'] = z_out >> 8
-        
-        x_out = (int(x_reading) >> 4) & 0b11111111
-        y_out = (int(y_reading) >> 4) & 0b11111111
-        z_out = (int(z_reading) >> 4) & 0b11111111
         self.log.debug("[Rs2] 8 bit value to be used to calculate the offset (x,y,z):%x : %x : %x" % (x_out,y_out, z_out))
         
-        if (x_out & 0b10000000) > 0:
+        # For each axis determine if the MSB == 1. If so, the offset is 0b1000 0000 0000 (0x800) minus that value
+        #   If not, it is the negative (2's compliment) of the value.
+        if (x_out & 0b100000000000) > 0:
             # offset needs to be the positive equivalent
-            x_offset = 0x100 - x_out
+            x_offset = 0x800 - x_out
         else:
             x_offset = (~x_out) + 1
         
-        if (y_out & 0b10000000) > 0:
+        if (y_out & 0b100000000000) > 0:
             # offset needs to be the positive equivalent
-            y_offset = 0x100 - y_out
+            y_offset = 0x800 - y_out
         else:
             y_offset = (~y_out) + 1
-        # The z axis returns 1 g as its default position, which is 0x200. But only the top 8 bits are used
-        #   so the compare value is 0x20 higher than it should be, reduce it by 0x20
-        z_out = z_out - 0x20
+        # The z axis returns 1 g as its default position, which is 0x200, reduce it by 0x200 to find the offset
         
-        if (z_out & 0b10000000) > 0:
+        #BUG: This won't work either as if the number is less than 0x200, it will be reduced further
+        
+        z_out = z_out - GRAVITY
+        
+        if (z_out & 0b100000000000) > 0:
             # offset needs to be the positive equivalent
-            z_offset = 0x100 - z_out
+            z_offset = 0x800 - z_out
         else:
             z_offset = (~z_out) + 1
             
@@ -657,7 +652,6 @@ class iCog():
         self.calibration_data['zero_g_z_offset'] = z_offset
         return
         
-    
     def _set_offset_registers(self):
         """
         Routine to write the offset values from calibration_data to the sensor
@@ -668,6 +662,9 @@ class iCog():
         setting = [self.calibration_data['zero_g_x_offset'],
                     self.calibration_data['zero_g_y_offset'],
                     self.calibration_data['zero_g_z_offset']]
+        
+        #TODO: Check the calibration values being used, if they are greater than 250mg, use 250mg.
+        
         # Calibration data is storing the values to be written.
         register = ["x","y","z"]
         for i in range(0,len(reg_addr)):
