@@ -344,7 +344,7 @@ class DataAccessor:
 #
 #-----------------------------------------------------------------------
 
-## BUG: Tets data also needs to make a data strcuture that conmsists of
+##BUG: Test data also needs to make a data strcuture that conmsists of
 #       [[x,y,z],[a,b,c]]
 
 def GenerateTimestamp():

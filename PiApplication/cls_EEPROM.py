@@ -239,8 +239,13 @@ class ID_IoT():
         """
         Read the data from the map, version 0.2
         """
+        
         # read device connectivity data
-        row_10 = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, SS.CALIB_PAGE_LENGTH)
+        row_10 = []
+        retry = SS.EEPROM_READ_RETRY
+        while retry > 0 or len(row_10) > 1:
+            row_10 = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, SS.CALIB_PAGE_LENGTH)
+            retry = retry - 1
         
         if len(row_10) < 1:
             #No data received
@@ -339,6 +344,8 @@ class ID_IoT():
         """
         self.datafile = []
         self.log.info("[EEPROM] Reading the datafile for sensor information")
+        
+        #TODO: Convert this to a with statement
         try:
             self.log.debug("[EEPROM] DataFile in location:%s" % SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME)
             data = open(SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME, mode='rt')

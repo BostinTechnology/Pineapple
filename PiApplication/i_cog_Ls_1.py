@@ -397,6 +397,7 @@ class iCog():
                 status = False
         else:
             self.log.debug("[Ls1] Sensor Range Resolution already set")
+            status = True
         return status
     
     def _read_data_registers(self):
@@ -506,6 +507,7 @@ class iCog():
         """
         Set the operation mode bits (5-7) of Command Register 1 to zero
         """
+        status = False
         reg_addr = 0x00
         mask = 0b11100000
         shift = 5
@@ -528,6 +530,7 @@ class iCog():
                 status = True
         else:
             self.log.debug("[Ls1] Sensor already Turned off")
+            status = True
         return status
     
 #-----------------------------------------------------------------------

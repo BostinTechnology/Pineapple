@@ -125,7 +125,7 @@ class iCog():
             # Only start if NOT in low power mode
             status = self._start()
         
-        # BUG: This needs to be modified to return multiple values
+        #BUG: This needs to be modified to return multiple values
         # Once changed, update Ls1
         value = self._read_value()
         timestamp = self._timestamp()
@@ -754,7 +754,6 @@ class iCog():
         Wait until data is available before reading it
         - add a timeout to this function
         """
-        #TODO: check there is a temperature value available
         # Calculate the temperature
         #TODO: Need to check the values are set before using them, else get them again
         #    self.t0_degc, self.t1_degc, self.t0_out, self.t1_out

@@ -633,6 +633,7 @@ class iCog():
             return False
         
         # TODO: Ensure sensor is turned off
+        # TODO: Fail if any of these fail
         self._set_normal_output_mode()
         self._set_altimeter_mode()
         self._set_barometric_input()

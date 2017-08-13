@@ -139,7 +139,7 @@ class i2c_comms():
             e = sys.exc_info()
             self.log.critical("[I2C COMMS] Failed to Set Repeated Start mode, program aborted with response %s: %s" % (e[0], e[1]))
             return False
-        return
+        return True
 #-----------------------------------------------------------------------
 #
 #    P R I V A T E   F U N C T I O N S

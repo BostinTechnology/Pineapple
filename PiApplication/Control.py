@@ -12,8 +12,6 @@ Command Line Options
     - Set Customer Parameters                       -a --setinfo
     - Reset                                         -t --reset
 
-TODO: need to wait for time without one of the cores running continually in a time loop
-
 TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
         data to screen, only wany critical user messages there.
 
@@ -26,6 +24,11 @@ TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails 
 TODO: Make running the program easier, a single command would be great.
 
 TODO: I need to go through all the code and check for failure points and protect against them
+
+TODO: Go through and check for where I just return True that it is correct.
+        Need to validate the failure routes of the code.
+
+TODO: In the icog routines there are sys.exits which I think should probably return to the main program instead as a fail
 """
 
 from datetime import datetime
@@ -261,11 +264,16 @@ def Start(cust_info):
             # Wait for timeout
             waiting = False
             while endtime > datetime.now():
-                #TODO: Make this a lower power wait period
                 if waiting == False:
                     print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
                     gbl_log.debug("[CTRL] Waiting for timeout to complete")
                     waiting=True
+                # Use time.sleep to wait without processor burn at 25%
+                sleep = datetime.now() - endtime
+                if sleep.total_seconds() > 2:
+                    time.sleep(sleep.total_seconds() - 0.1)
+                else:
+                    time.sleep(0.1)
             
     except KeyboardInterrupt:
         # CTRL - C entered
