@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Bostin Technology  (see www.BostinTechnology.com)
 
@@ -11,9 +12,24 @@ Command Line Options
     - Set Customer Parameters                       -a --setinfo
     - Reset                                         -t --reset
 
-"""
+TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
+        data to screen, only wany critical user messages there.
 
-#TODO: Convert datafile.txt to python script
+TODO: Consider having a calibration flag to indicate that calibration data has been set. When I first use a sensor
+        it is not configured and can have literally any settings.
+        
+TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails to log anything outside of the 
+        interrupt routine so i have no idea if it has turned the sensor off even though the loogin works at other times.
+        
+TODO: Make running the program easier, a single command would be great.
+
+TODO: I need to go through all the code and check for failure points and protect against them
+
+TODO: Go through and check for where I just return True that it is correct.
+        Need to validate the failure routes of the code.
+
+TODO: In the icog routines there are sys.exits which I think should probably return to the main program instead as a fail
+"""
 
 from datetime import datetime
 from datetime import timedelta
@@ -37,15 +53,17 @@ from cls_comms import i2c_comms
 from cls_comms import SPi_comms
 from cls_comms import Serial_comms
 import dict_LoggingSetup
-#import cls_SensorTemplate
-# The required iCog is imported in the code once it has been determined
+
+# Note: The required iCog is imported in the code once it has been determined
 
 
 # The following global variables are used.
 gbl_log = ""
 
 
-
+#BUG: With no calibration data set, I have a read frequency of zero.
+#       Do I need to add a flag in the Id_IoT to indicate that calibration data is set?
+#       If not set, I could then program defaults.
 
 def GetSerialNumber():
     """
@@ -175,7 +193,7 @@ def SetupSensor():
         gbl_log.critical("[CTRL] Importing of the iCog file:%s failed, contact support" % icog_file)
         gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
-    gbl_log.info("[CTRL] Importing of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
+    gbl_log.info("[CTRL] Loading of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
     
     # Open the right bus connection to work with the icog connected
     reqd_bus = eeprom.ReturnBusType()
@@ -196,7 +214,7 @@ def SetupSensor():
     gbl_log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
     icog = imported_icog.iCog(icog_connection, calib_data)
-    gbl_log.debug("[CTRL] imported icog:%s" % icog)
+    gbl_log.debug("[CTRL] Initialised icog:%s" % icog)
 
     return (icog, eeprom)
     
@@ -246,20 +264,32 @@ def Start(cust_info):
             # Wait for timeout
             waiting = False
             while endtime > datetime.now():
-                #TODO: Make this a lower power wait period
                 if waiting == False:
                     print("\r\r\r\r\r\r\rWaiting(last reading:%s)" % reading, end="")
                     gbl_log.debug("[CTRL] Waiting for timeout to complete")
                     waiting=True
+                # Use time.sleep to wait without processor burn at 25%
+                sleep = datetime.now() - endtime
+                if sleep.total_seconds() > 2:
+                    time.sleep(sleep.total_seconds() - 0.1)
+                else:
+                    time.sleep(0.1)
             
     except KeyboardInterrupt:
         # CTRL - C entered
         print(" CTRL-C entered")
+        gbl_log.debug("[CTRL] User Interrupt occurred (Ctrl-C)")
+        icog.EndReadings()
+        gbl_log.info("[CTRL] End of Processing")
+        
+        #TODO: Need to add in some functionality here to stop the sensor.
     except:
         #Error occurrred
         gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
         print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
         gbl_log.exception("[CTRL] Start reading loop Exception Data")
+    
+    #TODO: Do I add a finally clause here to close off the comms, regardless of the failure?
 
     return
 
@@ -288,13 +318,6 @@ def Reset():
         gbl_log.debug("[CTRL] Customer File in location deleted:%s" % filename)
         print("Customer data removed, will need to be re-entered on next startup")
     
-    return
-
-def NewSensor():
-    """
-    Perform the necessary actions to add a new sensor to the system
-    """
-    print ("Not yet Implemented")
     return
 
 def DisplayCal():
@@ -338,13 +361,13 @@ def SetCal():
     
 def DisplayCustomerParameters(cust_info):
     """
-    Perform the necessary actions to display the parameter data being used
+    Perform the necessary actions to display the customer information being used
     
     """
     print("Setting                  Value")
     print("==============================")
     for item in cust_info:
-        print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
+        print("%s%s" %( '{0: <25}'.format(item), cust_info[item]))
 
     return
     
@@ -422,7 +445,7 @@ def SplashScreen():
 
 def LoadCustomerInfo(dev):
     """
-    Load the Customer File infomration and return it in a decitionary
+    Load the Customer File infomration and return it in a dictionary
     customer_info = {"device" : UUID, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
 
     """
@@ -483,7 +506,7 @@ def main():
     
     # First print a 'splash screen'
     device_id = GetSerialNumber()
-    print("\nDevice ID: %s" % device_id)
+    print("\nDevice ID: %s" % device_id)        # TODO: This should probably get the info from cutomer info
     print("\nTo Exit, CTRL-c\n\n")
     
     #TODO: print out the values being used, especially if they are the defaults.
@@ -517,6 +540,13 @@ def main():
         Start(customer_info)              
 
     
+
+#-----------------------------------------------------------------------
+#
+#    T E S T   M O D U L E S
+#
+#-----------------------------------------------------------------------
+
         
 
     

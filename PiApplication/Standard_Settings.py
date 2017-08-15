@@ -3,6 +3,7 @@ I2C = "I2C"
 SPI = "SPI"
 SERIAL = "Serial"
 
+# Datafile and Customer file locations
 DATAFILE_NAME = "datafile.txt"
 DATAFILE_LOCATION = "." #"CognIoT"
 
@@ -18,6 +19,7 @@ CALIB_PAGE_LENGTH = 16            # The number of bytes in the 'row' of calibrat
 RECORDFILE_LOCATION = "."
 RECORDFILE_NAME = "records.txt"
 RECORD_TRY_COUNT = 10               # How many times, when connected the Data Accessor will try and send a record
+EEPROM_READ_RETRY = 5               # How many times it will try and read data from the EEPROM
 
 #Database Locations
 DB_LOCAL = 'Local'
