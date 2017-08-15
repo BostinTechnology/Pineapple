@@ -1,0 +1,18 @@
+from a terminal window
+
+To install
+==========
+
+cd into pineapplie directory
+
+npm init
+npm install express body-parser
+npm install multer
+
+To Run
+======
+
+node .		(don't miss the dot!)
+
+Restful interface can then be found at pi name:8000
+
