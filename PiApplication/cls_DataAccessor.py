@@ -1,10 +1,6 @@
 """
 Contains the required AWS Connection Utilities
 
-#TODO: If there is no db connection, will capture the data in local file ready for transmit
-    This will require some space management so that we don't overfill the card.
-    If it was really clever, it would create a separate thread to handle writing of the data
-
 Process
 - Data In
 - Write to file
@@ -40,9 +36,13 @@ When writing Sensor Values, TableName='SensorValues',
 TODO: db version check is only completed at startup or first connection. If the version changes whilst it is connected
     there is no check to resolve it.
     
-TODO: Need to improve the testing aspects to gaion good coverage
+TODO: Need to improve the testing aspects to gain good coverage
 
 TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
+
+TODO: 'id':'666', 'auth':'password', 'dest':'DB01' to be stored / entered
+
+TODO: database connection is to be determined based on customer info
 """
 
 #TODO: I write stuff to file, but do I ever read it back? I should on start / load
@@ -54,8 +54,9 @@ import sys
 import logging
 import random
 import json
-from datetime import time
+import time
 from datetime import datetime
+import requests
 
 
 import Standard_Settings as SS
@@ -75,7 +76,7 @@ class DataAccessor:
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
         
-        #TODO: Change this to use queus https://docs.python.org/3.3/library/collections.html#collections.deque
+        #TODO: Change this to use queues https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
         self.db_ok = False              # Used to flag that we have successfully checked the database versions match
         self.db_version = 0
@@ -128,18 +129,18 @@ class DataAccessor:
         record_try_count = 0
         while more_data:
             if self._connected():
-                record = self._read_record()
+                record = self._read_record_from_list()
                 if len(record) > 0:
-                    status = self._send_record(record)
+                    status = self._send_records(record)
                     if status == True:
-                        self._remove_record(record)
+                        self._remove_record_from_list(record)
                         record_try_count = 0
                     else:
                         record_try_count = record_try_count + 1
                         if record_try_count > SS.RECORD_TRY_COUNT:
                             self.log.error("[DAcc] Failed to send record over %s times, record archived" % record_try_count)
                             self.log.info("[DAcc] Archived Record:%s" % record)
-                            self._remove_record(record)
+                            self._remove_record_from_list(record)
                         else:
                             time.sleep(record_try_count)        # Wait for a period before retrying
                 else:
@@ -207,9 +208,6 @@ class DataAccessor:
                 if item[0] < 1 or item[0] > 4:
                     self.log.info("[DAcc] 1st part (type) of the dataset failed as it is outside valid range (1-4), dataset:%s" % dataset)
 
-            #BUG: This fails if the number is a float as it takes the '.' as a string
-            #TODO: Need to handle the different data types
-#            if str(item[1]).isdigit() == False:
             if isinstance(item[1], (int, float)) == False:
                 self.log.info("[DAcc] 2nd part (value) of the dataset failed as it not a number, dataset:%s" % dataset)
                 valid_data_record = False
@@ -244,7 +242,7 @@ class DataAccessor:
         self._update_record_file()
         return True
 
-    def _read_record(self):
+    def _read_record_from_list(self):
         """
         Read a record out of the record file
         Return an empty string if no record to find
@@ -255,7 +253,7 @@ class DataAccessor:
         self.log.debug("[DAcc] Record obtained from the records file:%s" % record)
         return record
     
-    def _remove_record(self,record_to_delete):
+    def _remove_record_from_list(self,record_to_delete):
         """
         Remove record zero from the records file
         Checks the record given matches the one it is about to remove before removing it
@@ -286,9 +284,28 @@ class DataAccessor:
         
         return True
     
-    def _send_record(self, data_in):
+    def _post_record(self, data_to_send):
         """
-        Send the given record from the record file
+        Given the dataset, send it to the RESTFul interface and return success or failure
+        
+        """
+        self.log.warning("[DAcc] Posting of Records is not fully implemented, validation required:%s" % data_in)
+
+        payload = {'id':'666', 'auth':'password', 'dest':'DB01', 'data':json.dumps(data_to_send)}
+        r = requests.post('http://192.168.1.182:8000/submitdata', data=payload)
+
+        if r.status_code ==200:
+            print('Header:%s' % r.headers)
+            print('Status Code:%s' % r.status_code)
+            print('Text:%s' % r.text)
+        else:
+            print('Failed to Read')
+            print('Status Code:%s' % r.status_code)
+        return True
+    
+    def _send_records(self, data_in):
+        """
+        Send the given record set from the record file
         return True / False based on the sending of the record
         {
                 'Device_ID': {'N': str(self.device)},
@@ -313,7 +330,8 @@ class DataAccessor:
         if data_in contains multiple datasets, send each record independently
         The format of the data sent could be different for different data versions
         """
-        if self.db_ok == 0.1:
+        response = True
+        if self.db_version == 0.1:
             for item in data_in:
                 data_record = {}
                 data_record['Device_ID'] = { 'N' : str(self.device)}
@@ -330,13 +348,12 @@ class DataAccessor:
                 
                 self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
                 
-                #TODO: Send the data record here
-                #print("Sending of Records is not yet implemented\n:%s" % data_in)
-                self.log.warning("[DAcc] Sending of Records is not yet implemented:%s" % data_in)
+                response = response & self._post_record(data_record)
+        else:
+            response = False
+            self.log.info("[DAcc] In _send_records, db check failed, no data sent")
                 
-                #TODO: set the true / false flag accordingly
-                
-        return True
+        return response
     
 #-----------------------------------------------------------------------
 #
@@ -344,8 +361,6 @@ class DataAccessor:
 #
 #-----------------------------------------------------------------------
 
-##BUG: Test data also needs to make a data strcuture that conmsists of
-#       [[x,y,z],[a,b,c]]
 
 def GenerateTimestamp():
     now = str(datetime.now())
@@ -357,7 +372,7 @@ def GenerateTestData():
     Generate a dataset to represent the simulated input
     [type, number, units]
     """
-    types = ['1','2','3','4']
+    types = [1,2,3,4]
     units = ['lux', 'Deg C', 'Deg F', '%', 'tag']
     dataset = [[]]
     dataset[0].append(types[random.randint(0,len(types)-1)])
