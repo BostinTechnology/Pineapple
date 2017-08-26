@@ -27,11 +27,11 @@ class i2c_comms():
     """
     This routine will setup and control the low level comms out to the various
     protocols
-    
+
     By default, it just creates an instance of itself and opens the port
 
     """
-    
+
     def __init__(self):
         """
         Setup ready for comms, opening the requried port
@@ -41,14 +41,14 @@ class i2c_comms():
 
         self.log.debug("[I2C COMMS] Class initiated")
 
-            
+
         return
-    
+
     def transcieve_data(self, data):
         """
         Send and receive data
         """
-        
+
         return
 
     def send_data(self, data):
@@ -56,7 +56,7 @@ class i2c_comms():
         Send data on the chosen connection
         """
         return
-        
+
     def read_data_byte(self, sens_addr, byte_addr):
         """
         Read a data byte on the chosen connection
@@ -64,7 +64,7 @@ class i2c_comms():
 
         reply = self._read_byte(sens_addr, byte_addr)
         return reply
-    
+
     def read_data_bytes(self, sens_addr, start_byte, no_bytes):
         """
         Read a quantity of bytes, starting from start byte
@@ -72,11 +72,12 @@ class i2c_comms():
             0x10, 0x11, 0x12, 0x13, 0x14
         returns a list of values or an empty string if error occurred
         """
-        self.log.info("[I2C COMMS] Read Data Bytes from address %s starting at %s for %s bytes" 
+        self.log.info("[I2C COMMS] Read Data Bytes from address %s starting at %s for %s bytes"
                         % (sens_addr, start_byte, no_bytes))
         response = []
         for byte in range(start_byte, start_byte+no_bytes):
             reply = self._read_byte(sens_addr, byte)
+            #BUG: reply will return 0 if error occurs, not an empty string
             if reply != '':
                 response.append(reply)
             else:
@@ -93,7 +94,7 @@ class i2c_comms():
             0x10=0x34, 0x11=0x45, 0x12=0x56
         returns confirmation
         """
-        self.log.info("[I2C COMMS] Write Data Bytes to address %s starting at %s with bytes %s" 
+        self.log.info("[I2C COMMS] Write Data Bytes to address %s starting at %s with bytes %s"
                         % (sens_addr, start_byte, data_bytes))
         response = False
         addr = start_byte
@@ -105,18 +106,18 @@ class i2c_comms():
             addr = addr + 1
             time.sleep(I2C_WRITE_DELAY)
         return response
-            
+
     def write_data_byte(self, sens_addr, addr_byte, data_byte):
         """
         Write a byte to the address byte
         So passing (0x50, 0x10, 0x34) will write 0x34 into address byte 0x10
         returns confirmation
         """
-        self.log.info("[I2C COMMS] Write Data Byte to address %s byte %s with value %s" 
+        self.log.info("[I2C COMMS] Write Data Byte to address %s byte %s with value %s"
                         % (sens_addr, addr_byte, data_byte))
         response = self._write_byte(sens_addr, addr_byte, data_byte)
         return response
-    
+
     def repeated_start(self, repeated=True):
         """
         This function sets the I2C bus to use Repeated Start Mode
@@ -145,7 +146,7 @@ class i2c_comms():
 #    P R I V A T E   F U N C T I O N S
 #
 #-----------------------------------------------------------------------
-        
+
     def _open_port(self):
         """
         Open the i2c comms port
@@ -160,7 +161,7 @@ class i2c_comms():
             sys.exit()
         self.log.info("[I2C COMMS] I2C connection created:%s" % self.connection)
         return
-    
+
     def _read_byte(self, addr, byte_no):
         """
         Read a byte from the given address, returns either the value read or an empty binary string
@@ -173,10 +174,10 @@ class i2c_comms():
                 %(byte_no, addr, value))
             self.log.exception("[I2C COMMS] _read_byte Exception Data")
             value = 0
-        self.log.debug("[I2C COMMS] Read Byte from address:%s from i2c device:%s and got this response:%s" 
+        self.log.debug("[I2C COMMS] Read Byte from address:%s from i2c device:%s and got this response:%s"
                         % (byte_no, addr, value))
         return value
-    
+
     def _write_byte(self, addr, byte_no, value):
         """
         Write a byte from the given address.
@@ -186,28 +187,28 @@ class i2c_comms():
         try:
             self.connection.write_byte_data(addr, byte_no, value)
         except:
-            self.log.warning("[I2C COMMS] Unable to write byte:%s of value:%s from i2c device:%s"
+            self.log.warning("[I2C COMMS] Unable to write byte:%s with value:%s to i2c device:%s"
                 %(byte_no, value, addr))
             self.log.exception("[I2C COMMS] _write_byte Exception Data")
         else:
-            self.log.info("[I2C COMMS] Write to Byte:%s of value:%s for i2c device:%s" 
+            self.log.info("[I2C COMMS] Write to Byte:%s of value:%s for i2c device:%s"
                         % (byte_no, value, addr))
             response = True
-        return response    
+        return response
 
 
 class SPi_comms():
     """
     This routine will setup and control the low level comms out to the various
     protocols
-    
+
     By default, it just creates an instance of itself and opens the port
-    
+
     It is required to be given the port to work with, I2C, SPI, SERIAL
     - port is the type of connection I2C, SPI or SERIAL
     - address is the address of the device, default to 0x00 if not required
     """
-    
+
     def __init__(self, address=b'\x00'):
         """
         Setup ready for comms, opening the requried port
@@ -216,14 +217,14 @@ class SPi_comms():
 
         self.sensor_address = address
         self._open_port()
-            
+
         return
-    
+
     def transcieve_data(self, data):
         """
         Send and receive data
         """
-        
+
         return
 
     def send_data(self, data):
@@ -231,7 +232,7 @@ class SPi_comms():
         Send data on the chosen connection
         """
         return
-        
+
     def read_data_byte(self, byte_addr):
         """
         Read a data byte on the chosen connection
@@ -248,7 +249,7 @@ class SPi_comms():
 #
 #-----------------------------------------------------------------------
 
-    
+
     def _open_port(self):
         """
         Open the spi comms port
@@ -257,23 +258,23 @@ class SPi_comms():
         self.log.critical("[COMMS] SPI comms is currently not supported, pleae contact support")
         print("\nError Occurred, program halted - contact support\n")
         sys.exit()
-        
+
         #self.connection = ????
         return
-    
+
 
 class Serial_comms():
     """
     This routine will setup and control the low level comms out to the various
     protocols
-    
+
     By default, it just creates an instance of itself and opens the port
-    
+
     It is required to be given the port to work with, I2C, SPI, SERIAL
     - port is the type of connection I2C, SPI or SERIAL
     - address is the address of the device, default to 0x00 if not required
     """
-    
+
     def __init__(self, address=b'\x00'):
         """
         Setup ready for comms, opening the requried port
@@ -281,14 +282,14 @@ class Serial_comms():
         self.log = logging.getLogger()
         self.sensor_address = address
         self._open_port()
-            
+
         return
-    
+
     def transcieve_data(self, data):
         """
         Send and receive data
         """
-        
+
         return
 
     def send_data(self, data):
@@ -296,7 +297,7 @@ class Serial_comms():
         Send data on the chosen connection
         """
         return
-        
+
     def read_data_byte(self, byte_addr):
         """
         Read a data byte on the chosen connection
@@ -311,7 +312,7 @@ class Serial_comms():
 #    P R I V A T E   F U N C T I O N S
 #
 #-----------------------------------------------------------------------
-        
+
     def _open_port(self):
         """
         Open the serial comms port
@@ -320,10 +321,10 @@ class Serial_comms():
         self.log.critical("[COMMS] Serial comms is currently not supported, pleae contact support")
         print("\nError Occurred, program halted - contact support\n")
         sys.exit()
-        
+
         #self.connection = ????
         return
-        
+
 
 #-----------------------------------------------------------------------
 #
@@ -335,13 +336,13 @@ class Serial_comms():
 def selftest():
     """
     Validate the class is working
-    
+
     """
     return
 
 if __name__ == '__main__':
     # setup logging
 
-    
+
     selftest()
 
