@@ -131,7 +131,10 @@ class i2c_comms():
             Save and Exit
         Command to run as Superuser is
             echo -n 1 > /sys/module/i2c_bcm2708/parameters/combined
+        returns True if successfully changed, else False
         """
+        #BUG: No use of the repeated flag....
+        # sudo sh -c '/bin/echo N > /sys/module/i2c_bcm2708/parameters/combined'
         self.log.info("[I2C COMMS] Setting Repeated Start for I2C comms")
         try:
             response = subprocess.call(["echo -n 1 > /sys/module/i2c_bcm2708/parameters/combined"], shell=True)

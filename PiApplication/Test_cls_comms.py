@@ -14,6 +14,7 @@ import importlib
 import logging
 import logging.config
 import dict_LoggingSetup
+import subprocess
 
 #BUG: If this program is in the test directory, it doesn't find this import
 from cls_comms import i2c_comms
@@ -49,14 +50,44 @@ class Testi2cCommsInit(unittest.TestCase):
 class Testi2cCommsRepeatedStart(unittest.TestCase):
     """
     Test the repeated start is set correctly.
+    This is achieved on the Pi manually by
+    1. Navigate to /sys/module/i2c_bcm2708/parameters
+    2. Modify 'combined'
+        sudo nano combined
+        change N to Y
+        Save and Exit
+    Command to run as Superuser is
+        echo -n 1 > /sys/module/i2c_bcm2708/parameters/combined
+
+    two tests,
+    - not set initially
+    - set after call
     """
-    def test_repeated_start(self):
+    def test_repeated_start_not_set(self):
         """
         Check the repeated start setting is correct
         """
-        gbl_log.debug("[TEST] test_repeated_start")
-        result = False
-        self.assertTrue(result)
+        gbl_log.debug("[TEST] test_repeated_start_not_set")
+        result = ''
+        comms = i2c_comms()
+        response = comms.repeated_start(repeated=False)
+        with open('/sys/module/i2c_bcm2708/parameters/combined', 'r') as check:
+            result = check.read(1)
+        self.assertEqual(result, 'N')
+        self.assertTrue(response)
+
+    def test_repeated_start_set(self):
+        """
+        Check the repeated start setting is correct
+        """
+        gbl_log.debug("[TEST] test_repeated_start_set")
+        result = ''
+        comms = i2c_comms()
+        response = comms.repeated_start(repeated=True)
+        with open('/sys/module/i2c_bcm2708/parameters/combined', 'r') as check:
+            result = check.read(1)
+        self.assertEqual(result, 'Y')
+        self.assertTrue(response)
 
 @patch('smbus.SMBus')
 class Testi2cComms_read_byte(unittest.TestCase):
@@ -224,7 +255,6 @@ class Testi2cComms_write_data_bytes(unittest.TestCase):
         result = comms.write_data_bytes(0x45, 0x12, [0x33, 0x34, 0x35])
         mock_smbus().write_byte_data.assert_has_calls(calls)
         self.assertEqual(result, False)
-
 
 
 def SetupLogging():
