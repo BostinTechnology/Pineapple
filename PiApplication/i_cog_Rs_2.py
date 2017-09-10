@@ -28,7 +28,7 @@ zero_g_z_offset         - ditto
 
 #BUG: I have no confidence that the 2's compliment routines work correctly
 
-#BUG: There are a number of bits in the offset routines that are uncertain and may not work for other 
+#BUG: There are a number of bits in the offset routines that are uncertain and may not work for other
 #       values, e.g. averaging numbers as hex when they are 2's c numbers.
 #       Consider changing this to use converted numbers instead, but that requires the writing routine
 #       to convert the offsets back to 2's c.
@@ -66,7 +66,7 @@ DATA_WAIT_TIME = 10
 GRAVITY = 0x200
 
 class iCog():
-    
+
     def __init__(self, comms_handler, calib):
         """
         Initialise the iCog and calibration data setup
@@ -85,8 +85,8 @@ class iCog():
             self.log.critical("[Rs2] Failed to setup sensor for use")
             print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
             sys.exit()
-        return 
-    
+        return
+
     def StartSensor(self):
         """
         Start the sensor based on the calibration data.
@@ -98,16 +98,16 @@ class iCog():
             status = self._start()
         else:
             status = True
-        
+
         return status
-    
+
     def EndReadings(self):
         """
         Stop the sensor from running
         """
         self._stop()
         return
-    
+
     def ReadValue(self):
         """
         Return the current value from the sensor, in the correct format
@@ -118,21 +118,21 @@ class iCog():
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._start()
-            
+
         value = self._read_value()
         timestamp = self._timestamp()
-        
+
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._stop()
-        
+
         mvdata = [[MVDATA_TYPE[0], value[0], MVDATA_UNITS[0], timestamp],
                     [MVDATA_TYPE[1], value[1], MVDATA_UNITS[1], timestamp],
                     [MVDATA_TYPE[2], value[2], MVDATA_UNITS[2], timestamp]
                     ]
-        
+
         return mvdata
-    
+
     def SetCalibration(self):
         """
         Menu to set all possible values for the calibration data
@@ -141,14 +141,14 @@ class iCog():
         ** In the calling function write that data to the ID_Iot chip
         if no data is returned, no data is written
         """
-        
+
         self._set_standard_config()
 
         self._set_specific_config()
 
         calib = self._build_calib_data()
         return calib
-    
+
     def ResetCalibration(self):
         """
         Reset all calibration to the defaults that are contained in this file
@@ -156,29 +156,29 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
-        
+
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
-        
+
         self._software_reset()
         # Send the calibration data to write back to the ID_IoT
-        
+
         return DEFAULT_CONFIG
-    
+
     def ReturnCalibrationData(self):
         """
         Return the currently set calibration data
         returned as a dictionary
         """
-        
+
         return self.calibration_data
-    
+
     def ReturnReadFrequency(self):
         """
         Return the read frequency for this iCog
         returned in seconds
         """
-        
+
         return self.calibration_data['read_frequency']
 
 #=======================================================================
@@ -196,6 +196,16 @@ class iCog():
 #    Used to setup / read / write calibration data
 #-----------------------------------------------------------------------
 
+    def _is_number(self, check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        self.log.debug("[Ls1] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
 
     def _set_standard_config(self):
         """
@@ -216,12 +226,12 @@ class iCog():
                 print("Please choose Y or N")
                 choice = ""
         self.log.debug("[Rs2] Low Power Mode choice:%s" % choice)
-        
+
         choice = 0
         while choice == 0:
             choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
-            if choice.isdigit():
-                choice = int(choice)
+            if self._is_number(choice):
+                choice = float(choice)
                 if choice >= 0.1 and choice <= 16416000:
                     self.calibration_data['read_frequency'] = choice
                 else:
@@ -229,9 +239,9 @@ class iCog():
             else:
                 choice = 0
         self.log.debug("[Rs2] Read Frequency choice:%s" % choice)
-        
+
         return
-        
+
     def _set_specific_config(self):
         """
         Set the config specific to the Rs2
@@ -240,7 +250,7 @@ class iCog():
         """
         self.log.info("[Rs2] User setting specific configuration")
         print("Setting Rs2 Specific Configuration Parameters\n")
-        
+
         print("Reading Mode")
         print("Single Mode - 1 reading is taken or Averaged Mode - multiple readings are taken and averaged")
         choice = ""
@@ -254,7 +264,7 @@ class iCog():
                 print("Please choose S or A")
                 choice = ""
         self.log.debug("[Rs2] Single / Average mode choice:%s" % choice)
-        
+
         print("Full Scale Deflection Mode")
         print("Values can be 2g, 4g or 8g with corresponding resolutions of 0.98mg, 1.96mg or 3.9mg")
         choice = ""
@@ -266,7 +276,7 @@ class iCog():
                 print("Please choose either 2, 4 or 8")
                 choice = ""
         self.log.debug("[Rs2] Full Scale Range choice:%s" % choice)
-        
+
         if self.calibration_data['single_mode'] == False:
             print("Quantity of Reading to be Averaged")
             print("The number of readings to be taken for the average")
@@ -287,7 +297,7 @@ class iCog():
         else:
             self.calibration_data['average_quantity'] = AVG_QTY_DEFAULT
             self.log.debug("[Rs2] Average Quantity of Readings set to default as operating in single mode")
-        
+
         print("Zero Offset Setting")
         print("Set the x, y and z axis offsets to ensure the current readings are zero")
         choice = ""
@@ -323,7 +333,7 @@ class iCog():
         """
         #Initially set the dataset to be the default and changed the required bytes
         data = DEFAULT_CONFIG
-        
+
         # Configure Standard data
         data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
         data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
@@ -337,11 +347,11 @@ class iCog():
         data[1][3] = self.calibration_data['zero_g_x_offset']
         data[1][4] = self.calibration_data['zero_g_y_offset']
         data[1][5] = self.calibration_data['zero_g_z_offset']
-        
-        
+
+
         self.log.debug("[Rs2] Data bytes to be written:%s" % data)
         return data
-        
+
     def _decode_calib_data(self, data):
         """
         Given the Calibration data, convert it into the useful dictionary of information
@@ -351,7 +361,7 @@ class iCog():
             self.log.info("[Rs2] dataset is too short, using defaults. Dataset received:%s" % data)
             self.log.error("[Rs2] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
-        
+
         # Standard Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
@@ -364,14 +374,14 @@ class iCog():
         self.calibration_data['zero_g_x_offset'] = data[1][3]
         self.calibration_data['zero_g_y_offset'] = data[1][4]
         self.calibration_data['zero_g_z_offset'] = data[1][5]
-        
+
         self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
 
         return True
-    
+
     def _load_defaults(self):
         """
-        Using the DEFAULT_CONFIG, load a new configuration data set        
+        Using the DEFAULT_CONFIG, load a new configuration data set
         """
         if self._decode_calib_data(DEFAULT_CONFIG) == False:
             # Failed to decode the default configuration, need to abort
@@ -389,7 +399,7 @@ class iCog():
 #
 #    Specific functions required for the sensor
 #-----------------------------------------------------------------------
-    
+
     def _turn_on_sensor(self):
         """
         Set bit 0 of the CTRL Register 0x26 to 1 to make the sensor active
@@ -472,7 +482,7 @@ class iCog():
             available = byte & mask
         self.log.debug("[Rs2] Data Status (1=data available) set for axis %s : %s" % (axis,available))
         return available
-        
+
     def _set_full_scale_mode(self, override=0):
         """
         Set the Full Scale Mode in the XYZ_DATA_CFG Register 0x0E
@@ -581,7 +591,7 @@ class iCog():
         else:
             self.log.info("[Rs2] Sensor already in FIFO mode")
         return
-    
+
     def _zero_g_readings(self):
         """
         Method reads the current offset values and then converts them to the offsets
@@ -596,10 +606,10 @@ class iCog():
         x_avg = 0
         y_avg = 0
         z_avg = 0
-        
+
         #BUG: I'm not sure this method of creating an averge of 10 will work as I am not confident that
         #       python will treat these as 2's compliment numbers
-        
+
         for n in range(0,10):
             x_reading = self._read_x_axis_data_registers()
             x_avg = x_avg + x_reading
@@ -609,18 +619,18 @@ class iCog():
             z_avg = z_avg + z_reading
             print("Readings (x/y/z): %x / %x / %x" % (x_reading, y_reading, z_reading))
         self._turn_off_sensor()
-        
+
         x_out = int(x_avg / 10)
         y_out = int(y_avg / 10)
         z_out = int(z_avg / 10)
-        
+
         self.log.debug("[Rs2] Readings taken from the sensor (x:y:z) : %x:%x:%x" % (x_avg,y_avg,z_avg))
 
         # TODO: Need to work out which axis has gravity applied to it, so one of the axis' will have approximately
         # +/- 1g applied. Currently assumes it is the z axis
-        
+
         self.log.debug("[Rs2] 8 bit value to be used to calculate the offset (x,y,z):%x : %x : %x" % (x_out,y_out, z_out))
-        
+
         # For each axis determine if the MSB == 1. If so, the offset is 0b1000 0000 0000 (0x800) minus that value
         #   If not, it is the negative (2's compliment) of the value.
         if (x_out & 0b100000000000) > 0:
@@ -628,30 +638,30 @@ class iCog():
             x_offset = 0x800 - x_out
         else:
             x_offset = (~x_out) + 1
-        
+
         if (y_out & 0b100000000000) > 0:
             # offset needs to be the positive equivalent
             y_offset = 0x800 - y_out
         else:
             y_offset = (~y_out) + 1
         # The z axis returns 1 g as its default position, which is 0x200, reduce it by 0x200 to find the offset
-        
+
         #BUG: This won't work either as if the number is less than 0x200, it will be reduced further
-        
+
         z_out = z_out - GRAVITY
-        
+
         if (z_out & 0b100000000000) > 0:
             # offset needs to be the positive equivalent
             z_offset = 0x800 - z_out
         else:
             z_offset = (~z_out) + 1
-            
-        # The value stored is the value received, 
+
+        # The value stored is the value received,
         self.calibration_data['zero_g_x_offset'] = x_offset
         self.calibration_data['zero_g_y_offset'] = y_offset
         self.calibration_data['zero_g_z_offset'] = z_offset
         return
-        
+
     def _set_offset_registers(self):
         """
         Routine to write the offset values from calibration_data to the sensor
@@ -662,9 +672,9 @@ class iCog():
         setting = [self.calibration_data['zero_g_x_offset'],
                     self.calibration_data['zero_g_y_offset'],
                     self.calibration_data['zero_g_z_offset']]
-        
+
         #TODO: Check the calibration values being used, if they are greater than 250mg, use 250mg.
-        
+
         # Calibration data is storing the values to be written.
         register = ["x","y","z"]
         for i in range(0,len(reg_addr)):
@@ -712,7 +722,7 @@ class iCog():
         """
         Read the data out from the Y Axis data registers 0x03 - msb, 0x04 bits 7 - 4 - lsb
         """
-        if self._data_available('y'):        
+        if self._data_available('y'):
             data_addr = [0x04, 0x03]
             data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
             data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
@@ -727,7 +737,7 @@ class iCog():
         """
         Read the data out from the Z Axis data registers 0x05 - msb, 0x06 bits 7 - 4 - lsb
         """
-        if self._data_available('z'):         
+        if self._data_available('z'):
             data_addr = [0x06, 0x05]
             data_l = self.comms.read_data_byte(SENSOR_ADDR,data_addr[0])
             data_h = self.comms.read_data_byte(SENSOR_ADDR,data_addr[1])
@@ -737,7 +747,7 @@ class iCog():
         else:
             data_out = 0x7ff
         return data_out
-    
+
     def _fsr_multiplier(self):
         """
         Given the value from calibration data for the full scale range, calculate the mutiplier
@@ -756,7 +766,7 @@ class iCog():
             self.log.warning("[Rs2] Calibration data for Full Scale Range was invalid, using default of 8g")
         self.log.info("[Rs2] Full Scale Range Multiplier is:%f" % fsr_multiplier)
         return fsr_multiplier
-        
+
     def _calculate_values(self):
         """
         Takes the readings and returns the x, y, z values
@@ -792,7 +802,7 @@ class iCog():
         if qty_read < AVG_QTY_MIN or qty_read > AVG_QTY_MAX:
             self.log.warning("[Rs2] Calibration Data for the number of readings is invalid, using default of 10")
             qty_read = AVG_QTY_DEFAULT
-            
+
         for n in range(0,qty_read):
             x = self._read_x_axis_data_registers()
             y = self._read_y_axis_data_registers()
@@ -820,7 +830,7 @@ class iCog():
 #
 #    Used to perform the basic sensor functions.
 #-----------------------------------------------------------------------
-    
+
     def _setup_sensor(self):
         """
         Do all that is required to setup the sensor before starting
@@ -828,19 +838,19 @@ class iCog():
         """
         if self.comms.repeated_start() == False:
             return False
-        
+
         self._turn_off_sensor()
-        
+
         self._set_full_scale_mode()
-        
+
         self._set_fifo_disabled()
-        
+
         self._set_power_mode()      # Uses calibration data to determine mode of operation
-        
+
         self._set_offset_registers()
-                
+
         return True
-    
+
     def _start(self):
         """
         Start the sensor working, returning False if unsuccessful, or True if successful.
@@ -850,7 +860,7 @@ class iCog():
 
         if self._turn_on_sensor() == False:
             return False
- 
+
         return True
 
     def _read_value(self):
@@ -873,7 +883,7 @@ class iCog():
         if self._turn_off_sensor == False:
             return False
         return True
-    
+
 #-----------------------------------------------------------------------
 #
 #    M i s c e l l a n e o u s    F u n c t i o n s
@@ -887,13 +897,13 @@ class iCog():
         now = str(datetime.now())
         self.log.debug("[Ls1] Generated timestamp %s" % now[:23])
         return str(now[:23])
-    
+
     def _twos_compliment12(self,value):
         """
         Convert the given 12bit hex value to decimal using 2's compliment
         """
         return -(value & 0b100000000000) | (value & 0b011111111111)
-    
+
     def _create_2s_c12(self,value):
         """
         Given the value, return a binary representation in 2's c for it
@@ -1014,7 +1024,7 @@ def SelfTest():
 
     # Check for Self Test Pass
     # X increase of 90, y increase of 104, z increase of 782 (these are non calibrated!)
-    
+
     #BUG: I have changed the calculateavgvalues to make them calibrated!!
     if (in_selftest[0] - out_selftest[0]) > (90 * 0.75):
         print("X - PASS")
@@ -1031,7 +1041,7 @@ def SelfTest():
 
     return
 
-   
+
 
 
 #-----------------------------------------------------------------------

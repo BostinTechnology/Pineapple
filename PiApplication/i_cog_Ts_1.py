@@ -59,7 +59,7 @@ AVGT = {0:16, 2:0, 4:1, 8:2, 16:3, 32:4, 64:5, 128:6, 256:7}
 AVGH = {0:32, 4:0, 8:1, 16:2, 32:3, 64:4, 128:5, 256:7, 512:8}
 
 class iCog():
-    
+
     def __init__(self, comms_handler, calib):
         """
         Initialise the iCog and calibration data setup
@@ -69,7 +69,7 @@ class iCog():
         self.log.debug("[Ts1] Data being used to build calibration dictionary:%s" % calib)
         self.t_out = 0              # Temperature reading from the sensor
         self.h_out = 0              # Humidity reading from the sensor
-        
+
         self.t0_degc = 0            #Calibration Data
         self.t1_degc = 0            #   -- "" --
         self.t0_out = 0             #   -- "" --
@@ -78,7 +78,7 @@ class iCog():
         self.h1_rh = 0             #   -- "" --
         self.h0_out = 0             #   -- "" --
         self.h1_out = 0             #   -- "" --
-        
+
         self.t_degc = 0             # Calculated output value
 
         self.comms = comms_handler
@@ -93,7 +93,7 @@ class iCog():
             print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
             sys.exit()
         return
-    
+
     def StartSensor(self):
         """
         Start the sensor based on the calibration data.
@@ -105,16 +105,16 @@ class iCog():
             status = self._start()
         else:
             status = True
-        
+
         return status
-    
+
     def EndReadings(self):
         """
         Stop the sensor from running
         """
         self._stop()
         return
-    
+
     def ReadValue(self):
         """
         Return the current value from the sensor, in the correct format
@@ -124,21 +124,21 @@ class iCog():
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._start()
-        
+
         #BUG: This needs to be modified to return multiple values
         # Once changed, update Ls1
         value = self._read_value()
         timestamp = self._timestamp()
-        
+
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._stop()
-        
+
         mvdata = [[MVDATA_TYPE[0], value[0], MVDATA_UNITS[0], timestamp],
                     [MVDATA_TYPE[1], value[1], MVDATA_UNITS[1], timestamp]]
-        
+
         return mvdata
-    
+
     def SetCalibration(self):
         """
         Menu to set all possible values for the calibration data
@@ -147,14 +147,14 @@ class iCog():
         ** In the calling function write that data to the ID_Iot chip
         if no data is returned, no data is written
         """
-        
+
         self._set_standard_config()
 
         self._set_specific_config()
 
         calib = self._build_calib_data()
         return calib
-    
+
     def ResetCalibration(self):
         """
         Reset all calibration to the defaults that are contained in this file
@@ -162,30 +162,30 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
-        
+
         #TODO: Consider resetting the sensor at the same time - use RefreshRegisters
-        
+
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
-        
+
         # Send the calibration data to write back to the ID_IoT
-        
+
         return DEFAULT_CONFIG
-    
+
     def ReturnCalibrationData(self):
         """
         Return the currently set calibration data
         returned as a dictionary
         """
-        
+
         return self.calibration_data
-    
+
     def ReturnReadFrequency(self):
         """
         Return the read frequency for this iCog
         returned in seconds
         """
-        
+
         return self.calibration_data['read_frequency']
 
 #=======================================================================
@@ -203,6 +203,16 @@ class iCog():
 #    Used to setup / read / write calibration data
 #-----------------------------------------------------------------------
 
+    def _is_number(self, check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        self.log.debug("[Ls1] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
 
     def _set_standard_config(self):
         """
@@ -223,12 +233,12 @@ class iCog():
                 print("Please choose Y or N")
                 choice = ""
         self.log.debug("[Ts1] Low Power Mode choice:%s" % choice)
-        
+
         choice = 0
         while choice == 0:
             choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
-            if choice.isdigit():
-                choice = int(choice)
+            if self._is_number(choice):
+                choice = float(choice)
                 if choice >= 0.1 and choice <= 16416000:
                     self.calibration_data['read_frequency'] = choice
                 else:
@@ -236,9 +246,9 @@ class iCog():
             else:
                 choice = 0
         self.log.debug("[Ts1] Read Frequency choice:%s" % choice)
-        
+
         return
-        
+
     def _set_specific_config(self):
         """
         Set the config specific to the Ts1
@@ -246,7 +256,7 @@ class iCog():
         """
         self.log.info("[Ts1] User setting specific configuration")
         print("Setting Ts1 Specific Configuration Parameters\n")
-        
+
         # Get the choices for the temperature resolution mode
         choices = []
         for item in AVGT:
@@ -273,7 +283,7 @@ class iCog():
         choices = []
         for item in AVGH:
             choices.append(item)
-        choices.sort()        
+        choices.sort()
         print("Humidity Mode : Select the quantity of readings to be averaged")
         #temp_readings = [4,8,16,32,64,128,256, 512]
         choice = ""
@@ -293,14 +303,14 @@ class iCog():
 
         self.log.debug("[Ts1] New Configuration Parameters:%s" % self.calibration_data)
         return
-    
+
     def _build_calib_data(self):
         """
         Take the self.calibration_data and convert it to bytes to be written
         """
         #Initially set the dataset to be the default and changed the required bytes
         data = DEFAULT_CONFIG
-        
+
         # Configure Standard data
         data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
         data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
@@ -310,11 +320,11 @@ class iCog():
         # Configure Sensor Specific data
         data[1][0] = self.calibration_data['avg_temp_samples']      #conversion is completed when writing values to the sensor
         data[1][1] = self.calibration_data['avg_humd_samples']      #conversion is completed when writing values to the sensor
-        
-        
+
+
         self.log.debug("[Ts1] Data bytes to be written:%s" % data)
         return data
-        
+
     def _decode_calib_data(self, data):
         """
         Given the Calibration data, convert it into the useful dictionary of information
@@ -324,22 +334,22 @@ class iCog():
             self.log.info("[Ts1] dataset is too short, using defaults. Dataset received:%s" % data)
             self.log.error("[Ts1] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
-        
+
         # Standard Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
         self.calibration_data['avg_temp_samples'] = data[1][0]      #conversion is completed when writing values to the sensor
         self.calibration_data['avg_humd_samples'] = data[1][1]      #conversion is completed when writing values to the sensor
-        
+
         self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
 
         #TODO: Need to have some validation here or just return - no need for return True
         return True
-    
+
     def _load_defaults(self):
         """
-        Using the DEFAULT_CONFIG, load a new configuration data set        
+        Using the DEFAULT_CONFIG, load a new configuration data set
         """
         if self._decode_calib_data(DEFAULT_CONFIG) == False:
             # Failed to decode the default configuration, need to abort
@@ -415,7 +425,7 @@ class iCog():
             self.log.debug("[Ts1] Humidity Samples Register already set")
             status = True
         return status
-    
+
     def _turn_on_sensor(self):
         """
         Set bit 7 of the CTRL Register 0x20 to 1 and bits 1 & 0 to 0b 00
@@ -651,7 +661,7 @@ class iCog():
             temp = byte & mask
         self.log.debug("[Ts1] Temperature Data Status (1=data available) %s" % temp)
         return temp
-    
+
     def _enable_one_shot_old(self):
         """
         Set the one shot bit to start a new conversion set of data
@@ -679,7 +689,7 @@ class iCog():
             self.log.debug("[Ts1] One Shot Enable already activated")
             status = True
         return status
-        
+
     def _enable_one_shot(self):
         """
         Set the one shot bit to start a new conversion set of data
@@ -703,7 +713,7 @@ class iCog():
 #
 #    Used to perform the basic sensor functions.
 #-----------------------------------------------------------------------
-    
+
     def _setup_sensor(self):
         """
         Do all that is required to setup the sensor before starting
@@ -719,19 +729,19 @@ class iCog():
 
         if self._set_temp_samples() == False:
             return False
-        
+
         self._read_h0_out()
         self._read_h0_rH()
         self._read_h1_out()
         self._read_h1_rH()
-        
+
         self._read_t0_degc()
         self._read_t0_out()
         self._read_t1_degc()
         self._read_t1_out()
-        
+
         return True
-    
+
     def _start(self):
         """
         Start the sensor working, returning False if unsuccessful, or True if successful.
@@ -743,7 +753,7 @@ class iCog():
 
         if self._turn_on_sensor() == False:
             return False
-        
+
         return True
 
     def _read_value(self):
@@ -757,7 +767,7 @@ class iCog():
         # Calculate the temperature
         #TODO: Need to check the values are set before using them, else get them again
         #    self.t0_degc, self.t1_degc, self.t0_out, self.t1_out
-        
+
         if self._enable_one_shot() == False:
             return [0,0]
 
@@ -769,7 +779,7 @@ class iCog():
         else:
             self.log.info("[Ts1] Temperature Reading not available, using default")
             self.t_degc = DEFAULT_TEMP
-            
+
         #TODO: Need to check these values are valid before using them, else get them again
         #   self.h0_rh, self.h1_rh, self.h0_out, self.h1_out
         if self._humidity_data_available():
@@ -780,7 +790,7 @@ class iCog():
         else:
             self.log.info("[Ts1] Humidity Reading not available, using default")
             self.h_rh = DEFAULT_HUMID
-            
+
         return [self.t_degc, self.h_rh]
 
     def _stop(self):
@@ -790,9 +800,9 @@ class iCog():
         #TODO: Remove the extra step and put the turn off sensor functionality here and move this bit to EndReadings
         if self._turn_off_sensor == False:
             return False
- 
+
         return True
-    
+
 #-----------------------------------------------------------------------
 #
 #    M i s c e l l a n e o u s    F u n c t i o n s

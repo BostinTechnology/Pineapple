@@ -108,7 +108,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Clean up after testing
         """
-        gbl_log.info("[TEST] TestiCogConfig.Destroy")
+        gbl_log.info("[TEST] TestiCogConfig.tearDown")
         self.comms.destroy()
 
     @patch('builtins.input')
@@ -117,16 +117,106 @@ class TestiCogConfig(unittest.TestCase):
         Check it works with valid values
         """
         gbl_log.info("[TEST] test_set_standard_config_good")
+        lp_mode_choices = ['N', 'n', 'Y', 'y']
+        freq_choices = ['0.1', '10', '100000', '16416000']
 
-        mock_kbd.side_effect = ['Y', '10']
+        for lp_mode in lp_mode_choices:
+            for freq in freq_choices:
+                mock_kbd.side_effect = [lp_mode, freq]
+                self.test_icog._set_standard_config()
+                config = self.test_icog.ReturnCalibrationData()
+                gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+                self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+                if lp_mode.upper() == 'Y':
+                    self.assertTrue(config['low_power_mode'], msg="Expected Low power mode to be set")
+                else:
+                    self.assertFalse(config['low_power_mode'], msg="Expected Low power mode to be NOT set")
+                self.assertTrue(config['read_frequency'] == float(freq), msg="Read Frequency does not match expected")
+
+    @patch('builtins.input')
+    def test_set_standard_config_bad(self, mock_kbd):
+        """
+        Check it works with valid values
+        """
+        gbl_log.info("[TEST] test_set_standard_config_bad")
+        # Within the lists additional values are added to test only the one question
+        lp_mode_choices = ['C', 'v', 'g', '', 'N', '10']
+        freq_choices = ['Y', '0.09', '', 'c', '16416001', '10']
+
+        mock_kbd.side_effect = lp_mode_choices
         self.test_icog._set_standard_config()
         config = self.test_icog.ReturnCalibrationData()
         gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
-        self.assertTrue(config['low_power_mode'])
-        self.assertTrue(config['read_frequency'] == 10)
+        self.assertFalse(config['low_power_mode'], msg="Expected Low power mode to be NOT set")
+
+        mock_kbd.side_effect = freq_choices
+        self.test_icog._set_standard_config()
+        config = self.test_icog.ReturnCalibrationData()
+        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+        self.assertTrue(config['read_frequency'] == 10, msg="Read Frequency does not match expected")
+
+    @patch('builtins.input')
+    def test_set_specific_config_good(self, mock_kbd):
+        """
+        Check it works with valid values
+        """
+        gbl_log.info("[TEST] test_set_specific_config_good")
+        light_mode_choices = ['a', 'A', 'i', 'I']
+        fsr_choices = ['0', '1', '2', '3']
+        adc_choices = ['0', '1', '2', '3']
+
+        for light_mode in light_mode_choices:
+            for fsr in fsr_choices:
+                for adc in adc_choices:
+                    mock_kbd.side_effect = [light_mode, fsr, adc]
+                    self.test_icog._set_specific_config()
+                    config = self.test_icog.ReturnCalibrationData()
+                    gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+                    self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+                    if light_mode.upper() == 'A':
+                        self.assertEqual(config['light_mode'],1, msg="Expected Light Mode  to be set")
+                    else:
+                        self.assertEqual(config['light_mode'], 0, msg="Expected Light Mode to be NOT set")
+
+                    self.assertEqual(config['full_scale_range'], int(fsr), msg="Full Scale Range does not match expected")
+                    self.assertEqual(config['adc_resolution'], int(adc), msg="ADC Resolution does not match expected")
+
+    @patch('builtins.input')
+    def test_set_specific_config_bad(self, mock_kbd):
+        """
+        Check it works with valid values
+        """
+        gbl_log.info("[TEST] test_set_specific_config_bad")
+        # Within the lists, are the other answers to test only the one question at a time
+        light_mode_choices = ['s', 'Q', '', 'A', '1', '1']
+        fsr_choices = ['A', '-1', '20', '0.1', '4', '3', '3']
+        adc_choices = ['A', '3', '-1', '23', '0.1', '4', '2']
+
+        mock_kbd.side_effect = light_mode_choices
+        self.test_icog._set_specific_config()
+        config = self.test_icog.ReturnCalibrationData()
+        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+        self.assertEqual(config['light_mode'], 1, msg="Expected Light Mode to be set")
+
+        mock_kbd.side_effect = fsr_choices
+        self.test_icog._set_specific_config()
+        config = self.test_icog.ReturnCalibrationData()
+        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+        self.assertEqual(config['full_scale_range'], 3, msg="Full Scale Range does not match expected")
+
+        mock_kbd.side_effect = adc_choices
+        self.test_icog._set_specific_config()
+        config = self.test_icog.ReturnCalibrationData()
+        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.assertTrue(len(config)>0, msg="Configuration Data Missing")
+        self.assertEqual(config['adc_resolution'], 2, msg="ADC Resolution does not match expected")
 
 
+#Next is build calib data
 
 #TODO: Write some tests that use the comms handler and patch the smbus
 def SetupLogging():

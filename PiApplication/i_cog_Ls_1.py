@@ -165,6 +165,16 @@ class iCog():
 #    Used to setup / read / write calibration data
 #-----------------------------------------------------------------------
 
+    def _is_number(self, check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        self.log.debug("[Ls1] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
 
     def _set_standard_config(self):
         """
@@ -189,8 +199,8 @@ class iCog():
         choice = 0
         while choice == 0:
             choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
-            if choice.isdigit():
-                choice = int(choice)
+            if self._is_number(choice):
+                choice = float(choice)
                 if choice >= 0.1 and choice <= 16416000:
                     self.calibration_data['read_frequency'] = choice
                 else:

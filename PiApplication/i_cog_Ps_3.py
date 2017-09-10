@@ -42,7 +42,7 @@ MVDATA_TYPE = [1,1,1,1]
 MVDATA_UNITS = []       # Not used as each function returns the units used as they vary depending on mode
 
 class iCog():
-    
+
     def __init__(self, comms_handler, calib):
         """
         Initialise the iCog and calibration data setup
@@ -62,7 +62,7 @@ class iCog():
             print("Failed to initialise the sensor correctly, please try again and if it persists, contact support")
             sys.exit()
         return
-    
+
     def StartSensor(self):
         """
         Start the sensor based on the calibration data.
@@ -74,16 +74,16 @@ class iCog():
             status = self._start()
         else:
             status = True
-        
+
         return status
-    
+
     def EndReadings(self):
         """
         Stop the sensor from running
         """
         self._stop()
         return
-    
+
     def ReadValue(self):
         """
         Return the current value from the sensor, in the correct format
@@ -94,23 +94,23 @@ class iCog():
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._start()
-        
+
         temp = self._read_temperature()
         press = self._read_pressure()
         tempd = self._read_temperature_delta()
         pressd = self._read_pressure_delta()
         #value = self._read_value()     Not used as values returned includes units
         timestamp = self._timestamp()
-        
+
         if self.calibration_data['low_power_mode'] == True:
             # Only start if NOT in low power mode
             status = self._stop()
-        
+
         mvdata = [[MVDATA_TYPE[0], temp[0], temp[1], timestamp],[MVDATA_TYPE[0], press[0], press[1], timestamp],
                 [MVDATA_TYPE[0], tempd[0], tempd[1], timestamp],[MVDATA_TYPE[0], pressd[0], pressd[1], timestamp]]
-        
+
         return mvdata
-    
+
     def SetCalibration(self):
         """
         Menu to set all possible values for the calibration data
@@ -119,14 +119,14 @@ class iCog():
         ** In the calling function write that data to the ID_Iot chip
         if no data is returned, no data is written
         """
-        
+
         self._set_standard_config()
 
         self._set_specific_config()
 
         calib = self._build_calib_data()
         return calib
-    
+
     def ResetCalibration(self):
         """
         Reset all calibration to the defaults that are contained in this file
@@ -134,30 +134,30 @@ class iCog():
         Return this calibration data for reprogramming into the ID_IoT chip
         ** In the calling function write that data to the ID_Iot chip
         """
-        
+
         # Use self._load_defaults to load the default calibration
         self._load_defaults()
-        
+
         #self._software_reset()     to be added and tested.
-        
+
         # Send the calibration data to write back to the ID_IoT
-        
+
         return DEFAULT_CONFIG
-    
+
     def ReturnCalibrationData(self):
         """
         Return the currently set calibration data
         returned as a dictionary
         """
-        
+
         return self.calibration_data
-    
+
     def ReturnReadFrequency(self):
         """
         Return the read frequency for this iCog
         returned in seconds
         """
-        
+
         return self.calibration_data['read_frequency']
 
 #=======================================================================
@@ -174,6 +174,17 @@ class iCog():
 #
 #    Used to setup / read / write calibration data
 #-----------------------------------------------------------------------
+
+    def _is_number(self, check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        self.log.debug("[Ls1] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
 
     def _set_standard_config(self):
         """
@@ -194,12 +205,12 @@ class iCog():
                 print("Please choose Y or N")
                 choice = ""
         self.log.debug("[Ps3] Low Power Mode choice:%s" % choice)
-        
+
         choice = 0
         while choice == 0:
             choice = input("Please enter the Read Frequency (min 0.1s, max 16416000 (19days))")
-            if choice.isdigit():
-                choice = int(choice)
+            if self._is_number(choice):
+                choice = float(choice)
                 if choice >= 0.1 and choice <= 16416000:
                     self.calibration_data['read_frequency'] = choice
                 else:
@@ -207,9 +218,9 @@ class iCog():
             else:
                 choice = 0
         self.log.debug("[Ps3] Read Frequency choice:%s" % choice)
-        
+
         return
-        
+
     def _set_specific_config(self):
         """
         Set the config specific to the Ps3
@@ -217,7 +228,7 @@ class iCog():
         """
         self.log.info("[Ps3] User setting specific configuration")
         print("Setting Ps3 Specific Configuration Parameters\n")
-        
+
         # Example included below - change to what is required
         print("Reading Mode")
         print("Barometric mode (reading absolute pressure) or Altitude mode (reading height compensated pressure")
@@ -241,28 +252,28 @@ class iCog():
             choice = input("Please enter the Pressure offset (min 1Pa, max 1677216Pa, default is 101,326Pa)")
             if choice.isdigit():
                 choice = int(choice)
-                if choice >= 0.1 and choice <= 16416000:
+                if choice >= 1 and choice <= 16416000:
                     self.calibration_data['baro_pressure_offset'] = choice
                 else:
                     choice = 0
             elif choice =="":
                 self.calibration_data['baro_pressure_offset'] = 101326
-                
-                
+
+
             else:
                 choice = 0
         self.log.debug("[Ps3] Pressure Offset choice (Empty sets default):%s" % choice)
 
         self.log.debug("[Ps3] New Configuration Parameters:%s" % self.calibration_data)
         return
-    
+
     def _build_calib_data(self):
         """
         Take the self.calibration_data and convert it to bytes to be written
         """
         #Initially set the dataset to be the default and changed the required bytes
         data = DEFAULT_CONFIG
-        
+
         # Configure Standard data
         data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
         data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
@@ -275,11 +286,11 @@ class iCog():
         data[1][1] = (self.calibration_data['baro_pressure_offset'] & 0xff0000) >> 16
         data[1][2] = (self.calibration_data['baro_pressure_offset'] & 0x00ff00) >> 8
         data[1][3] = (self.calibration_data['baro_pressure_offset'] & 0x0000ff)
-        
-        
+
+
         self.log.debug("[Ps3] Data bytes to be written:%s" % data)
         return data
-        
+
     def _decode_calib_data(self, data):
         """
         Given the Calibration data, convert it into the useful dictionary of information
@@ -289,23 +300,23 @@ class iCog():
             self.log.info("[Ps3] dataset is too short, using defaults. Dataset received:%s" % data)
             self.log.error("[Ps3] Failed to decode calibration data, using default values. Consider resetting it")
             data = DEFAULT_CONFIG
-        
+
         # Standard Data values
         self.calibration_data['low_power_mode'] = (data[0][0] & 0b00000001) > 0
         self.calibration_data['read_frequency'] = ((data[0][1] << 16) + (data [0][2] << 8) + data[0][3]) / 10   #divide by 10 as in tenths
         # Unique Data values
-        
+
         self.calibration_data['altimeter_mode'] = data[1][0]
         self.calibration_data['baro_pressure_offset'] = ((data[1][1] << 16) + (data [1][2] << 8) + data[1][3])
-        
+
         self.log.debug("[Ls1] Calibration data:%s" % self.calibration_data)
 
         #TODO: Need to add some calibration validation rather than just returning True
         return True
-    
+
     def _load_defaults(self):
         """
-        Using the DEFAULT_CONFIG, load a new configuration data set        
+        Using the DEFAULT_CONFIG, load a new configuration data set
         """
         if self._decode_calib_data(DEFAULT_CONFIG) == False:
             # Failed to decode the default configuration, need to abort
@@ -442,7 +453,7 @@ class iCog():
         Default value is 1 standard atmosphere (atm) is defined as 101.325 kPa
         """
         sealevel = calibration_data['baro_pressure_offset']
-        
+
         #TODO: Convert the numbers below to variables
         if sealevel < 1 or sealevel > 110000:
             #value may not be valid
@@ -623,7 +634,7 @@ class iCog():
 #
 #    Used to perform the basic sensor functions.
 #-----------------------------------------------------------------------
-    
+
     def _setup_sensor(self):
         """
         Do all that is required to setup the sensor before starting
@@ -631,15 +642,15 @@ class iCog():
         """
         if self.comms.repeated_start() == False:
             return False
-        
+
         # TODO: Ensure sensor is turned off
         # TODO: Fail if any of these fail
         self._set_normal_output_mode()
         self._set_altimeter_mode()
         self._set_barometric_input()
-        
+
         return True
-    
+
     def _start(self):
         """
         Start the sensor working, returning False if unsuccessful, or True if successful.
@@ -648,7 +659,7 @@ class iCog():
         #TODO: remove the extra layer and put this functionality in StartReadings
         if self._turn_on_sensor() == False:
             return False
- 
+
         return True
 
     # method below is not ussed as the data is passed straight back to ReadValue due to units being included.
@@ -672,7 +683,7 @@ class iCog():
         if self._turn_off_sensor == False:
             return False
         return True
-    
+
 #-----------------------------------------------------------------------
 #
 #    M i s c e l l a n e o u s    F u n c t i o n s
