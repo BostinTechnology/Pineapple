@@ -8,6 +8,11 @@
 import requests
 import json
 
+data_record = {}
+data_record['UserName'] = { 'S' : 'm@mlb.com'}
+#data_record['Password'] = { 'N' : 'password'}
+
+
 def get_input_status():
     payload = {'id':'555', 'auth':'fredfred'}
     r = requests.get('http://192.168.1.182:8000/validate', params=payload)
@@ -47,19 +52,36 @@ def post_data():
         print('Failed to Read')
         print('Status Code:%s' % r.status_code)
     return
+    
+def submitdata():
+    payload = {'userid':'m@mlb.com', 'Password':'password', 'dest':'DB01', 'data':json.dumps(data_record)}
+    print("Payload Being Sent:\n%s" % payload)
+    r = requests.post('http://RPi_3B:8080/submitdata', data=payload)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
+    
         
 def main():
     
     
-    get_input_status()
+    #get_input_status()
     
-    print('\n\n')
+    #print('\n\n')
     
-    post_input_status()
+    #post_input_status()
 
-    print('\n\n')
+    #print('\n\n')
     
-    post_data()
+    #post_data()
+    
+    submitdata()
     
     return
 
