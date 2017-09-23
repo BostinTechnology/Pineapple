@@ -54,9 +54,11 @@ def post_data():
     return
     
 def submitdata():
-    payload = {'userid':'m@mlb.com', 'Password':'password', 'dest':'DB01', 'data':json.dumps(data_record)}
-    print("Payload Being Sent:\n%s" % payload)
-    r = requests.post('http://RPi_3B:8080/submitdata', data=payload)
+    payload = {'device':'12345678', 'tstamp':'20-09-2017 :15:05:34.000', 'sensor':'1',
+        'acroynm':'mb_test', 'desc':'sensor via RESTFul API', 'data':'-0.1 Deg C'}
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DB01', 'data': json.dumps(payload)}
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.post('http://RPi_3B:8080/submitdata', data=fulldata)
 
     if r.status_code ==200:
         print('Header:%s' % r.headers)
@@ -66,7 +68,6 @@ def submitdata():
         print('Failed to Read')
         print('Status Code:%s' % r.status_code)
     return
-    
         
 def main():
     
