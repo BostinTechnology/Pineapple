@@ -22,13 +22,13 @@ AWS.config.update({
 var dynamodb = new AWS.DynamoDB();
 
 
-function get_password (user_name, cb_func, callback) {
+function get_password (user_name, cb_func, res, callback) {
     // request the password from the db and return it to the callback function with a further callback function to run
     // parameters user_name = user name, 
     // cb_func = the function to pass into the callback when got good data
     // callback = the function to run when the data read completed
     console.log("get_password reached");
-    var dynamodb = new AWS.DynamoDB();
+    //var dynamodb = new AWS.DynamoDB();
     
     var docClient = new AWS.DynamoDB.DocumentClient();
     
@@ -55,14 +55,14 @@ function get_password (user_name, cb_func, callback) {
         {
             // this is called when the getItem returns
             console.log("Data Back:" + JSON.stringify(data, null, 2));
-            callback(data, cb_func);     // returns the data to the calling function with cb_func as callback
+            callback(data, res, cb_func);     // returns the data to the calling function with cb_func as callback
         }
     });
     
     console.log("get_password completed");
 }
 
-function validate_user (db_pwd, callback) {
+function validate_user (db_pwd, res, callback) {
     // given the database returned object, validate it
     console.log("validate_user reached")
     console.log("GetItem succeeded:" + JSON.stringify(db_pwd, null, 2));
@@ -73,25 +73,25 @@ function validate_user (db_pwd, callback) {
     if (user_auth == authcode) {
         msg = "\tValidated User...."
         console.log(msg);
-        callback(true);
+        callback(true, res);
 
     }
     else {
         msg = "\tInvalid Authorisation Code";
         console.log(msg);
-        //res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
-        //res.end()
+        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
+        res.end()
         }
 
 }
 
-function submitdata(status) {
+function submitdata(status, res) {
     // given the status, write the data help in the post body (packet) to the database
     console.log("submitdata reached");
     
     if (status == true) {
         // only write the data if status is set to true
-        var dynamodb = new AWS.DynamoDB();
+        //var dynamodb = new AWS.DynamoDB();
         
         var params = {
             TableName: 'SensorValues',
@@ -112,12 +112,16 @@ function submitdata(status) {
         console.log("submit params:" + JSON.stringify(params));
         dynamodb.putItem(params, function(err, data) {
             if (err) {
-                console.log("get_password returned an error:" + err);
+                console.log("submitdata returned an error:" + err);
+                res.sendStatus(501);
+                
             } else
             {
                 // this is called when the putItem returns
                 console.log("Data Written successfully??");
                 // need to return positive here to the http call!!!
+                res.sendStatus(200);
+                
             }
         });
 
@@ -173,7 +177,7 @@ app.post('/submitdata', function (req, res, next) {
 
                 console.log("\n\nConfiguring connection to local database....");
 
-                var response = get_password(userid, submitdata, validate_user);    // Once get_password has finished it calls validate_user
+                var response = get_password(userid, submitdata, res, validate_user);    // Once get_password has finished it calls validate_user
 
                 console.log("get_password response:" + response)
                 break;
