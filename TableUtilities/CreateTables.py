@@ -41,7 +41,7 @@ def DynamodbConnection():
     """
     #TODO: Add in validation that a conection has been made.
     db = boto3.client('dynamodb', 
-        endpoint_url='http://192.168.1.119:8000',
+        endpoint_url='http://192.168.1.167:8000',
         aws_access_key_id='anything',
         aws_secret_access_key='anything',
         region_name='eu-west-1')
@@ -361,7 +361,7 @@ def CreateClientCountTable(db):
 
 ################################# DATA POPULATION #######################
 
-def WriteSensorValues(db, data, tstamp, device, sensor, acroynm, desc):
+def WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc):
     """
     Update the SensorValues table with the given data and timestamp
     Always using the same sensor
@@ -385,7 +385,8 @@ def WriteSensorValues(db, data, tstamp, device, sensor, acroynm, desc):
                 'SensorDescription' : { 'S': str(desc)},
                 'MVData': { 'M' : {
                     'type': { 'S' : '1'},
-                    'value': { 'S' : str(data)}
+                    'value': { 'S' : str(data)},
+                    'units':{ 'S' : str(units)}
                     }},
                 'Viewed': { 'BOOL' : False},
                 },
@@ -498,14 +499,14 @@ WriteUsers(conn, "c@mlb.com", "passowrd", 3, "BostinTech", 'ACTIVE', '07-07-2017
                     '07-07-2017 16:05:34', 3, 'Cons', 'conservatory')
 WriteClientCount(conn, 3)
 print("Write Sensor Values\n*******************")
-# WriteSensorValues(db, data, tstamp, device, sensor, acroynm, desc)
-WriteSensorValues(conn, '26.4 Deg C', '07-07-2017 :05:05:34.000', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '26.5 Deg C', '07-07-2017 02:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '26.6 Deg C', '07-07-2017 04:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '23.4 Deg C', '07-07-2017 06:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '18.7 Deg C', '07-07-2017 08:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '16.5 Deg C', '07-07-2017 10:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '14.5 Deg C', '07-07-2017 12:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+# WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc)
+WriteSensorValues(conn, '26.4', 'Deg C', '07-07-2017 :05:05:34.000', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '26.5', 'Deg C', '07-07-2017 02:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '26.6', 'Deg C', '07-07-2017 04:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '23.4', 'Deg C', '07-07-2017 06:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '18.7', 'Deg C', '07-07-2017 08:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '16.5', 'Deg C', '07-07-2017 10:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '14.5', 'Deg C', '07-07-2017 12:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
 
 
 

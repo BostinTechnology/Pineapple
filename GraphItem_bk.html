@@ -1,0 +1,141 @@
+<!--
+   ReadItem.html
+   
+   Copyright 2017  <pi@RPi_3B>
+  
+  See this for how to draw graphs using html5 
+  http://www.python-exemplary.com/index_en.php?inhalt_links=navigation_en.inc.php&inhalt_mitte=raspi/en/webserver.inc.php
+  
+   
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+
+<html>
+<head>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+
+<script>
+AWS.config.update({
+  region: "us-west-2",
+  endpoint: 'http://192.168.1.182:8000',
+  // accessKeyId default can be used while using the downloadable version of DynamoDB. 
+  // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+  accessKeyId: "fakeMyKeyId",
+  // secretAccessKey default can be used while using the downloadable version of DynamoDB. 
+  // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+  secretAccessKey: "fakeSecretAccessKey"
+});
+
+var docClient = new AWS.DynamoDB.DocumentClient();
+
+function queryData() {
+    var value_dataset = [];
+    context.fillText("Retriving Data", 300, 50);
+    var params = {
+        TableName: 'SensorValues',
+        KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
+        ExpressionAttributeNames: { // a map of substitutions for attribute names with special characters
+            '#name': 'Device_ID'
+        },
+        ExpressionAttributeValues: { // a map of substitutions for all attribute values
+          ':value': 1
+        },
+        ProjectionExpression: "MVData",
+    };
+    docClient.query(params, function(err, data) {
+        if (err) {
+            context.fillText("Unable to read item", 300, 60); 
+        } else {
+            // The followingline shows how to retrieve just the value I am interested in 
+            // Need to loop it through next.
+            var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
+
+            for (var i = 0; i < dataset.length; i = i + 1) {
+                value_dataset[i] = dataset[i]['MVData']['value'];
+            };
+            //context.fillText("GetItem succeeded"+value_dataset, 30, 70);
+            context.fillText("GetItem succeeded"+value_dataset, 30, 70);
+            return value_dataset;
+            
+        }
+    });
+    context.fillText("GetItem succeeded"+value_dataset, 30, 70);
+    return value_dataset;
+}
+
+function init(id) 
+    {
+      var cmin = 50
+      var cmax = 450
+      var cstep = 40
+      var canvas = document.getElementById(id);
+      var context = canvas.getContext('2d');
+      context.font = 'bold 13pt Calibri';
+	
+      // Draw grid
+      context.beginPath();
+      context.lineWidth = 0.5;
+      for (y = cmin; y <= cmax; y = y + cstep)
+      {
+        context.moveTo(cmin, y);
+        context.lineTo(cmax, y);
+      }	
+      for (x = cmin; x <= cmax; x = x + cstep)
+      {
+        context.moveTo(x, cmin);
+        context.lineTo(x, cmax);
+      }	
+      context.stroke();
+		
+      // Draw ticks
+      context.font = '12pt Calibri';
+      for (i = 0; i <= 10; i = i + 1)
+        context.fillText(10 * i, 45 + 40 * i, 470);
+      for (k = 0; k <= 10; k = k + 1)
+        context.fillText(k / 10, 25, 455 - 40 * k);
+      return context
+    }
+  </script>
+</head>
+<body>
+  <h2>Sensor Data</h2>
+  <canvas id="myCanvas" style="position:absolute; top:20px; 
+           left:25px" width="500" height="510"></canvas>  
+  <script>
+    var context = init('myCanvas')
+    context.beginPath();
+    context.lineWidth = 2;
+	context.strokeStyle = '#0000ff';
+    var values = queryData();
+    //context.fillText('here1', 100, 500);
+    context.fillText('data:'+values, 300, 100);
+
+
+// end of javascript
+//	<?php
+//   while ($row = mysqli_fetch_assoc($rs))
+//    {
+//      if ($row['x']  > 100)
+//        break;
+//	?>
+//    context.lineTo(<?php echo $row['x'];?> * 4 + 50, 
+//                450 - <?php echo $row['y'];?> * 400);
+//    <?php } ?>
+	//context.stroke();
+	context.fillText('Total number of records:  ' + 
+//		   		<?php echo $totalRows_rs ?>, 25, 510);
+                0, 25, 510);
+
+//here
+
+
+
+
+</script>
+</head>
+
+</html> 

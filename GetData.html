@@ -1,0 +1,74 @@
+<!--
+   QueryData.html
+   
+   Copyright 2017  <pi@RPi_3B>
+  
+  See this for how to draw graphs using html5 
+  http://www.python-exemplary.com/index_en.php?inhalt_links=navigation_en.inc.php&inhalt_mitte=raspi/en/webserver.inc.php
+  
+   
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+
+<html>
+<head>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+
+<script>
+AWS.config.update({
+  region: "us-west-2",
+  endpoint: 'http://192.168.1.182:8000',
+  // accessKeyId default can be used while using the downloadable version of DynamoDB. 
+  // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+  accessKeyId: "fakeMyKeyId",
+  // secretAccessKey default can be used while using the downloadable version of DynamoDB. 
+  // For security reasons, do not store AWS Credentials in your files. Use Amazon Cognito instead.
+  secretAccessKey: "fakeSecretAccessKey"
+});
+
+var docClient = new AWS.DynamoDB.DocumentClient();
+
+function queryData() {
+    document.getElementById('textarea').innerHTML = "Retrieving data";
+    var params = {
+        TableName: 'SensorValues',
+        KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
+        ExpressionAttributeNames: { // a map of substitutions for attribute names with special characters
+            '#name': 'Device_ID'
+        },
+        ExpressionAttributeValues: { // a map of substitutions for all attribute values
+          ':value': 1
+        },
+        ProjectionExpression: "MVData",
+    };
+    docClient.query(params, function(err, data) {
+        if (err) {
+            document.getElementById('textarea').innerHTML = "Unable to read item: " + "\n" + JSON.stringify(err, undefined, 2);
+        } else {
+            // The followingline shows how to retrieve just the value I am interested in 
+            document.getElementById('textarea').innerHTML = "GetItem succeeded: " + "\n" + JSON.stringify(data['Items'], undefined, 2);//[0]['MVData']['value'], undefined, 2);
+            // Need to loop it through next.
+            var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
+            var displaytext = "i:"+dataset.length +"\n";
+            for (var i = 0; i < dataset.length; i = i + 1) {
+                displaytext = displaytext + "\nGetItem succeeded: " + dataset[i]['MVData']['value'].valueOf();
+            };
+            document.getElementById('textarea').innerHTML = displaytext;
+        }
+    });
+}
+
+</script>
+</head>
+
+<body>
+<input id="readItem" type="button" value="Read Item" onclick="queryData();" />
+<br><br>
+<textarea readonly id= "textarea" style="width:400px; height:800px"></textarea>
+
+</body>
+</html> 
