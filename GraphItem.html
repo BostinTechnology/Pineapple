@@ -34,7 +34,8 @@ var docClient = new AWS.DynamoDB.DocumentClient();
 
 function queryData(callback) {
     var value_dataset = [];
-    //context.fillText("Retriving Data", 300, 50);
+    //context.fillText("Retriving Data", 300, 50);      //debug data
+    // TODO: Need to limit the number of values returned
     var params = {
         TableName: 'SensorValues',
         KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
@@ -44,6 +45,8 @@ function queryData(callback) {
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
           ':value': 1
         },
+        ScanIndexForward: false,            // return the last xx items
+        Limit: 100,
         ProjectionExpression: "MVData",
     };
     docClient.query(params, function(err, data) {
@@ -89,6 +92,7 @@ function init(id)
       }	
       context.stroke();
 		
+// I need to move this into the callback as the scale is based on the results
       // Draw ticks
       context.font = '12pt Calibri';
       for (i = 0; i <= 10; i = i + 1)
@@ -109,11 +113,14 @@ function init(id)
     context.lineWidth = 2;
 	context.strokeStyle = '#0000ff';
     context.moveTo(50,450);
+    // the function below returns up to 100 values, the last one first
+
     var response = queryData(function(data) {
-        //context.fillText('data:'+data, 300, 100);
-        for (var i = 0; i < data.length; i = i + 1) {       // this needs to take into account the number of values
-            context.lineTo(i * 40 + 50, 
-                    455 - data[i] * 4);
+        //context.fillText('data:'+data, 0, 100);       //debug code
+        var spacing = 400 / (data.length - 1);      // data.length -1 because the first data point is at zero.
+        for (var i = 0; i < data.length; i = i + 1) {
+            context.lineTo((i * spacing) + 50, 
+                    455 - data[data.length-i-1] * 4);       // takes the dataset backwards as the oldest value is returned last
             context.stroke();
             };
         context.fillText('Total number of records:  ' + data.length, 25, 510);
