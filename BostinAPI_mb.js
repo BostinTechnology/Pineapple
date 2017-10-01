@@ -1,5 +1,7 @@
 var express = require('express');
 var app = express();
+var http = require('http');
+var fs = require('fs');
 
 var bodyParser = require('body-parser');
 var multer = require('multer'); // v1.0.5
@@ -130,7 +132,51 @@ function submitdata(status, res) {
 
     return;
 }
-    
+
+function retrievesensorvalues(status, res) {
+
+    console.log('retrievesensorvalues reached');
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
+    var value_dataset = [];
+    //context.fillText("Retriving Data", 300, 50);      //debug data
+    // TODO: Need to limit the number of values returned
+    var params = {
+        TableName: 'SensorValues',
+        KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
+        ExpressionAttributeNames: { // a map of substitutions for attribute names with special characters
+            '#name': 'Device_ID'
+        },
+        ExpressionAttributeValues: { // a map of substitutions for all attribute values
+          ':value': 1
+        },
+        ScanIndexForward: false,            // return the last xx items
+        Limit: 100,
+        ProjectionExpression: "MVData",
+    };
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.log("retrievesensorvalues queery returned error: " + err);
+            res.sendStatus(501);
+        } else {
+            // The followingline shows how to retrieve just the value I am interested in 
+            // Need to loop it through next.
+            var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
+
+            for (var i = 0; i < dataset.length; i = i + 1) {
+                value_dataset[i] = dataset[i]['MVData']['value'].valueOf();
+            };
+
+            console.log("Data Returned:" + value_dataset);
+            res.status(200).send(value_dataset);
+            
+        }
+    });
+//    context.fillText("GetItem succeeded"+value_dataset, 30, 70);
+//    return value_dataset;
+}
+
 
 app.use(express.static('public'));
 
@@ -195,6 +241,59 @@ app.post('/submitdata', function (req, res, next) {
     console.log("\n /submitdata completed, awaiting callback....");
     })
 
+app.get('/retrievesensorvalues', function (req, res, next) {
+
+    console.log("******************************************");
+    console.log(" RUNNING MB VERSION");
+    console.log("GET message received as follows: -");
+
+    console.log(req.body);
+
+    var obj, user_name, user_auth;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
+
+    //  - Currently supporting the following destinations.
+    //	- FILE = Filesystem
+    //	- DB01 = Local DynamoDB Database 
+    //	- DB02 = Amazon AWS
+    // and save data packet to destination
+
+
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(400)
+                break;
+                
+            case "DB01":
+                console.log("\nGetting data from LOCAL DATABASE");
+                
+                console.log("\n\nConfiguring connection to local database....");
+
+                var response = get_password(userid, retrievesensorvalues, res, validate_user);    // Once get_password has finished it calls validate_user
+
+                console.log("get_password response:" + response)
+                break;
+
+            case "DB02":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                break;
+
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(400);
+    }
+
+});
 
 var server = app.listen(8080, function () {
    var host = server.address().address
@@ -203,3 +302,12 @@ var server = app.listen(8080, function () {
 
 })
 
+http.createServer(function (req, res) {
+    //res.write(/GetData.html);
+    //res.end();
+    fs.readFile('GetData.html', function(err, data) {
+    res.writeHead(200, {'Content-Type': 'text/html'});
+    res.write(data);
+    res.end();
+  });
+}).listen(1227);

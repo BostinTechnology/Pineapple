@@ -1,0 +1,88 @@
+<!--
+   ReadItem.html
+   
+   Copyright 2017  <pi@RPi_3B>
+  
+  See this for how to draw graphs using html5 
+  http://www.python-exemplary.com/index_en.php?inhalt_links=navigation_en.inc.php&inhalt_mitte=raspi/en/webserver.inc.php
+  
+   
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+
+<html>
+<head>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+
+<script>
+
+function init(id) 
+    {
+      var cmin = 50
+      var cmax = 450
+      var cstep = 40
+      var canvas = document.getElementById(id);
+      var context = canvas.getContext('2d');
+      context.font = 'bold 13pt Calibri';
+	
+      // Draw grid
+      context.beginPath();
+      context.lineWidth = 0.5;
+      for (y = cmin; y <= cmax; y = y + cstep)
+      {
+        context.moveTo(cmin, y);
+        context.lineTo(cmax, y);
+      }	
+      for (x = cmin; x <= cmax; x = x + cstep)
+      {
+        context.moveTo(x, cmin);
+        context.lineTo(x, cmax);
+      }	
+      context.stroke();
+		
+// I need to move this into the callback as the scale is based on the results
+      // Draw ticks
+      context.font = '12pt Calibri';
+      for (i = 0; i <= 10; i = i + 1)
+        context.fillText(10 * i, 45 + 40 * i, 470);
+      for (k = 0; k <= 10; k = k + 1)
+        context.fillText(10 * k, 15, 455 - 40 * k);
+      return context
+    }
+  </script>
+</head>
+<body>
+  <h2>Sensor Data</h2>
+  <canvas id="myCanvas" style="position:absolute; top:20px; 
+           left:25px" width="500" height="510"></canvas>  
+  <script>
+    var request = require('request|');
+
+    var context = init('myCanvas')
+    context.beginPath();
+    context.lineWidth = 2;
+	context.strokeStyle = '#0000ff';
+    context.moveTo(50,450);
+    // the function below returns up to 100 values, the last one first
+
+//    context.fillText('request:' + request, 0, 100);
+//    request.get({ url: "http://RPi_3B:8080/retrievesensorvalues"}, function (err, res, data) {
+//            context.fillText('data:'+ data, 0, 100);       //debug code
+            //var spacing = 400 / (data.length - 1);      // data.length -1 because the first data point is at zero.
+            //for (var i = 0; i < data.length; i = i + 1) {
+            //    context.lineTo((i * spacing) + 50, 
+            //            455 - data[data.length-i-1] * 4);       // takes the dataset backwards as the oldest value is returned last
+            //    context.stroke();
+            //    };
+//            context.fillText('Total number of records:  ' + data.length, 25, 510);
+//        });
+//    });
+
+</script>
+</head>
+
+</html> 
