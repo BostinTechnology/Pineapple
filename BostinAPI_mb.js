@@ -53,6 +53,8 @@ function get_password (user_name, cb_func, res, callback) {
         if (err) {
             console.log("get_password returned an error:" + err);
             // Need to sort out NEGATIVE response here to http call.
+            res.sendStatus(403);
+            res.end();
         } else
         {
             // this is called when the getItem returns
@@ -141,7 +143,7 @@ function retrievesensorvalues(status, res) {
 
     var value_dataset = [];
     //context.fillText("Retriving Data", 300, 50);      //debug data
-    // TODO: Need to limit the number of values returned
+    // TODO: Need to pass in the device_id
     var params = {
         TableName: 'SensorValues',
         KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
@@ -149,7 +151,7 @@ function retrievesensorvalues(status, res) {
             '#name': 'Device_ID'
         },
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
-          ':value': 1
+          ':value': 2480248024
         },
         ScanIndexForward: false,            // return the last xx items
         Limit: 100,
@@ -157,7 +159,7 @@ function retrievesensorvalues(status, res) {
     };
     docClient.query(params, function(err, data) {
         if (err) {
-            console.log("retrievesensorvalues queery returned error: " + err);
+            console.log("retrievesensorvalues query returned error: " + err);
             res.sendStatus(501);
         } else {
             // The followingline shows how to retrieve just the value I am interested in 
@@ -178,16 +180,60 @@ function retrievesensorvalues(status, res) {
 }
 
 
+function retrievedbversion(status, res) {
+    // retrieves the valid db versions from the database
+    console.log('retrievedbversion reached');
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
+    var value_dataset = [];
+    //context.fillText("Retriving Data", 300, 50);      //debug data
+    // TODO: Need to limit the number of values returned
+    var params = {
+        TableName: 'db_Version',
+        KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
+        ExpressionAttributeNames: { // a map of substitutions for attribute names with special characters
+            '#name': 'db_ver'
+        },
+        ExpressionAttributeValues: { // a map of substitutions for all attribute values
+          ':value': 1
+        },
+        ScanIndexForward: false,            // return the last xx items
+        Limit: 100,
+        ProjectionExpression: "to_date, from_date, version", 
+    };
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.log("retrievedbversionvalues query returned error: " + err);
+            res.sendStatus(501);
+        } else {
+            // The followingline shows how to retrieve just the value I am interested in 
+            // Need to loop it through next.
+            var dataset = data['Items'][0]; //JSON.stringify(data['Items'], undefined, 2);
+            console.log("Dataset:" + JSON.stringify(dataset, undefined, 2));
+            var valid_version = "-1";
+            if ( dataset.hasOwnProperty('version')) {
+                valid_version = dataset['version'];
+            }
+
+            console.log("Version:"+valid_version);
+
+            res.status(200).send(valid_version);
+            
+        }
+    });
+//    context.fillText("GetItem succeeded"+value_dataset, 30, 70);
+//    return value_dataset;
+}
+
 app.use(express.static('public'));
 
 
 app.post('/submitdata', function (req, res, next) {
 
-
-
     console.log("******************************************");
     console.log(" RUNNING MB VERSION");
-    console.log("POST message received as follows: -");
+    console.log("submitdata POST message received as follows: -");
 
     console.log(req.body);
 
@@ -239,13 +285,13 @@ app.post('/submitdata', function (req, res, next) {
     }
                 
     console.log("\n /submitdata completed, awaiting callback....");
-    })
+    });
 
 app.get('/retrievesensorvalues', function (req, res, next) {
 
     console.log("******************************************");
     console.log(" RUNNING MB VERSION");
-    console.log("GET message received as follows: -");
+    console.log("retrievesensorvalues GET message received as follows: -");
 
     console.log(req.body);
 
@@ -291,9 +337,62 @@ app.get('/retrievesensorvalues', function (req, res, next) {
             default:
                 console.log("\n\nERROR : Unrecognised destination");
                 res.sendStatus(400);
-    }
+        }
+    });
 
-});
+app.get('/retrievedbversion', function (req, res, next) {
+    // Returns the database version that is currently valid
+    console.log("******************************************");
+    console.log(" RUNNING MB VERSION");
+    console.log("retrievedbversions GET message received as follows: -");
+
+    console.log(req.body);
+
+    var obj, user_name, user_auth;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
+
+    //  - Currently supporting the following destinations.
+    //	- FILE = Filesystem
+    //	- DB01 = Local DynamoDB Database 
+    //	- DB02 = Amazon AWS
+    // and save data packet to destination
+
+
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(400)
+                break;
+                
+            case "DB01":
+                console.log("\nGetting data from LOCAL DATABASE");
+                
+                console.log("\n\nConfiguring connection to local database....");
+
+                var response = get_password(userid, retrievedbversion, res, validate_user);    // Once get_password has finished it calls validate_user
+
+                console.log("get_password response:" + response)
+                break;
+
+            case "DB02":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                break;
+
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(400);
+        }
+
+    });
 
 var server = app.listen(8080, function () {
    var host = server.address().address

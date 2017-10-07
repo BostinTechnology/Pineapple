@@ -68,6 +68,39 @@ def submitdata():
         print('Failed to Read')
         print('Status Code:%s' % r.status_code)
     return
+
+def retrievesensorvalues():
+    print("Retreiving Sensor Values")
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DB01'}
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get('http://RPi_3B:8080/retrievesensorvalues', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
+
+def retrievedbversion():
+    print("Retrieving Database Version info")
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DB01'}
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get('http://RPi_3B:8080/retrievedbversion', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
+
+
+
         
 def main():
     
@@ -82,7 +115,11 @@ def main():
     
     #post_data()
     
-    submitdata()
+    #submitdata()
+
+    retrievesensorvalues()
+
+    retrievedbversion()
     
     return
 

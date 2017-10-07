@@ -2,8 +2,6 @@
 """
 Contains the functions to create all the tables required for the RFID Tag Reader
 
-Uses Software Overview V4.1
-
 
 """
 
@@ -29,7 +27,7 @@ from botocore.exceptions import ClientError
 
 ################################## CONSTANTS ###################################
 
-# The maximum time to ait for the table status to change (measured in seconds)
+# The maximum time it for the table status to change (measured in seconds)
 MAX_TABLE_STATUS_CHANGE_TIME = 60
 
 ################################## FUNCTIONS ###################################
@@ -358,6 +356,38 @@ def CreateClientCountTable(db):
 
     return client_count_table
 
+def CreatedbVersionTable(db):
+    """ 
+    Create the db Version table
+    """
+    
+    attribute_definitions = [
+                {
+                'AttributeName':'db_ver',
+                'AttributeType':'N'
+                },
+                ]
+    table_name='db_Version'
+    key_schema=[
+                {
+                'AttributeName':'db_ver',
+                'KeyType': 'HASH'
+                },
+                ]
+    provisioned_throughput={
+                'ReadCapacityUnits': 1,
+                'WriteCapacityUnits': 1
+                }
+    print ("Creating %s" % table_name)
+    db_version_table = CreatingTable(db,table_name,attribute_definitions,key_schema,provisioned_throughput,False)
+    print ("definition: %s" % PrettyPrint(db_version_table)) #Debug print to validate creation
+
+    print ('Created %s Table' % table_name)
+    print (' ********************')
+
+    return db_version_table
+
+
 
 ################################# DATA POPULATION #######################
 
@@ -467,6 +497,34 @@ def WriteClientCount(db, count):
 
 
     return
+
+def WritedbVersion(db, ver, fromdate, todate):
+    """
+    Update the db_Version table with the given data
+    returns nothing
+    """
+    
+    #TODO: Needs to return a success / failure
+
+    #TODO: Future upgrade is to capture the data if offline and send it when it reconnects.
+    
+    print ("db version: %s, from: %s, to: %s" % (ver, fromdate, todate))
+    
+    try:
+        ans = db.put_item(
+            TableName='db_Version',
+            Item={
+                'db_ver': {'N': '1'},
+                'version': {'S': str(ver)}
+                },
+            )
+        # print("Create Item Response %s" % ans) #Debug
+    except Exception as exception:
+        print ("Unable to write data to AWS:%s " % exception)
+
+
+    return
+
 ################################## MAIN ########################################
 
 conn = DynamodbConnection()
@@ -485,31 +543,58 @@ ClientCount = CreateClientCountTable(conn)
 Users = CreateUsersTable(conn)
 ClientCount = CreateClientCountTable(conn)
 SensorValues = CreateSensorValuesTable(conn)
+dbversions = CreatedbVersionTable(conn)
 
 #Populate some sample data
 # WriteUsers(db, username, password, clientid, clientname, status, lastlogon, email, contact, 
 #                   creationdate, deviceid, acroynm, description):
 print("Write Users\n***********")
 
-WriteUsers(conn, "m@mlb.com", "password", 1, "BostinTech", 'ACTIVE', '05-05-2017 15:05:34', 'm@mlb.com', '07676 543322', 
-                    '07-07-2017 16:05:34', 1, 'GrnHse1', 'Greenhouse 1')
-WriteUsers(conn, "l@mlb.com", "pssaword", 2, "BostinTech", 'ACTIVE', '06-06-2017 16:05:34', 'l@mlb.com', '06677 543322', 
-                    '07-07-2017 16:05:34', 2, 'Shed1', 'Mushroom Shed 1')
-WriteUsers(conn, "c@mlb.com", "passowrd", 3, "BostinTech", 'ACTIVE', '07-07-2017 17:05:34', 'c@mlb.com', '05566 543322', 
-                    '07-07-2017 16:05:34', 3, 'Cons', 'conservatory')
+WriteUsers(conn, "m@mlb.com", "password", 1, "BostinTech", 'ACTIVE', '2017-05-05 15:05:34', 'm@mlb.com', '07676 543322', 
+                    '07-07-2017 16:05:34', 1234567890, 'GrnHse1', 'Greenhouse 1')
+WriteUsers(conn, "l@mlb.com", "pssaword", 2, "BostinTech", 'ACTIVE', '2017-06-06 16:05:34', 'l@mlb.com', '06677 543322', 
+                    '07-07-2017 16:05:34', 2480248024, 'Shed1', 'Mushroom Shed 1')
+WriteUsers(conn, "c@mlb.com", "passowrd", 3, "BostinTech", 'ACTIVE', '2017-07-07 17:05:34', 'c@mlb.com', '05566 543322', 
+                    '07-07-2017 16:05:34', 3690369036, 'Cons', 'conservatory')
 WriteClientCount(conn, 3)
+print("Write additional data\n*****************")
+WritedbVersion(conn, 1.0)
+
 print("Write Sensor Values\n*******************")
 # WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc)
-WriteSensorValues(conn, '26.4', 'Deg C', '07-07-2017 :05:05:34.000', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '26.5', 'Deg C', '07-07-2017 02:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '26.6', 'Deg C', '07-07-2017 04:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '23.4', 'Deg C', '07-07-2017 06:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '18.7', 'Deg C', '07-07-2017 08:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '16.5', 'Deg C', '07-07-2017 10:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
-WriteSensorValues(conn, '14.5', 'Deg C', '07-07-2017 12:05:34', 1, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '26.4', 'Deg C', '2017-07-07 :05:05:34.001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '26.5', 'Deg C', '2017-07-07 02:05:34.001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '26.6', 'Deg C', '2017-07-07 04:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '23.4', 'Deg C', '2017-07-07 06:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '18.7', 'Deg C', '2017-07-07 08:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '16.5', 'Deg C', '2017-07-07 10:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
+WriteSensorValues(conn, '14.5', 'Deg C', '2017-07-07 12:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
 
+WriteSensorValues(conn, '5', '%', '2017-09-29 03:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '5', '%', '2017-09-29 04:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '5', '%', '2017-09-29 05:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '9', '%', '2017-09-29 06:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '23', '%', '2017-09-29 07:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '75', '%', '2017-09-29 08:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '100', '%', '2017-09-29 09:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '100', '%', '2017-09-29 10:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '100', '%', '2017-09-29 11:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '90', '%', '2017-09-29 12:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '87', '%', '2017-09-29 13:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '72', '%', '2017-09-29 14:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+WriteSensorValues(conn, '50', '%', '2017-09-29 15:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+WriteSensorValues(conn, '1020', 'mBar', '2017-10-07 02:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '1019', 'mBar', '2017-10-07 04:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '1016', 'mBar', '2017-10-07 06:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '1012', 'mBar', '2017-10-07 08:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '1008', 'mBar', '2017-10-07 10:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '1004', 'mBar', '2017-10-07 12:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '996', 'mBar', '2017-10-07 14:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '994', 'mBar', '2017-10-07 16:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '994', 'mBar', '2017-10-07 18:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
+WriteSensorValues(conn, '995', 'mBar', '2017-10-07 21:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
 
 
 print ("Completed")
-
 

@@ -35,7 +35,7 @@ When writing Sensor Values, TableName='SensorValues',
 
 TODO: db version check is only completed at startup or first connection. If the version changes whilst it is connected
     there is no check to resolve it.
-    
+
 TODO: Need to improve the testing aspects to gain good coverage
 
 TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
@@ -61,7 +61,7 @@ import requests
 
 import Standard_Settings as SS
 
-SUPPORTED_DB_VERSIONS = [0.1]           # Contains a list of the supported db versions.
+SUPPORTED_DB_VERSIONS = [0.1, 1.0]           # Contains a list of the supported db versions.
 
 
 class DataAccessor:
@@ -75,7 +75,7 @@ class DataAccessor:
     def __init__(self, device, sensor, acroynm, desc):
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
-        
+
         #TODO: Change this to use queues https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
         self.db_ok = False              # Used to flag that we have successfully checked the database versions match
@@ -86,7 +86,7 @@ class DataAccessor:
         self.description = desc
         self._db_version_check()
         return
-    
+
     def DataIn(self,data):
         """
         Receive the data, this is expected to be in the following format
@@ -96,14 +96,14 @@ class DataAccessor:
         - Write to file
         There is no response
         """
-        
+
         if self._validate_data(data):
             self._write_data_to_file(data)
         else:
             self.log.warning("[DAcc] received data was invalid:%s" % data)
-        
+
         return
-    
+
     def TransmitData(self):
         """
         This routine checks for data in the file and sends it
@@ -162,13 +162,29 @@ class DataAccessor:
 
     def _db_version(self):
         """
-        Request the database version to work with
+        Request the database version to work with.
+        Sets the db_version according to the version being implemented in the database
+        Wil set it to -1 if it fails.
         """
+        #TODO: Validate response and return fail accordingly
+        self.log.warning("[DAcc] DB Vetrsion is not fully implemented, validation required:%s" % data_in)
+
+        payload = {'id':'666', 'auth':'password', 'dest':'DB01'}
+        r = requests.post('http://192.168.1.182:8000/retrievedbversion', data=payload)
+
+        if r.status_code ==200:
+            print('Header:%s' % r.headers)
+            print('Status Code:%s' % r.status_code)
+            print('Text:%s' % r.text)
+        else:
+            print('Failed to Read')
+            print('Status Code:%s' % r.status_code)
+        return True
         #print("db version check is not yet implemented")
         self.log.warning("[DAcc] db version check is not yet implemented")
         self.db_version = 0.1
         return
-    
+
     def _db_version_check(self):
         """
         Check the database version matches the version this software is designed for.
@@ -177,7 +193,7 @@ class DataAccessor:
         if self._connected():
             self._db_version()
             if self.db_version not in SUPPORTED_DB_VERSIONS:
-                self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s" 
+                self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s"
                             % (self.db_version, SUPPORTED_DB_VERSIONS))
                 print("\nCRITICAL ERROR, Database version is not supported - contact Support\n")
                 sys.exit()
@@ -187,12 +203,12 @@ class DataAccessor:
             self.log.info("[DAcc] Unable to validate db version as not connected, assuming wrong version.")
             self.db_ok = False
         return self.db_ok
-    
+
     def _validate_data(self,dataset):
         """
         Check the incoming data to check it contains valid values
         Need some link into the self.db_version
-        For each part of the dataset must contain 4 items, 
+        For each part of the dataset must contain 4 items,
         mvdata['type'] = {'S' : str(item[0])}
         mvdata['value'] = {'S' : str(item[1])}
         mvdata['units'] = {'S' : str(item[2])}
@@ -211,15 +227,15 @@ class DataAccessor:
             if isinstance(item[1], (int, float)) == False:
                 self.log.info("[DAcc] 2nd part (value) of the dataset failed as it not a number, dataset:%s" % dataset)
                 valid_data_record = False
-            
+
             if len(item[2]) < 1:
                 self.log.info("[DAcc] 3rd part (units) of the dataset failed as it is too short (<1), dataset:%s" % dataset)
                 valid_data_record = False
-            
+
             if len(item[3]) < 19:
                 self.log.info("[DAcc] 4th part (timestamp) of the dataset failed as it is too short (<23), dataset:%s" % dataset)
                 valid_data_record = False
-            
+
         return valid_data_record
 
     def _update_record_file(self):
@@ -231,7 +247,7 @@ class DataAccessor:
         with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='w') as f:
             json.dump(self.records, f)
         return
-        
+
     def _write_data_to_file(self,data_to_write):
         """
         Given the data, write it to the file. If it fails, try some alternative measures
@@ -252,14 +268,14 @@ class DataAccessor:
             record = self.records[0]
         self.log.debug("[DAcc] Record obtained from the records file:%s" % record)
         return record
-    
+
     def _remove_record_from_list(self,record_to_delete):
         """
         Remove record zero from the records file
         Checks the record given matches the one it is about to remove before removing it
         After removing it from the records, updates the file on disk
         """
-        
+
         compare = self.records[0]
         if len(compare) > 0:
             if compare == record_to_delete:
@@ -271,24 +287,25 @@ class DataAccessor:
         else:
             self.log.debug("[DAcc] tried to remove record zero but self.records was empty")
         return
-        
+
     def _connected(self):
         """
         Check if the application is connected to the RESTful interface
         Returns True or False
         """
-        
+
         #TODO: Implement Connection Check
         #print("Checking for connection is not yet implemented")
         self.log.warning("[DAcc] Checking for connection is not yet implemented")
-        
+
         return True
-    
+
     def _post_record(self, data_to_send):
         """
         Given the dataset, send it to the RESTFul interface and return success or failure
-        
+
         """
+        #TODO: Validate response and return fail accordingly
         self.log.warning("[DAcc] Posting of Records is not fully implemented, validation required:%s" % data_in)
 
         payload = {'id':'666', 'auth':'password', 'dest':'DB01', 'data':json.dumps(data_to_send)}
@@ -302,7 +319,7 @@ class DataAccessor:
             print('Failed to Read')
             print('Status Code:%s' % r.status_code)
         return True
-    
+
     def _send_records(self, data_in):
         """
         Send the given record set from the record file
@@ -313,20 +330,20 @@ class DataAccessor:
                 'Sensor_ID': {'N': str(self.sensor)},
                 'SensorAcroynm': {'S' : str(self.acroynm)},
                 'SensorDescription' : { 'S': str(self.description)},
-                
+
                 THE BELOW BIT DOES NOT HOLD TRUE WITH DOCUMENTATION
                 - Need to review how to store the info.
-                
-                'MVData': { 'M' : 
+
+                'MVData': { 'M' :
                     {                     # Multiple sets of values require seperate records
                     'type': { 'S' : '1'},
                     'value': { 'S' : str(data)},
                     'units': { 'S' : units}
-                    } 
+                    }
                     },
                 'Viewed': { 'BOOL' : False},
                 },
-                
+
         if data_in contains multiple datasets, send each record independently
         The format of the data sent could be different for different data versions
         """
@@ -345,16 +362,16 @@ class DataAccessor:
                 mvdata['units'] = {'S' : str(item[2])}
                 data_record['MVData'] = { 'M' : mvdata}
                 data_record['Viewed'] = { 'BOOL' : False}
-                
+
                 self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
-                
+
                 response = response & self._post_record(data_record)
         else:
             response = False
             self.log.info("[DAcc] In _send_records, db check failed, no data sent")
-                
+
         return response
-    
+
 #-----------------------------------------------------------------------
 #
 #    T E S T   F U N C T I O N S
@@ -366,7 +383,7 @@ def GenerateTimestamp():
     now = str(datetime.now())
     print("[DAcc] Generated a timestamp %s" % now[:23])
     return now[:23]
-    
+
 def GenerateTestData():
     """
     Generate a dataset to represent the simulated input
@@ -380,7 +397,7 @@ def GenerateTestData():
     dataset[0].append(units[random.randint(0,len(units)-1)])
     dataset[0].append(GenerateTimestamp())
     print("Data Being Returned:%s" % dataset)
-    
+
     return dataset
 
 def SetupLogging():
@@ -389,7 +406,7 @@ def SetupLogging():
     Using the logger function to span multiple files.
     """
     print("Current logging level is \n\n   DEBUG!!!!\n\n")
-    
+
     # Create a logger with the name of the function
     logging.config.dictConfig(dict_LoggingSetup.log_cfg)
     log = logging.getLogger()
@@ -397,7 +414,7 @@ def SetupLogging():
     #BUG: This is loading the wrong values into the log file
     log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
     log.info("Screen Logging Started, current level is %s" % log.getEffectiveLevel)
-    
+
     return
 
 def main():
@@ -414,5 +431,6 @@ if __name__ == '__main__':
     import logging.config
     import dict_LoggingSetup
     SetupLogging()
-    
+
     main()
+    #TODO: when run seperately this needs to transmit data
