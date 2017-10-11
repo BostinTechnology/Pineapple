@@ -22,14 +22,20 @@ RECORD_TRY_COUNT = 10               # How many times, when connected the Data Ac
 EEPROM_READ_RETRY = 5               # How many times it will try and read data from the EEPROM
 
 #Database Locations
-DB_LOCAL = 'Local'
+DB_LOCAL = 'DBLocal'
 DB_AWS = 'AWS'
+
+# Database API address information
+DB_LOCAL_ADDR = 'localhost'
+DB_LOCAL_PORT = '8080'
+DB_AWS_ADDR = '192.168.1.182'
+DB_AWS_PORT = '8080'
 
 #Database Structure Values
 MAX_ACROYNM_LENGTH = 10
 MAX_DESCRIPTION_LENGTH = 100
 
 def test():
-    
+
     return
-    
+

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-This class extractgs and holds the information about the iCog that has been extracted from the 
+This class extractgs and holds the information about the iCog that has been extracted from the
 datafile or the EEPROM associated with the sensor
 
 On intialisation, the EEPROM class should
@@ -8,7 +8,7 @@ On intialisation, the EEPROM class should
 - load the datafile and set additional acronymn data
 
 Provides functions that read and return data regarding the information stored in the ID_IoT
-Also includes functions to write the data back after updating 
+Also includes functions to write the data back after updating
 
 """
 
@@ -38,14 +38,14 @@ EEPROM_ADDR_ICOG_CONFIG = 0x20      #The start address for the icog configuratio
 class ID_IoT():
     """
     This class needs to hold everything extracted from the ID-IoT EEPROM associated to the iCog
-    
+
     self.datafile contains the information read from the external file.
     """
 
     def __init__(self, comms_handler, read_chip=True):
         """
         Initialises the values and checkes if they have been previously saved as a tuple
-        
+
         Requires the i2c bus reference to be passed into it.
         On intialisation, the EEPROM class should
         - read the values from the iCog EEPROM
@@ -65,13 +65,13 @@ class ID_IoT():
         self.log.info("[EEPROM] Initialisation of the EEPROM has been completed")
         self.eeprom_status = status
         return
-    
+
     def ReturnEEPROMStatus(self):
         return self.eeprom_status
-    
+
     def ReturnUUID(self):
         return self.uuid
-    
+
     def ReturnBusType(self):
         """
         Returns the bus type from Standard_Settings
@@ -81,34 +81,34 @@ class ID_IoT():
 
     def ReturnMapVersion(self):
         return self.map_version
-        
+
     def ReturnSensorAddress(self):
         return self.sensoraddress
 
     def ReturnSPIBus(self):
         return self.spi_bus
-        
+
     def ReturnSPI_CELine(self):
         return self.spi_celine
-        
+
     def ReturnGPIOPin(self):
         return self.gpio_pin
-        
+
     def ReturnSerialCTSRTS(self):
         return self.serial_rtc_cts
-        
+
     def ReturnSensorType(self):
         return self.sensor_type
-        
+
     def ReturnMinimumRevision (self):
         return self.minimum_revision
-        
+
     def ReturnInputOutput1(self):
         return self.io_1
-        
+
     def ReturnInputOutput2(self):
         return self.io_2
-        
+
     def ReturnCalibrationData(self):
         return self.calibration_data
 
@@ -117,16 +117,16 @@ class ID_IoT():
         Returns the name of the icog file to be used
         """
         return self.sensor_comms_file
-        
+
     def ReturnSensorPartNumber(self):
         return self.sensor_part_number
-        
+
     def ReturnSensorType(self):
         return self.sensor_type
-        
+
     def ReturnSensorManufacturer(self):
         return self.sensor_manufacturer
-    
+
     def SetMapVersion(self, version):
         """
         Set the map version in the ID-IoT form the given list of 2 values
@@ -141,7 +141,7 @@ class ID_IoT():
             reply = self.comms.write_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_MAP_VERSION, version)
         self.log.debug("[EEPROM] Set Map Version response status (1=True):%s" % reply)
         return reply
-    
+
     def SetDeviceConnectivityData(self, dataset):
         """
         Taking the dataset, program it into the ID-IoT, given a list of 16 bytes
@@ -163,7 +163,7 @@ class ID_IoT():
         """
         Given the dataset which contains all the values to be written to the ID_IoT starting at EEPROM_ADDR_ICOG_CONFIG
         Assumes the dataset given fits into the space
-        
+
         """
         self.log.info("[EEPROM] Reset Calibration Data with data:%s" % dataset)
         start_address = EEPROM_ADDR_ICOG_CONFIG
@@ -202,9 +202,9 @@ class ID_IoT():
         self.sensor_part_number = ''
         self.sensor_type = ''
         self.sensor_manufacturer = ''
-  
+
         return
-        
+
     def _read_sensor_data_from_eeprom(self):
         """
         Interface with the EEPROM and get the sensor details
@@ -212,16 +212,16 @@ class ID_IoT():
             uuid, bustype, busnumber, sensoraddress, sensor, manufacturer, status
         returns status if the read was successful.
         """
-        
+
         #TODO: Need to do something here to capture the failure if I can't read the ID_IoT chip.
         self.map_version = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_MAP_VERSION, 2)
-        
+
         self.eeprom_checksum = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_CHECKSUM, 2)
-        
+
         self.log.info("[EEPROM] Map Version:%s" % self.map_version)
         self.log.info("[EEPROM] EEPROM Checksum:%s" % self.eeprom_checksum)
         #TODO: Implement checksum check
-        
+
         # Check if the map version is supported
         if self.map_version == EEPROM_MAP_VERSION_0_2:
             self._read_map_version_0_2()
@@ -230,30 +230,30 @@ class ID_IoT():
             print("\nCRITICAL ERROR, EEPROM Map Version is not supported- contact Support\n")
 
             sys.exit()
-        
+
         # Set additional info
         self._set_additional_data()
         self._set_uuid()
         return
-            
+
     def _read_map_version_0_2(self):
         """
         Read the data from the map, version 0.2
         """
-        
+
         # read device connectivity data
         row_10 = []
         retry = SS.EEPROM_READ_RETRY
-        while retry > 0 or len(row_10) > 1:
+        while retry > 0 and len(row_10) < 1:
             row_10 = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_DEVICE_CONNECT, SS.CALIB_PAGE_LENGTH)
             retry = retry - 1
-        
+
         if len(row_10) < 1:
             #No data received
             self.log.critical("[EEPROM] EEPROM Map read from Id_IOT did not return any data, value received:%s" % row_10)
             print("\nCRITICAL ERROR, EEPROM Map Read Failure- contact Support\n")
             sys.exit()
-                    
+
         # decode the device connectivity data
         # bytes 0,1,2 = device info
         if row_10[0] == 0b00000001:
@@ -277,10 +277,10 @@ class ID_IoT():
         # input / output 1 & 2
         self.io_1 = row_10[10:12]
         self.io_2 = row_10[12:14]
-        
+
         #TODO: What validation can be completed here to check the values returned. Probably need to do
         #       something based on bus type.
-        
+
         self.log.info("[EEPROM] Device Connectivity Data - bus type:%s" % self.bustype)
         self.log.info("[EEPROM] Device Connectivity Data - sensor address:%s" % self.sensoraddress)
         self.log.info("[EEPROM] Device Connectivity Data - SPI bus:%s" % self.spi_bus)
@@ -291,7 +291,7 @@ class ID_IoT():
         self.log.info("[EEPROM] Device Connectivity Data - Minimum Revision:%s" % self.minimum_revision)
         self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 1:%s" % self.io_1)
         self.log.info("[EEPROM] Device Connectivity Data - I/O Pin 2:%s" % self.io_2)
-        
+
         # Read Calibration Values
         self.calibration_data = []
         for row in range(EEPROM_ADDR_ICOG_CONFIG, 0x80,0x10):
@@ -305,18 +305,18 @@ class ID_IoT():
             self.log.debug("[EEPROM] Calibration Data read from Id_IoT address %s :%s" % (row,data))
         self.log.info("[EEPROM] Complete Calibration datafile retrieved:%s" % self.calibration_data)
         return
-        
+
     def _set_additional_data(self):
         """
         Sets the additional information about the sensor, based on the data file
-        Loads the datafile into a 
+        Loads the datafile into a
                 self.sensor_comms_file
                 self.sensor_part_number
                 self.sensor_type
                 self.sensor_manfacturer
         """
         self.log.info("[EEPROM] Reading the datafile for sensor information")
-            
+
         # Uses the self.sensor_type read from the Device Connectivity Data
         for element in DF.datafile:
             if element[4] == self.sensor_type_code[0] and element[5] == self.sensor_type_code[1]:
@@ -328,16 +328,16 @@ class ID_IoT():
 
         if len(self.sensor_comms_file) < 1:
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
-                
-        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
-            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
-        
+
+        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found"
+            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))
+
         return
 
     def _set_additional_data_old(self):
         """
         Sets the additional information about the sensor, based on the data file
-        Loads the datafile into a 
+        Loads the datafile into a
                 self.sensor_comms_file
                 self.sensor_part_number
                 self.sensor_type
@@ -345,7 +345,7 @@ class ID_IoT():
         """
         self.datafile = []
         self.log.info("[EEPROM] Reading the datafile for sensor information")
-        
+
         #TODO: Convert this to a with statement
         try:
             self.log.debug("[EEPROM] DataFile in location:%s" % SS.DATAFILE_LOCATION + '/' + SS.DATAFILE_NAME)
@@ -366,7 +366,7 @@ class ID_IoT():
             row_data = dataline.split(",")
             self.datafile.append(row_data)
             self.log.debug("[EEPROM] Row of extracted data %s" % row_data)
-            
+
         #Now loop through the data string and extract the acroynm and description
         self.log.info("[EEPROM] Loop through datafile and set sensor information")
         # Uses the self.sensor_type read from the Device Connectivity Data
@@ -380,10 +380,10 @@ class ID_IoT():
 
         if len(self.sensor_comms_file) < 1:
             self.log.critical("[EEPROM] No match found for Sensor and Description: %s" % self.sensor_type_code)
-                
-        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found" 
-            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))        
-        
+
+        self.log.debug("[EEPROM] Comms File:%s, Sensor: %s Part Number:%s and Manufacturer:%s match found"
+            %(self.sensor_comms_file, self.sensor_type, self.sensor_part_number, self.sensor_manufacturer))
+
         return
 
     def _set_uuid(self):
@@ -393,7 +393,7 @@ class ID_IoT():
         data = []
         # read device connectivity data
         data = self.comms.read_data_bytes(ID_IOT_CHIP_ADDR, EEPROM_ADDR_UUID , EEPROM_UUID_LEN)
-        
+
         #BUG: If data is null
         if len(data) < 1:
             #No data received
@@ -415,14 +415,14 @@ class ID_IoT():
 #
 #-----------------------------------------------------------------------
 
- 
+
 def SetupLogging():
     """
     Setup the logging defaults
     Using the logger function to span multiple files.
     """
     print("Current logging level is \n\n   DEBUG!!!!\n\n")
-    
+
     # Create a logger with the name of the function
     logging.config.dictConfig(dict_LoggingSetup.log_cfg)
     log = logging.getLogger()
@@ -430,28 +430,28 @@ def SetupLogging():
     #BUG: This is loading the wrong values into the log file
     log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
     log.info("Screen Logging Started, current level is %s" % log.getEffectiveLevel)
-    
+
     return
 
 def selftest():
-    
+
     import cls_TestComms
-    
+
     testcomms = cls_TestComms_TestCommsHandler()
     eeprom = ID_IoT(testcomms)
     return 0
 
 if __name__ == '__main__':
-    
+
     # setup logging
-    
+
     import logging
     import logging.config
     import dict_LoggingSetup
     SetupLogging()
     # use a default class for comms and therefore allow it to be dummy data.
     #import cls_comms
-    
-    
+
+
     selftest()
 

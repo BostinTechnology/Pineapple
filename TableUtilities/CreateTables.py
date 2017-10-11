@@ -498,7 +498,7 @@ def WriteClientCount(db, count):
 
     return
 
-def WritedbVersion(db, ver, fromdate, todate):
+def WritedbVersion(db, ver):
     """
     Update the db_Version table with the given data
     returns nothing
@@ -508,7 +508,7 @@ def WritedbVersion(db, ver, fromdate, todate):
 
     #TODO: Future upgrade is to capture the data if offline and send it when it reconnects.
     
-    print ("db version: %s, from: %s, to: %s" % (ver, fromdate, todate))
+    print ("db version: %s," % ver)
     
     try:
         ans = db.put_item(

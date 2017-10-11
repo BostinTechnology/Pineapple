@@ -1,5 +1,7 @@
 """
-Contains the required AWS Connection Utilities
+Contains the required AWS Connection Utilities.
+
+The credentials used for connection are entered by the user as part of the customer info in Control.py
 
 Process
 - Data In
@@ -32,22 +34,23 @@ When writing Sensor Values, TableName='SensorValues',
                     }},
                 'Viewed': { 'BOOL' : False},
                 },
-
-TODO: db version check is only completed at startup or first connection. If the version changes whilst it is connected
-    there is no check to resolve it.
-
-TODO: Need to improve the testing aspects to gain good coverage
-
-TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
-
-TODO: 'id':'666', 'auth':'password', 'dest':'DB01' to be stored / entered
-
-TODO: database connection is to be determined based on customer info
 """
+#TODO: Need to improve the APi connections to use the right responses (status') and handle the various choices properly.
+    #   May need to handle busy, timeouts etc.
+    #   I should not have prints on screen!!!
+
+#TODO: db version check is only completed at startup or first connection. If the version changes whilst it is connected
+    #    there is no check to resolve it.
+
+#TODO: Need to improve the testing aspects to gain good coverage
+
+#TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
+
+#TODO: database connection is to be determined based on customer info
+    #   At the moment I have a fixed IP address for the RET APi, it should be dynamic based on cust_info
+
 
 #TODO: I write stuff to file, but do I ever read it back? I should on start / load
-
-#TODO: Need to take the customer info on local or aws into consideration
 
 import boto3
 import sys
@@ -72,14 +75,25 @@ class DataAccessor:
     SensorAcroynm': {'S' : str(acroynm)}, SensorDescription' : { 'S': str(desc)},
 
     """
-    def __init__(self, device, sensor, acroynm, desc):
+    def __init__(self, customer, password, db, device, sensor, acroynm, desc):
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
 
         #TODO: Change this to use queues https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
+        self.db = db                    # Local or AWS database
         self.db_ok = False              # Used to flag that we have successfully checked the database versions match
         self.db_version = 0
+        if self.db == SS.DB_AWS:
+            # The RESTFul API is located on AWS
+            self.db_addr = SS.DB_AWS_ADDR
+            self.db_port = SS.DB_AWS_PORT
+        else:
+            # The RESTFul API is located on this Pi
+            self.db_addr = SS.DB_LOCAL_ADDR
+            self.db_port = SS.DB_LOCAL_PORT
+        self.customer = customer
+        self.password = password
         self.device = device
         self.sensor = sensor
         self.acroynm = acroynm
@@ -122,7 +136,7 @@ class DataAccessor:
             # Not yet validated the database version, check again now. If still unknown, just return
             self.log.debug("[DAcc] db version is still undertermined, checking again now")
             if self._db_version_check() == False:
-                self.debug.info("[DAcc] Not currently connected, unable to validate database version")
+                self.log.info("[DAcc] Not currently connected, unable to validate database version")
                 return False
 
         more_data = True
@@ -160,29 +174,39 @@ class DataAccessor:
 #
 #-----------------------------------------------------------------------
 
+    def _is_number(self, check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        self.log.debug("[Ls1] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
+
     def _db_version(self):
         """
         Request the database version to work with.
         Sets the db_version according to the version being implemented in the database
         Wil set it to -1 if it fails.
+        Possible status _code responses: 200 OK, 400 Bad Request, 403 Forbidden, 501 Not Implemented
         """
         #TODO: Validate response and return fail accordingly
-        self.log.warning("[DAcc] DB Vetrsion is not fully implemented, validation required:%s" % data_in)
+        self.log.warning("[DAcc] DB Version is not fully implemented, validation required")
 
-        payload = {'id':'666', 'auth':'password', 'dest':'DB01'}
-        r = requests.post('http://192.168.1.182:8000/retrievedbversion', data=payload)
+        payload = {'id': self.customer, 'auth':self.password, 'dest':self.db}
+        r = requests.get('http://'+self.db_addr+':'+self.db_port+'/retrievedbversion', data=payload)
 
         if r.status_code ==200:
-            print('Header:%s' % r.headers)
-            print('Status Code:%s' % r.status_code)
-            print('Text:%s' % r.text)
+            self.log.debug("[DACC] db version retrieved from RESTFul API:%s" % r.text)
+            if self._is_number(r.text):
+                self.db_version = float(r.text)
+            return True
         else:
-            print('Failed to Read')
-            print('Status Code:%s' % r.status_code)
-        return True
-        #print("db version check is not yet implemented")
-        self.log.warning("[DAcc] db version check is not yet implemented")
-        self.db_version = 0.1
+            self.log.warning("[DACC] Failed to Read the database version from the RESTFul API")
+            self.log.debug("[DACC] Database Version Read info:%s:%s" % (r.status_code, r.text))
+            return False
         return
 
     def _db_version_check(self):
@@ -292,13 +316,23 @@ class DataAccessor:
         """
         Check if the application is connected to the RESTful interface
         Returns True or False
+        Possible status _code responses: 200 OK, 400 Bad Request, 403 Forbidden, 404 - Not Found, 501 Not Implemented
+
         """
+        #TODO: Validate response and return fail accordingly
+        self.log.warning("[DAcc] Checking for connection is not fully implemented, validation required")
 
-        #TODO: Implement Connection Check
-        #print("Checking for connection is not yet implemented")
-        self.log.warning("[DAcc] Checking for connection is not yet implemented")
+        payload = {'dest':self.db}
+        r = requests.get('http://'+self.db_addr+':'+self.db_port+'/connected', data=payload)
 
-        return True
+        if r.status_code ==200:
+            self.log.debug("[DACC] connected returned from RESTFul API:%s" % r)
+            return True
+        else:
+            self.log.warning("[DACC] Failed to connect to the RESTFul API at:%s" % ('http://'+self.db_addr+':'+self.db_port+'/connected'))
+            self.log.debug("[DACC] Connected info:%s" % r)
+            return False
+        return
 
     def _post_record(self, data_to_send):
         """
@@ -306,10 +340,10 @@ class DataAccessor:
 
         """
         #TODO: Validate response and return fail accordingly
-        self.log.warning("[DAcc] Posting of Records is not fully implemented, validation required:%s" % data_in)
+        self.log.warning("[DAcc] Posting of Records is not fully implemented, validation required:%s" % data_to_send)
 
-        payload = {'id':'666', 'auth':'password', 'dest':'DB01', 'data':json.dumps(data_to_send)}
-        r = requests.post('http://192.168.1.182:8000/submitdata', data=payload)
+        payload = {'id': self.customer, 'auth':self.password, 'dest':self.db, 'data':json.dumps(data_to_send)}
+        r = requests.post('http://'+self.db_addr+':'+self.db_port+'/submitdata', data=payload)
 
         if r.status_code ==200:
             print('Header:%s' % r.headers)
@@ -318,6 +352,7 @@ class DataAccessor:
         else:
             print('Failed to Read')
             print('Status Code:%s' % r.status_code)
+            return False
         return True
 
     def _send_records(self, data_in):
@@ -348,14 +383,14 @@ class DataAccessor:
         The format of the data sent could be different for different data versions
         """
         response = True
-        if self.db_version == 0.1:
+        if self.db_version in [0.1, 1.0]:
             for item in data_in:
                 data_record = {}
                 data_record['Device_ID'] = { 'N' : str(self.device)}
                 data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
                 data_record['TimeStamp'] = { 'S' : str(item[3])}
-                data_record['SensorAcroynm'] = { 'N' : str(self.acroynm)}
-                data_record['SensorDescription'] = { 'N' : str(self.description)}
+                data_record['SensorAcroynm'] = { 'S' : str(self.acroynm)}
+                data_record['SensorDescription'] = { 'S' : str(self.description)}
                 mvdata = {}
                 mvdata['type'] = {'S' : str(item[0])}
                 mvdata['value'] = {'S' : str(item[1])}

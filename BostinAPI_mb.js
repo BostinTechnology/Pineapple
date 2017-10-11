@@ -1,3 +1,14 @@
+//
+//
+//
+// Response Codes Used
+// 200 OK - Standard response for successful HTTP requests
+// 400 Bad Request - The server cannot or will not process the request due to an apparent client error
+// 403 Forbidden - The request was valid, but the server is refusing action.
+// 501 Not Implemented - The server either does not recognize the request method, or it lacks the ability to fulfill the request. Usually this implies future availability (e.g., a new feature of a web-service API)
+//
+//
+// TODO: Check the right http codes are used in the various responses
 var express = require('express');
 var app = express();
 var http = require('http');
@@ -9,6 +20,8 @@ var upload = multer(); // for parsing multipart/form-data
 var AWS = require("aws-sdk");
 
 // moved here so they are available to the functions
+
+// These can't live here as they are global scross multiple connections!!
 var userid, authcode, dest, packet;
 var obj, user_name, user_auth;
 
@@ -97,27 +110,31 @@ function submitdata(status, res) {
         // only write the data if status is set to true
         //var dynamodb = new AWS.DynamoDB();
         
+//        var params = {
+//            TableName: 'SensorValues',
+//            Item: {
+//                'Device_ID': {'N': packet.device},
+//                'TimeStamp': {'S': packet.tstamp},
+//                'Sensor_ID': {'N': packet.sensor},
+//                'SensorAcroynm': {'S' : packet.acroynm},
+//                'SensorDescription' : { 'S': packet.desc},
+//                'MVData': { 'M' : {
+//                    'type': { 'S' : '1'},
+//                    'value': { 'S' : packet.data}
+//                    }},
+//                'Viewed': { 'BOOL' : false},
+//                },
+//        };
+
         var params = {
             TableName: 'SensorValues',
-            Item: {
-                'Device_ID': {'N': packet.device},
-                'TimeStamp': {'S': packet.tstamp},
-                'Sensor_ID': {'N': packet.sensor},
-                'SensorAcroynm': {'S' : packet.acroynm},
-                'SensorDescription' : { 'S': packet.desc},
-                'MVData': { 'M' : {
-                    'type': { 'S' : '1'},
-                    'value': { 'S' : packet.data}
-                    }},
-                'Viewed': { 'BOOL' : false},
-                },
-        };
-        
+            Item: packet,
+        };        
         console.log("submit params:" + JSON.stringify(params));
         dynamodb.putItem(params, function(err, data) {
             if (err) {
                 console.log("submitdata returned an error:" + err);
-                res.sendStatus(501);
+                res.sendStatus(400);
                 
             } else
             {
@@ -136,6 +153,7 @@ function submitdata(status, res) {
 }
 
 function retrievesensorvalues(status, res) {
+    // returns a list of the most recent 100 items from the database
 
     console.log('retrievesensorvalues reached');
 
@@ -160,7 +178,7 @@ function retrievesensorvalues(status, res) {
     docClient.query(params, function(err, data) {
         if (err) {
             console.log("retrievesensorvalues query returned error: " + err);
-            res.sendStatus(501);
+            res.sendStatus(400);
         } else {
             // The followingline shows how to retrieve just the value I am interested in 
             // Need to loop it through next.
@@ -175,8 +193,6 @@ function retrievesensorvalues(status, res) {
             
         }
     });
-//    context.fillText("GetItem succeeded"+value_dataset, 30, 70);
-//    return value_dataset;
 }
 
 
@@ -205,7 +221,7 @@ function retrievedbversion(status, res) {
     docClient.query(params, function(err, data) {
         if (err) {
             console.log("retrievedbversionvalues query returned error: " + err);
-            res.sendStatus(501);
+            res.sendStatus(400);
         } else {
             // The followingline shows how to retrieve just the value I am interested in 
             // Need to loop it through next.
@@ -251,8 +267,8 @@ app.post('/submitdata', function (req, res, next) {
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
-    //	- DB01 = Local DynamoDB Database 
-    //	- DB02 = Amazon AWS
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
     // and save data packet to destination
 
 
@@ -260,28 +276,26 @@ app.post('/submitdata', function (req, res, next) {
             case "FILE":
                 console.log("\nSending data packet to FILESYSTEM");
                 console.log(data);
-                res.sendStatus(400)
+                res.sendStatus(501);
                 break;
                 
-            case "DB01":
+            case "DBLocal":
                 console.log("\nSending data packet to LOCAL DATABASE");
                 console.log(packet);
 
-                console.log("\n\nConfiguring connection to local database....");
-
                 var response = get_password(userid, submitdata, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                console.log("get_password response:" + response)
                 break;
 
-            case "DB02":
+            case "AWS":
                 console.log("\nSending data packet to Amazon AWS");
                 console.log(data);
+                res.sendStatus(501);
                 break;
 
             default:
                 console.log("\n\nERROR : Unrecognised destination");
-                res.sendStatus(400);
+                res.sendStatus(501);
     }
                 
     console.log("\n /submitdata completed, awaiting callback....");
@@ -307,8 +321,8 @@ app.get('/retrievesensorvalues', function (req, res, next) {
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
-    //	- DB01 = Local DynamoDB Database 
-    //	- DB02 = Amazon AWS
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
     // and save data packet to destination
 
 
@@ -316,27 +330,25 @@ app.get('/retrievesensorvalues', function (req, res, next) {
             case "FILE":
                 console.log("\nGetting data from FILESYSTEM");
                 console.log(data);
-                res.sendStatus(400)
+                res.sendStatus(501)
                 break;
                 
-            case "DB01":
+            case "DBLocal":
                 console.log("\nGetting data from LOCAL DATABASE");
                 
-                console.log("\n\nConfiguring connection to local database....");
-
                 var response = get_password(userid, retrievesensorvalues, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                console.log("get_password response:" + response)
                 break;
 
-            case "DB02":
+            case "AWS":
                 console.log("\nGetting data packet from Amazon AWS");
                 console.log(data);
+                res.sendStatus(501);
                 break;
 
             default:
                 console.log("\n\nERROR : Unrecognised destination");
-                res.sendStatus(400);
+                res.sendStatus(501);
         }
     });
 
@@ -360,8 +372,8 @@ app.get('/retrievedbversion', function (req, res, next) {
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
-    //	- DB01 = Local DynamoDB Database 
-    //	- DB02 = Amazon AWS
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
     // and save data packet to destination
 
 
@@ -369,30 +381,75 @@ app.get('/retrievedbversion', function (req, res, next) {
             case "FILE":
                 console.log("\nGetting data from FILESYSTEM");
                 console.log(data);
-                res.sendStatus(400)
+                res.sendStatus(501)
                 break;
                 
-            case "DB01":
+            case "DBLocal":
                 console.log("\nGetting data from LOCAL DATABASE");
                 
-                console.log("\n\nConfiguring connection to local database....");
-
                 var response = get_password(userid, retrievedbversion, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                console.log("get_password response:" + response)
                 break;
 
-            case "DB02":
+            case "AWS":
                 console.log("\nGetting data packet from Amazon AWS");
                 console.log(data);
+                res.sendStatus(501);
                 break;
 
             default:
                 console.log("\n\nERROR : Unrecognised destination");
-                res.sendStatus(400);
+                res.sendStatus(501);
         }
 
     });
+
+app.get('/connected', function (req, res, next) {
+    // Returns a positive response, used to confirm there is connectivity to the client
+    // ONly requires the destination to confirm link ok
+    console.log("******************************************");
+    console.log(" RUNNING MB VERSION");
+    console.log("connected GET message received as follows: -");
+
+    console.log(req.body);
+
+    // convert incoming post to component parts
+    dest = req.body.dest;
+    console.log("dest:" + dest);
+
+    //  - Currently supporting the following destinations.
+    //	- FILE = Filesystem
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
+    // and save data packet to destination
+
+
+    switch(dest) {
+            case "FILE":
+                console.log("\nChecking FILESYSTEM enabled");
+                console.log(data);
+                res.sendStatus(501)
+                break;
+                
+            case "DBLocal":
+                console.log("\nChecking LOCAL DATABASE enabled");
+                res.sendStatus(200);
+                break;
+
+            case "AWS":
+                console.log("\nChecking Amazon AWS enabled");
+                console.log(data);
+                res.sendStatus(501);
+                
+                break;
+
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
+        }
+
+    });
+
 
 var server = app.listen(8080, function () {
    var host = server.address().address

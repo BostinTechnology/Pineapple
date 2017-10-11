@@ -12,24 +12,34 @@ Command Line Options
     - Set Customer Parameters                       -a --setinfo
     - Reset                                         -t --reset
 
-TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
-        data to screen, only wany critical user messages there.
-
-TODO: Consider having a calibration flag to indicate that calibration data has been set. When I first use a sensor
-        it is not configured and can have literally any settings.
-        
-TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails to log anything outside of the 
-        interrupt routine so i have no idea if it has turned the sensor off even though the loogin works at other times.
-        
-TODO: Make running the program easier, a single command would be great.
-
-TODO: I need to go through all the code and check for failure points and protect against them
-
-TODO: Go through and check for where I just return True that it is correct.
-        Need to validate the failure routes of the code.
-
-TODO: In the icog routines there are sys.exits which I think should probably return to the main program instead as a fail
+Customer Info (cust_info)
+['username'] - The name used to log into the system
+['password'] - the associated password
+['device'] - The Unique number for the device - generated from the iCog EEPROM UUID
+['sensor'] - The customers sensor number
+['acroynm'] - The customers acroyn for the sensor
+['description'] = the full description for the sensor
+['database'] - the destination for the data, local or AWS
 """
+
+#TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
+     #   data to screen, only wany critical user messages there.
+
+#TODO: Consider having a calibration flag to indicate that calibration data has been set. When I first use a sensor
+     #   it is not configured and can have literally any settings.
+
+#TODO: After pressing CTRL-C, it goes into the keyboard interrupt but then fails to log anything outside of the
+     #   interrupt routine so i have no idea if it has turned the sensor off even though the loogin works at other times.
+
+#TODO: Make running the program easier, a single command would be great.
+
+#TODO: I need to go through all the code and check for failure points and protect against them
+
+#TODO: Go through and check for where I just return True that it is correct.
+     #   Need to validate the failure routes of the code.
+
+#TODO: In the icog routines there are sys.exits which I think should probably return to the main program instead as a fail
+
 
 from datetime import datetime
 from datetime import timedelta
@@ -120,13 +130,13 @@ def SetupLogging():
 
     gbl_log.info("\n\n")
     gbl_log.info("[CTRL] Logging Started, current level is %s" % gbl_log.getEffectiveLevel())
-    
+
     return
 
 def CheckDiskSpace():
     """
     Validate there is enough disk space to write to file
-    
+
     """
     st = os.statvfs(".")
     du = st.f_bavail * st.f_frsize  # number of blocks multiplied by block size
@@ -137,7 +147,7 @@ def CheckDiskSpace():
     return True
 
 ################################################################################
-# 
+#
 # The following functions are the client interaction functions
 #
 ################################################################################
@@ -177,7 +187,7 @@ def SetupSensor():
     - set the global variable icog to the required icog
     returns the instance of the icog and the eeprom
     """
-  
+
     # Load the data from the EEPROM on the ID-Iot chip
     i2c_connection = i2c_comms()
     eeprom = cls_EEPROM.ID_IoT(i2c_connection)
@@ -194,7 +204,7 @@ def SetupSensor():
         gbl_log.exception("[CTRL] Start Routine Exception Data")
         sys.exit()
     gbl_log.info("[CTRL] Loading of the iCog file:%s succeeded (%s)" % (icog_file,imported_icog))
-    
+
     # Open the right bus connection to work with the icog connected
     reqd_bus = eeprom.ReturnBusType()
     if reqd_bus == SS.SPI:
@@ -207,22 +217,22 @@ def SetupSensor():
         gbl_log.critical("[CTRL] Required Connection bus:%s is not supported, contact Support" % reqd_bus)
         sys.exit()
     gbl_log.info("[CTRL] Required Connection bus:%s loaded" % icog_connection)
-    
+
     # Retrieve Calibration Data and pass it to the iCog
     calib_data = eeprom.ReturnCalibrationData()
-    
+
     gbl_log.debug("[CTRL] calibration data being passed into iCog:%s" % calib_data)
     # Initialise the iCog
     icog = imported_icog.iCog(icog_connection, calib_data)
     gbl_log.debug("[CTRL] Initialised icog:%s" % icog)
 
     return (icog, eeprom)
-    
+
 def Start(cust_info):
     """
     Perform the reading of and sending data to the AWS database
     This is the default action if no arguments are passed to the system.
-    
+
     Order of the routine
 
 
@@ -231,9 +241,9 @@ def Start(cust_info):
         read value
         post
     """
- 
+
     (icog, eeprom) = SetupSensor()
-    
+
     # Sit in a loop reading the values back and writing them to the data connection
     # values available from the i_cog
     #   StartSensor, EndReadings, ReadValue, ReturnReadFrequency
@@ -241,7 +251,8 @@ def Start(cust_info):
     print("Reading Values from sensor\n")
     print("CTRL-C to cancel")
 
-    DataAcc = DataAccessor(cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
+    DataAcc = DataAccessor(cust_info['username'], cust_info['password'], cust_info['database'],
+                    cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
     read_freq = icog.ReturnReadFrequency()
 
     gbl_log.debug("[CTRL] Read Frequency:%s" % read_freq)
@@ -256,7 +267,7 @@ def Start(cust_info):
             reading = icog.ReadValue()
 
             gbl_log.info("[CTRL] Value Read back from the sensor:%s" % reading)
-            
+
             DataAcc.DataIn(reading)
             # The following but needs to be put into a thread for parallel running
             DataAcc.TransmitData()
@@ -274,21 +285,21 @@ def Start(cust_info):
                     time.sleep(sleep.total_seconds() - 0.1)
                 else:
                     time.sleep(0.1)
-            
+
     except KeyboardInterrupt:
         # CTRL - C entered
         print(" CTRL-C entered")
         gbl_log.debug("[CTRL] User Interrupt occurred (Ctrl-C)")
         icog.EndReadings()
         gbl_log.info("[CTRL] End of Processing")
-        
+
         #TODO: Need to add in some functionality here to stop the sensor.
     except:
         #Error occurrred
         gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
         print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
         gbl_log.exception("[CTRL] Start reading loop Exception Data")
-    
+
     #TODO: Do I add a finally clause here to close off the comms, regardless of the failure?
 
     return
@@ -297,7 +308,7 @@ def Reset():
     """
     Reset the program back to using the default values
     Clear any cached sensor data
-    
+
     setup i2c comms
     provide menu to reset the Id-IoT
     using the iCog to reset the config and get the data values.
@@ -311,24 +322,24 @@ def Reset():
         eeprom.ResetCalibrationData(calib)
         gbl_log.debug("[CTRL] Sensor Calibration Data reset")
         print("Calibration Data reset to default values")
-    
+
     filename = SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME
     if os.path.isfile(filename):
         os.remove(filename)
         gbl_log.debug("[CTRL] Customer File in location deleted:%s" % filename)
         print("Customer data removed, will need to be re-entered on next startup")
-    
+
     return
 
 def DisplayCal():
     """
     Perform the necessary actions to display the Calibration data being used
-    
+
     """
     #BUG: calib_data is not set as the icog is not instantiated unless Start called
     # Need to add a check to see if Setup has alread been run and therefore doesn't need to be rerun
     # Put this check in SetupSensor()
-    
+
     (icog, eeprom) = SetupSensor()
     calib_data = icog.ReturnCalibrationData()
     print("Setting                  Value")
@@ -337,7 +348,7 @@ def DisplayCal():
         print("%s%s" %( '{0: <25}'.format(item), calib_data[item]))
 
     return
-    
+
 def SetCal():
     """
     Perform the necessary actions to set the Calibration data being used
@@ -356,13 +367,13 @@ def SetCal():
     else:
         print("No change to the calibration data")
         gbl_log.info("[CTRL] No change to the Calibration")
-    
+
     return
-    
+
 def DisplayCustomerParameters(cust_info):
     """
     Perform the necessary actions to display the customer information being used
-    
+
     """
     print("Setting                  Value")
     print("==============================")
@@ -370,22 +381,48 @@ def DisplayCustomerParameters(cust_info):
         print("%s%s" %( '{0: <25}'.format(item), cust_info[item]))
 
     return
-    
+
 def SetCustomerParameters(device):
     """
     Perform the necessary actions to allow the clinet to set the parameter data being used
-    
+
     Parameters to be captured
     - Sensor Acroynm
     - Sensor Description
     - local or remote database
-    
+
     Will need to use SaveCustomerInfo
     """
     print("Setting Customer Information\n")
     cust_info = {}
     cust_info['device'] = device
     gbl_log.debug("[CTRL] Device Number:%s" % device)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Customer Name?")
+        if len(choice) > 0:
+            print("Customer Name entered:%s" % choice)
+            print("NOTE: This is case sensitive")
+            confirm = input ("Are you sure? (y/n)")
+            if confirm.upper() == "Y":
+                cust_info['username'] = choice
+            else:
+                choice = ""
+    gbl_log.debug("[CTRL] Customer UserName:%s" % choice)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your customer Password?")
+        if len(choice) > 0:
+            print("Customer Password entered:%s" % choice)
+            print("NOTE: This is case sensitive")
+            confirm = input ("Are you sure? (y/n)")
+            if confirm.upper() == "Y":
+                cust_info['password'] = choice
+            else:
+                choice = ""
+    gbl_log.debug("[CTRL] Customer Password:%s" % choice)
 
     choice = ""
     while choice == "":
@@ -417,7 +454,7 @@ def SetCustomerParameters(device):
             print("Please enter a description for the sensor (max 100 characters)")
             choice = ""
     gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
-    
+
     choice = ""
     while choice == "":
         choice = input("Is the Pi operating with a local or AWS Database (l or a)?")
@@ -429,7 +466,7 @@ def SetCustomerParameters(device):
             print("Please enter either 'l' for loca or a for Amazon AWS")
             choice = ""
     gbl_log.debug("[CTRL] Database Location:%s" % choice)
-    
+
     SaveCustomerInfo(cust_info)
     return cust_info
 
@@ -445,8 +482,8 @@ def SplashScreen():
 
 def LoadCustomerInfo(dev):
     """
-    Load the Customer File infomration and return it in a dictionary
-    customer_info = {"device" : UUID, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
+    Load the Customer File information and return it in a dictionary
+    customer_info = {"username": customer, "password": password, "device" : UUID, "sensor" : 1, "acroynm" : "LghtSns1", "description" : "Light Sensor in the Office"}
 
     """
     custfile = {}
@@ -456,7 +493,7 @@ def LoadCustomerInfo(dev):
         gbl_log.debug("[CTRL] Customer File in location:%s" % filename)
         with open(filename, mode='r') as cust:
             custfile = json.load(cust)
-            
+
     else:
         print("No existing customer file, please Set customer info")
         gbl_log.info("[CTRL] No Customer file exisitng")
@@ -465,29 +502,29 @@ def LoadCustomerInfo(dev):
 
     # Validate the customer info that has been read back.
     status = True
-    for item in ['device', 'sensor', 'acroynm', 'description', 'database']:
+    for item in ['username', 'password', 'device', 'sensor', 'acroynm', 'description', 'database']:
         if item not in custfile:
             status = False
             gbl_log.info("[CTRL] Missing item from the customer file:%s" % item)
-    
+
     gbl_log.debug("[CTRL] customer data being returned:%s" % custfile)
     return status, custfile
-            
+
 def SaveCustomerInfo(cust_info):
     """
     Take the cust_info and write it to the file
     Disk management is handled as part of the Control module
     """
-    
+
     gbl_log.debug("[CTRL] Data being written to the customer file:%s" % cust_info)
     with open(SS.CUSTFILE_LOCATION + '/' + SS.CUSTFILE_NAME, mode='w') as f:
         json.dump(cust_info, f)
         gbl_log.info("[DAcc] Customer File udpated")
 
     return
-    
+
 ################################################################################
-# 
+#
 # The following function is main - the entry point
 #
 ################################################################################
@@ -495,37 +532,37 @@ def SaveCustomerInfo(cust_info):
 def main():
     """
     This routine is the main called routine and therefore determines what action to take based on the arguments given.
-    
+
     """
-    
+
     SplashScreen()
-    
+
     SetupLogging()
-    
+
     args = SetandGetArguments()
-    
+
     # First print a 'splash screen'
     device_id = GetSerialNumber()
     print("\nDevice ID: %s" % device_id)        # TODO: This should probably get the info from cutomer info
     print("\nTo Exit, CTRL-c\n\n")
-    
+
     #TODO: print out the values being used, especially if they are the defaults.
-    
+
     #TODO: probably needs something to bomb out if there is a failure
-    
+
     if CheckDiskSpace() == False:
         gbl_log.critical("[CTRL] Insufficient disk space, unable to start")
         print("\nCRITICAL ERROR Insufficient disk space, unable to start application\n")
-        
+
     status, customer_info = LoadCustomerInfo(device_id)
     if status != True:
         print("Customer Infomation is missing or incomplete, please re-enter")
         customer_info = SetCustomerParameters(device_id)
-    
+
     # Note: The default is Start, hence it is the else clause
-    if args.start: 
+    if args.start:
         Start(customer_info)
-    elif args.reset: 
+    elif args.reset:
         Reset()
     elif args.displaycal:
         DisplayCal()
@@ -537,9 +574,9 @@ def main():
     elif args.setinfo:
         SetCustomerParameters()
     else:
-        Start(customer_info)              
+        Start(customer_info)
 
-    
+
 
 #-----------------------------------------------------------------------
 #
@@ -547,9 +584,9 @@ def main():
 #
 #-----------------------------------------------------------------------
 
-        
 
-    
+
+
 # Only call the Start routine if the module is being called directly, else it is handled by the calling program
 if __name__ == "__main__":
 
