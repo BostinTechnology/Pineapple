@@ -19,7 +19,9 @@ Customer Info (cust_info)
 ['sensor'] - The customers sensor number
 ['acroynm'] - The customers acroyn for the sensor
 ['description'] = the full description for the sensor
-['database'] - the destination for the data, local or AWS
+['database'] - the destination for the data, local, remote or AWS
+['db_addr'] - address of the database APi
+['db_port'] - the port of the database APi
 """
 
 #TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
@@ -251,7 +253,8 @@ def Start(cust_info):
     print("Reading Values from sensor\n")
     print("CTRL-C to cancel")
 
-    DataAcc = DataAccessor(cust_info['username'], cust_info['password'], cust_info['database'],
+    DataAcc = DataAccessor(cust_info['username'], cust_info['password'],
+                    cust_info['database'], cust_info['db_addr'], cust_info['db_port'],
                     cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
     read_freq = icog.ReturnReadFrequency()
 
@@ -457,17 +460,57 @@ def SetCustomerParameters(device):
 
     choice = ""
     while choice == "":
-        choice = input("Is the Pi operating with a local or AWS Database (l or a)?")
+        choice = input("Is the Pi operating with a local, remote or AWS database (l, r or a)?")
         if choice.upper() == "L":
             cust_info['database'] = SS.DB_LOCAL
         elif  choice.upper() == "A":
             cust_info['database'] = SS.DB_AWS
+        elif  choice.upper() == "R":
+            cust_info['database'] = SS.DB_REMOTE
         else:
-            print("Please enter either 'l' for loca or a for Amazon AWS")
+            print("Please enter either 'l' for local or 'a' for Amazon AWS")
             choice = ""
     gbl_log.debug("[CTRL] Database Location:%s" % choice)
 
+    if cust_info['database'] == SS.DB_REMOTE:
+        # Remote database details need to be captured
+        choice = ""
+        while choice == "":
+            choice = input("Please enter the remote database address (IP addr or hostname)?")
+            cust_info['db_addr'] = choice
+        gbl_log.debug("[CTRL] Remote database Address:%s" % choice)
+
+        choice = ""
+        while choice == "":
+            choice = input("Please enter the remote database port number (Enter for default 8080)?")
+            if choice == "":
+                choice = "8080"
+                cust_info['db_port'] = SS.DB_REMOTE_PORT
+            elif choice.isdigit():
+                cust_info['db_port'] = choice
+            else:
+                print("PLease enter a number for the port number")
+                choice = ""
+        gbl_log.debug("[CTRL] Remote database Port:%s" % choice)
+
+    elif cust_info['database'] == SS.DB_AWS:
+        # If the database is AWS, set the address to AWS and default port
+        cust_info['db_addr'] = SS.DB_AWS_ADDR
+        cust_info['db_port'] = SS.DB_AWS_PORT
+
+    elif cust_info['database'] == SS.DB_LOCAL:
+        # If the database local, set the address to localhost and default port
+        cust_info['db_addr'] = SS.DB_LOCAL_ADDR
+        cust_info['db_port'] = SS.DB_LOCAL_PORT
+    else:
+        # Set a default, just in case
+        cust_info['db_addr'] = SS.DB_LOCAL_ADDR
+        cust_info['db_port'] = SS.DB_LOCAL_PORT
+
+
     SaveCustomerInfo(cust_info)
+
+    #TODO: Add in setting of the sensor info at this stage?
     return cust_info
 
 def SplashScreen():
@@ -502,7 +545,7 @@ def LoadCustomerInfo(dev):
 
     # Validate the customer info that has been read back.
     status = True
-    for item in ['username', 'password', 'device', 'sensor', 'acroynm', 'description', 'database']:
+    for item in ['username', 'password', 'device', 'sensor', 'acroynm', 'description', 'database', 'db_addr', 'db_port']:
         if item not in custfile:
             status = False
             gbl_log.info("[CTRL] Missing item from the customer file:%s" % item)

@@ -24,12 +24,14 @@ EEPROM_READ_RETRY = 5               # How many times it will try and read data f
 #Database Locations
 DB_LOCAL = 'DBLocal'
 DB_AWS = 'AWS'
+DB_REMOTE = 'Remote'
 
 # Database API address information
 DB_LOCAL_ADDR = 'localhost'
 DB_LOCAL_PORT = '8080'
 DB_AWS_ADDR = '192.168.1.182'
 DB_AWS_PORT = '8080'
+DB_REMOTE_PORT = '8080'         # Default Value
 
 #Database Structure Values
 MAX_ACROYNM_LENGTH = 10

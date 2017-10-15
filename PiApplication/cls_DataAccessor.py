@@ -75,7 +75,7 @@ class DataAccessor:
     SensorAcroynm': {'S' : str(acroynm)}, SensorDescription' : { 'S': str(desc)},
 
     """
-    def __init__(self, customer, password, db, device, sensor, acroynm, desc):
+    def __init__(self, customer, password, db, addr, port, device, sensor, acroynm, desc):
         self.log = logging.getLogger()
         self.log.debug("[DAcc] cls_DataAccessor initialised")
 
@@ -84,14 +84,8 @@ class DataAccessor:
         self.db = db                    # Local or AWS database
         self.db_ok = False              # Used to flag that we have successfully checked the database versions match
         self.db_version = 0
-        if self.db == SS.DB_AWS:
-            # The RESTFul API is located on AWS
-            self.db_addr = SS.DB_AWS_ADDR
-            self.db_port = SS.DB_AWS_PORT
-        else:
-            # The RESTFul API is located on this Pi
-            self.db_addr = SS.DB_LOCAL_ADDR
-            self.db_port = SS.DB_LOCAL_PORT
+        self.db_addr = addr
+        self.db_port = port
         self.customer = customer
         self.password = password
         self.device = device
@@ -299,6 +293,8 @@ class DataAccessor:
         Checks the record given matches the one it is about to remove before removing it
         After removing it from the records, updates the file on disk
         """
+
+        #TODO: Consider adding the removed record to an old list.
 
         compare = self.records[0]
         if len(compare) > 0:

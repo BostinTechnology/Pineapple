@@ -1,5 +1,6 @@
 //
-//
+//  Databases
+//  DBLocal, AWS, DBRemote - remote is the same as local, bnut indicates the sensor is remote to this device
 //
 // Response Codes Used
 // 200 OK - Standard response for successful HTTP requests
@@ -280,7 +281,8 @@ app.post('/submitdata', function (req, res, next) {
                 break;
                 
             case "DBLocal":
-                console.log("\nSending data packet to LOCAL DATABASE");
+            case "DBRemote":
+                console.log("\nSending data packet to "+dest+" DATABASE");
                 console.log(packet);
 
                 var response = get_password(userid, submitdata, res, validate_user);    // Once get_password has finished it calls validate_user
@@ -334,7 +336,8 @@ app.get('/retrievesensorvalues', function (req, res, next) {
                 break;
                 
             case "DBLocal":
-                console.log("\nGetting data from LOCAL DATABASE");
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
                 
                 var response = get_password(userid, retrievesensorvalues, res, validate_user);    // Once get_password has finished it calls validate_user
 
@@ -385,7 +388,8 @@ app.get('/retrievedbversion', function (req, res, next) {
                 break;
                 
             case "DBLocal":
-                console.log("\nGetting data from LOCAL DATABASE");
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
                 
                 var response = get_password(userid, retrievedbversion, res, validate_user);    // Once get_password has finished it calls validate_user
 
@@ -432,7 +436,8 @@ app.get('/connected', function (req, res, next) {
                 break;
                 
             case "DBLocal":
-                console.log("\nChecking LOCAL DATABASE enabled");
+            case "DBRemote":
+                console.log("\nChecking "+dest+" DATABASE enabled");
                 res.sendStatus(200);
                 break;
 
