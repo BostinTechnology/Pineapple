@@ -81,7 +81,7 @@ class DataAccessor:
 
         #TODO: Change this to use queues https://docs.python.org/3.3/library/collections.html#collections.deque
         self.records = []
-        self.db = db                    # Local or AWS database
+        self.db = db                    # Local, Remote or AWS database
         self.db_ok = False              # Used to flag that we have successfully checked the database versions match
         self.db_version = 0
         self.db_addr = addr

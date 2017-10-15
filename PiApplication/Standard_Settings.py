@@ -24,7 +24,7 @@ EEPROM_READ_RETRY = 5               # How many times it will try and read data f
 #Database Locations
 DB_LOCAL = 'DBLocal'
 DB_AWS = 'AWS'
-DB_REMOTE = 'Remote'
+DB_REMOTE = 'DBRemote'
 
 # Database API address information
 DB_LOCAL_ADDR = 'localhost'
