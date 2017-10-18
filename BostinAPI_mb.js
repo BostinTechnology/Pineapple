@@ -466,7 +466,7 @@ var server = app.listen(8080, function () {
 http.createServer(function (req, res) {
     //res.write(/GetData.html);
     //res.end();
-    fs.readFile('GetData.html', function(err, data) {
+    fs.readFile('login.html', function(err, data) {
     res.writeHead(200, {'Content-Type': 'text/html'});
     res.write(data);
     res.end();

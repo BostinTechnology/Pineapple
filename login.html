@@ -1,11 +1,27 @@
 <html>
+    <head>
+        <title>untitled</title>
+    </head>
    <body>
       
-      <form action = "http://192.168.1.167:8000/validate" method = "POST">
-         First Name: <input type = "text" name = "id">  <br>
-         Last Name: <input type = "text" name = "auth">
+      <form action = "http://rpi_3b:1227/displaydata.html">
+         Name: <input type = "text" name = "id">  <br>
+         Password: <input type = "password" name = "auth">
          <input type = "submit" value = "Submit">
       </form>
+      <script>
+        var form = document.querySelector("form");
+        form.addEventListener("submit", function(event) {
+            console.log("Saving value", form.elements.value.value);
+            localStorage.setItem("id", form.elements.id.value);
+            localStorage.setItem("auth", form.elements.auth.value);
+            console.log("data submitted");
+            console.log(localStorage.getItem("id"));
+            console.log(localStorage.getItem("auth"));
+            event.preventDefault();
+            window.location("displaydata.html");
+        });
+      </script>
       
    </body>
 </html>
