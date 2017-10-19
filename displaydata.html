@@ -7,12 +7,13 @@
 <html>
    <body>
        this is the display page
-      <form>
-          <id_from id="textid"></id_from>
-      </form>
+      <p id="textid"></p>
       <script>
-          var id_from = document.getElementById("textid");
-          id.from.textContent = localStorage.getItem("id");
+          //var id_from = localStorage.getItem("id");
+          //id_from = "fred";
+          //document.getElementById("textid").innerHTML = id_from;
+          console.log("localStorage:" + localStorage.getItem("id"));
+          document.getElementById("textid").innerHTML = localStorage.getItem("id");
       </script>
       
    </body>
