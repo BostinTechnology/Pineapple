@@ -42,6 +42,7 @@ Customer Info (cust_info)
 
 #TODO: In the icog routines there are sys.exits which I think should probably return to the main program instead as a fail
 
+#TODO: When it started after being disconnected, the data was not sent to DBRemote.
 
 from datetime import datetime
 from datetime import timedelta
@@ -163,9 +164,11 @@ def SetandGetArguments():
     gbl_log.info("[CTRL] Setting and Getting Parser arguments")
     parser = argparse.ArgumentParser(description="Capture and send data for CognIoT sensors")
     parser.add_argument("-s", "--start", action="store_true",
-                    help="Start capturing data from the configured sensors and send them to the database")
+                    help="Start capturing data from the configured sensors and store them in the data files directory")
     parser.add_argument("-r", "--reset", action="store_true",
                     help="Reset to the default values")
+    parser.add_argument("-t", "--transmit", action="store_true",
+                    help="Start Transmitting data to the database")
     Cal_group = parser.add_mutually_exclusive_group()
     Cal_group.add_argument("-c", "--displaycal", action="store_true",
                     help="Display the Calibration Data for the sensors, e.g. Read Frequency")
@@ -272,8 +275,7 @@ def Start(cust_info):
             gbl_log.info("[CTRL] Value Read back from the sensor:%s" % reading)
 
             DataAcc.DataIn(reading)
-            # The following but needs to be put into a thread for parallel running
-            DataAcc.TransmitData()
+
 
             # Wait for timeout
             waiting = False
@@ -304,6 +306,63 @@ def Start(cust_info):
         gbl_log.exception("[CTRL] Start reading loop Exception Data")
 
     #TODO: Do I add a finally clause here to close off the comms, regardless of the failure?
+
+    return
+
+def TransmitData(cust_info):
+    """
+    Perform the transmitting of the data to the database
+
+    Order of the routine
+
+
+    3. Open data accessor link
+    4. in loop
+        read value
+        post
+    """
+
+    # Sit in a loop transmitting dat to the data connection
+    print("Transmitting Values to the database\n")
+    print("CTRL-C to cancel")
+
+    DataAcc = DataAccessor(cust_info['username'], cust_info['password'],
+                    cust_info['database'], cust_info['db_addr'], cust_info['db_port'],
+                    cust_info["device"], cust_info["sensor"], cust_info["acroynm"], cust_info["description"])
+
+    try:
+        while True:
+            # Start the timer
+            endtime = datetime.now() + timedelta(seconds=SS.TRANSMIT_FREQ)
+            print("\r\r\r\r\r\r\rReading", end="")
+
+            DataAcc.TransmitData()
+
+            # Wait for timeout
+            waiting = False
+            while endtime > datetime.now():
+                if waiting == False:
+                    print("\r\r\r\r\r\r\rWaiting", end="")
+                    gbl_log.debug("[CTRL] Waiting for timeout to complete")
+                    waiting=True
+                # Use time.sleep to wait without processor burn at 25%
+                sleep = datetime.now() - endtime
+                if sleep.total_seconds() > 2:
+                    time.sleep(sleep.total_seconds() - 0.1)
+                else:
+                    time.sleep(0.1)
+
+    except KeyboardInterrupt:
+        # CTRL - C entered
+        print(" CTRL-C entered")
+        gbl_log.debug("[CTRL] User Interrupt occurred (Ctrl-C)")
+        gbl_log.info("[CTRL] End of Processing")
+
+    except:
+        #Error occurrred
+        gbl_log.critical("[CTRL] Error occurred whilst looping to read values")
+        print("\nCRITICAL ERROR during rading of sensor values- contact Support\n")
+        gbl_log.exception("[CTRL] Start reading loop Exception Data")
 
     return
 
@@ -615,7 +674,9 @@ def main():
     elif args.displayinfo:
         DisplayCustomerParameters(customer_info)
     elif args.setinfo:
-        SetCustomerParameters()
+        SetCustomerParameters(device_id)
+    elif args.transmit:
+        TransmitData(customer_info)
     else:
         Start(customer_info)
 
