@@ -461,14 +461,48 @@ var server = app.listen(8080, function () {
    var port = server.address().port
    console.log("Bostin CognIoT API listening at http:// %s :%s", host, port)
 
-})
+});
 
-http.createServer(function (req, res) {
-    //res.write(/GetData.html);
-    //res.end();
+// This section servers up the various web pages that are required on port 1227.
+// The first page is capturing the data and storing it in the local store, but
+// the displaypage is not displaying it!
+http.createServer(function(req, res) {
+    console.log("Webserver present on 1227");
+  // Homepage
+    if (req.url === "/") {
     fs.readFile('login.html', function(err, data) {
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.write(data);
-    res.end();
-  });
+        if (err) {
+            throw err;
+            }
+        else {
+        res.writeHead(200, {'Content-Type': 'text/html'});
+        res.write(data);
+        res.end();
+        }
+    });
+    }
+
+    // Display data
+    else if (req.url.startsWith("/displaydata")) {
+        console.log("display data page called");
+        fs.readFile('displaydata.html', function(err, data) {
+            if (err) {
+                throw err;
+            }
+            else {
+                res.writeHead(200, { "Content-Type": "text/html" });
+                res.write(data);
+                res.end();
+            }
+    });
+    }
+
+    // 404'd!
+    else {
+      console.log("File not found error");
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("404 error! File not found.");
+    };
 }).listen(1227);
+
+
