@@ -46,14 +46,14 @@ When writing Sensor Values, TableName='SensorValues',
 
 #TODO: At present this assumes the MVData type will always be 1 - so the value is a number.
 
-#TODO: database connection is to be determined based on customer info
-    #   At the moment I have a fixed IP address for the RET APi, it should be dynamic based on cust_info
-
-
 #TODO: I write stuff to file, but do I ever read it back? I should on start / load
+
+#TODO: When writing data to file, it needs to check for the directory
+#       Shoudl consider also file handling / space handling
 
 import boto3
 import sys
+import os
 import logging
 import random
 import json
@@ -92,7 +92,8 @@ class DataAccessor:
         self.sensor = sensor
         self.acroynm = acroynm
         self.description = desc
-        self._db_version_check()
+        #self._db_version_check()
+        
         return
 
     def DataIn(self,data):
@@ -137,18 +138,19 @@ class DataAccessor:
         record_try_count = 0
         while more_data:
             if self._connected():
-                record = self._read_record_from_list()
+                record = self._read_record_from_file()
                 if len(record) > 0:
+                    self.log.debug("[DAcc] Length of record:%s" % len(record))
                     status = self._send_records(record)
                     if status == True:
-                        self._remove_record_from_list(record)
+                        self._remove_record_file()
                         record_try_count = 0
                     else:
                         record_try_count = record_try_count + 1
                         if record_try_count > SS.RECORD_TRY_COUNT:
                             self.log.error("[DAcc] Failed to send record over %s times, record archived" % record_try_count)
                             self.log.info("[DAcc] Archived Record:%s" % record)
-                            self._remove_record_from_list(record)
+                            self._rename_record_file(record)
                         else:
                             time.sleep(record_try_count)        # Wait for a period before retrying
                 else:
@@ -168,59 +170,103 @@ class DataAccessor:
 #
 #-----------------------------------------------------------------------
 
-    def _is_number(self, check):
-        """
-        Check if the string passed into check is a number or a string
-        """
-        self.log.debug("[Ls1] Checking %s is a number" % check)
-        try:
-            float(check)
-            return True
-        except:
-            return False
+#-----------------------------------------------------------------------
+#
+# Functions for writing and reading from disk
+#
+#RECORDFILE_LOCATION = "DataFiles"           # Where to store the records file, program automatically added '/' at the end
+#RECORDFILE_NAME = "DATA_"            # The Base name part of the file
+#RECORDFILE_EXT = ".rec"             # The extension for the record files
+#RECORDFILE_OLD = ".oldrec"          # The extension used when the record can't be written and is stored for future analysis
+#RECORD_TRY_COUNT = 10               # How many times, when connected the Data Accessor will try and send a record
+#EEPROM_READ_RETRY = 5               # How many times it will try and read data from the EEPROM
 
-    def _db_version(self):
+    def _write_data_to_file(self, data_to_write):
         """
-        Request the database version to work with.
-        Sets the db_version according to the version being implemented in the database
-        Wil set it to -1 if it fails.
-        Possible status _code responses: 200 OK, 400 Bad Request, 403 Forbidden, 501 Not Implemented
+        Takes the given data and creates a new file with the contents of it
+        Format of the filename is based on standard settings
+            RECORDFILE_NAME+tiemstamp+RECORDFILE_EXT
+        Stored in sub folder
+            RECORDFILE_LOCATION
+        Returns true if the record is written, or false if it isn't
+        Disk space management is handled by the calling program
         """
-        #TODO: Validate response and return fail accordingly
-        self.log.warning("[DAcc] DB Version is not fully implemented, validation required")
+        status = False
+        file_time = datetime.now().strftime("%y%m%d%H%M%S-%f")
 
-        payload = {'id': self.customer, 'auth':self.password, 'dest':self.db}
-        r = requests.get('http://'+self.db_addr+':'+self.db_port+'/retrievedbversion', data=payload)
+        #TODO: If the datafile directoryu doesn't exist, an error is thrown!
 
-        if r.status_code ==200:
-            self.log.debug("[DACC] db version retrieved from RESTFul API:%s" % r.text)
-            if self._is_number(r.text):
-                self.db_version = float(r.text)
-            return True
-        else:
-            self.log.warning("[DACC] Failed to Read the database version from the RESTFul API")
-            self.log.debug("[DACC] Database Version Read info:%s:%s" % (r.status_code, r.text))
-            return False
+        data_record_name = SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME + file_time + SS.RECORDFILE_EXT
+        self.log.info("[DAcc] Writing new record to disk:%s" % data_record_name)
+
+        #TODO: Need to handle a failure to open the file
+        with open(data_record_name, mode='w') as f:
+            json.dump(data_to_write, f)
+            status = True
+        return status
+
+    def _get_file_to_use(self):
+        """
+        Read the list of files from the given directory
+
+        """
+        #TODO: Check for the directory existing first
+
+        self.log.info("[DAcc] Getting the list of files to use and selecting one")
+        self.record_to_use = ""
+        status = False
+        list_of_files = os.listdir(path=SS.RECORDFILE_LOCATION+'/.')
+        list_of_files.sort()
+        self.log.debug("[DAcc] Files to Use :%s" % list_of_files)
+        for i in list_of_files:
+            self.log.debug("[DAcc] File being checked for extension of %s:%s" % (SS.RECORDFILE_EXT, i))
+            if i[-len(SS.RECORDFILE_EXT):] == SS.RECORDFILE_EXT:
+                self.record_to_use = i
+                status = True
+                break
+        self.log.info("[DAcc] Selected File to use:%s" % self.record_to_use)
+        return status
+
+    def _read_record_from_file(self):
+        """
+        Read a record out of the record file location
+        Return an empty string if no record to find
+        """
+        record = []
+        if self._get_file_to_use():
+            file_name = SS.RECORDFILE_LOCATION + '/' + self.record_to_use
+            self.log.debug("[DAcc] File being opened:%s" % file_name)
+            with open(file_name, mode='r') as f:
+                record = json.load(f)
+                #BUG: The line above is reading [] and assuming it is a string and not a list!
+        self.log.debug("[DAcc] Record obtained from the records file:%s" % record)
+        return record
+
+
+    def _remove_record_file(self):
+        """
+        Remove the file from the directory
+        """
+
+        if os.path.isfile(SS.RECORDFILE_LOCATION+'/' + self.record_to_use):
+            os.remove(SS.RECORDFILE_LOCATION+'/' + self.record_to_use)
+            self.log.info("[DAcc] Record File deleted:%s" % SS.RECORDFILE_LOCATION+'/' + self.record_to_use)
         return
 
-    def _db_version_check(self):
+    def _rename_record_file(self):
         """
-        Check the database version matches the version this software is designed for.
-        End program if different, return false if unknown
+        Rename the current file to the old name so it is no longer sent
         """
-        if self._connected():
-            self._db_version()
-            if self.db_version not in SUPPORTED_DB_VERSIONS:
-                self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s"
-                            % (self.db_version, SUPPORTED_DB_VERSIONS))
-                print("\nCRITICAL ERROR, Database version is not supported - contact Support\n")
-                sys.exit()
-            else:
-                self.db_ok = True
-        else:
-            self.log.info("[DAcc] Unable to validate db version as not connected, assuming wrong version.")
-            self.db_ok = False
-        return self.db_ok
+        if os.path.isfile(SS.RECORDFILE_LOCATION+'/' + self.record_to_use):
+            os.rename(SS.RECORDFILE_LOCATION+'/' + self.record_to_use, SS.RECORDFILE_LOCATION+'/' + self.record_to_use[-3:] + SS.RECORDFILE_OLD)
+            self.log.info("[DAcc] Record File renamed:%s" % SS.RECORDFILE_LOCATION+'/' + self.record_to_use[-3:] + SS.RECORDFILE_OLD)
+        return
+
+
+#-----------------------------------------------------------------------
+#
+# Functions for Data In
+#
 
     def _validate_data(self,dataset):
         """
@@ -256,25 +302,69 @@ class DataAccessor:
 
         return valid_data_record
 
-    def _update_record_file(self):
+#-----------------------------------------------------------------------
+#
+# Functions for Transmit Data
+#
+    def _is_number(self, check):
         """
-        Take the self.records and write it to the file
-        Disk management is handled as part of the Control module
+        Check if the string passed into check is a number or a string
         """
-        self.log.info("[DAcc] Records File udpated")
-        with open(SS.RECORDFILE_LOCATION + '/' + SS.RECORDFILE_NAME, mode='w') as f:
-            json.dump(self.records, f)
+        self.log.debug("[DAcc] Checking %s is a number" % check)
+        try:
+            float(check)
+            return True
+        except:
+            return False
+
+    def _db_version(self):
+        """
+        Request the database version to work with.
+        Sets the db_version according to the version being implemented in the database
+        Wil set it to -1 if it fails.
+        Possible status _code responses: 200 OK, 400 Bad Request, 403 Forbidden, 501 Not Implemented
+        """
+        #TODO: Validate response and return fail accordingly
+        self.log.warning("[DAcc] DB Version is not fully implemented, validation required")
+
+        payload = {'id': self.customer, 'auth':self.password, 'dest':self.db}
+        r = requests.get('http://'+self.db_addr+':'+self.db_port+'/retrievedbversion', data=payload)
+
+        if r.status_code ==200:
+            self.log.debug("[DACC] db version retrieved from RESTFul API:%s" % r.text)
+            if self._is_number(r.text):
+                self.db_version = float(r.text)
+                self.log.info("[DAcc] version being used:%s" % self.db_version)
+                return True
+            else:
+                self.log.warning("[DACC] Version Number read from the database is not a number")
+                self.log.debug("[DACC] Database Version Read info:%s:%s" % (r.status_code, r.text))
+                return False
+
+        else:
+            self.log.warning("[DACC] Failed to Read the database version from the RESTFul API")
+            self.log.debug("[DACC] Database Version Read info:%s:%s" % (r.status_code, r.text))
+            return False
         return
 
-    def _write_data_to_file(self,data_to_write):
+    def _db_version_check(self):
         """
-        Given the data, write it to the file. If it fails, try some alternative measures
-        Need to have a flag to indicate if the file is being re-synchronised
+        Check the database version matches the version this software is designed for.
+        End program if different, return false if unknown
         """
-        self.log.info("[DAcc] _write_data_to_file")
-        self.records.append(data_to_write)
-        self._update_record_file()
-        return True
+        if self._connected():
+            self._db_version()
+            if self.db_version not in SUPPORTED_DB_VERSIONS:
+                self.log.critical("[DAcc] Database version is not supported, got:%s, expected:%s"
+                            % (self.db_version, SUPPORTED_DB_VERSIONS))
+                print("\nCRITICAL ERROR, Database version is not supported - contact Support\n")
+                sys.exit()
+            else:
+                self.db_ok = True
+        else:
+            self.log.info("[DAcc] Unable to validate db version as not connected, assuming wrong version.")
+            self.db_ok = False
+        return self.db_ok
 
     def _read_record_from_list(self):
         """
@@ -451,7 +541,9 @@ def SetupLogging():
 def main():
     print("Sending Data In")
     # Need to add comms handler and calib data to test with
-    dacc = DataAccessor(device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
+    # customer, password, db, addr, port, device, sensor, acroynm, desc
+    dacc = DataAccessor(customer='m@mlb.com', password='password', db=SS.DB_LOCAL, addr=SS.DB_LOCAL_ADDR, port=SS.DB_LOCAL_PORT,
+                        device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
     for i in range(0,10):
         dacc.DataIn(GenerateTestData())
     print("\nTransmitting Data\n")
