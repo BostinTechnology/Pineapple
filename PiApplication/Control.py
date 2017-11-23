@@ -23,6 +23,30 @@ Customer Info (cust_info)
 ['db_addr'] - address of the database APi
 ['db_port'] - the port of the database APi
 """
+#BUG: Whilst setting calibration
+"""
+Light Mode
+IR - Infrared Mode  -  ALS - Ambient Light Sensing Mode
+DO you want the sensor to work in IR or ALS mode? (i/a)?a
+Full Scale Range
+0 = 1,000LUX, 1 = 4000LUX, 2=16,000LUX, 3=64,000LUX
+Which Full Scale value is required? (0,1,2,3)?3
+ADC Resolution
+0 = 16bit ADC, 1 = 12bit ADC, 2 = 8bit ADC, 3=4bit ADC
+Which ADC Resolution value is required? (0,1,2,3)?0
+Traceback (most recent call last):
+  File "./Control.py", line 696, in <module>
+    main()
+  File "./Control.py", line 671, in main
+    SetCal()
+  File "./Control.py", line 421, in SetCal
+    calib = icog.SetCalibration()
+  File "/home/pi/Projects/pineapple/PiApplication/i_cog_Ls_1.py", line 119, in SetCalibration
+    calib = self._build_calib_data()
+  File "/home/pi/Projects/pineapple/PiApplication/i_cog_Ls_1.py", line 283, in _build_calib_data
+    data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
+TypeError: unsupported operand type(s) for &: 'float' and 'int'
+"""
 
 #TODO: Review the use of warning, critical and exception. On an error, it is dumping all the exception
      #   data to screen, only wany critical user messages there.
