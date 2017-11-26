@@ -50,13 +50,13 @@ class DataDisplay(Frame):
         self.sensor_info = Label(selection_frame, relief='sunken', text="Log In", textvariable=self.sensor_info_text, width=30, wraplength=50)
         self.sensor_info.grid(row=0, column=2)
         self.login_button = Button(selection_frame, text='Login', command=self.login).grid(row=0, column=3)#, padx=20)
-        selection_frame.grid(row=0, pady=10)
+        selection_frame.grid(row=0, column=0, columnspan=2, pady=10)
 
         # Build the data display frame and the selection part
         data_frame = Frame(self, relief='ridge')
         self.data_info = Label(data_frame, relief='sunken', text="Data Info", textvariable=self.data_window_text, width=30, wraplength=200)
         self.data_info.grid(row=0, column=0)
-        data_frame.grid(row=1, column=0, columnspan=2, pady=10)
+        data_frame.grid(row=1, column=0, pady=10)
         
         # Build the book canvas picture
         graph_frame = Frame(self, relief='ridge')
@@ -72,13 +72,13 @@ class DataDisplay(Frame):
 
         graph_canvas.pack()
 
-        graph_frame.grid(row=1, column=2, columnspan=2)
+        graph_frame.grid(row=1, column=1)
 
         close_frame = Frame(self,relief='ridge')
         self.refresh = Combobox(close_frame, height=10, textvariable=self.refresh_rate, width=20)
         self.refresh.grid(row=2, column=0)#, padx=30)
         exit_program = Button(close_frame, text="Exit", command=self.exit_program).grid(row=2, column=3, padx=40)
-        close_frame.grid(row=2)
+        close_frame.grid(row=2, column=0, columnspan=2)
 
         # Put it all together on the screen
         self.pack(fill=BOTH, expand=NO)

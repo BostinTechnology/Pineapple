@@ -39,7 +39,7 @@ def DynamodbConnection():
     """
     #TODO: Add in validation that a conection has been made.
     db = boto3.client('dynamodb', 
-        endpoint_url='http://192.168.1.167:8000',
+        endpoint_url='http://localhost:8000',
         aws_access_key_id='anything',
         aws_secret_access_key='anything',
         region_name='eu-west-1')
@@ -98,7 +98,7 @@ def CheckTableStatus(db,tbl,reqd):
     starttime = datetime.now()
     tablestatus = ""
     # loop waiting for either the expected status or timer is exceeded
-    while ((tablestatus != req) or 
+    while ((tablestatus != reqd) or 
            ((datetime.now() - starttime) > timedelta(seconds = MAX_TABLE_STATUS_CHANGE_TIME))):
         print ("Checking Status")
         tabledesc = DescribeTable(conn,"users")
