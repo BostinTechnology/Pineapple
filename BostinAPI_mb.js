@@ -84,8 +84,14 @@ function validate_user (db_pwd, res, callback) {
     // given the database returned object, validate it
     console.log("validate_user reached")
     console.log("GetItem succeeded:" + JSON.stringify(db_pwd, null, 2));
+    // Fails here as .Password doesn't exist
+    if (typeof db_pwd.Item.Password == "undefined") {
+        console.log("No password returned");
+        db_pwd.Item.Password = "";
+    }
     console.log("pwd: " + db_pwd.Item.Password);
     console.log("authcode:" + authcode);        // This is empty, should be password passed in
+
     
     user_auth = db_pwd.Item.Password;
     if (user_auth == authcode) {
@@ -243,6 +249,14 @@ function retrievedbversion(status, res) {
 //    return value_dataset;
 }
 
+function authenticateuser(status, res) {
+    // dummy function at present, just returns a good response
+    console.log('authenticateuser reached');
+    res.status(200);
+    res.end()
+}
+
+    
 app.use(express.static('public'));
 
 
@@ -455,6 +469,58 @@ app.get('/connected', function (req, res, next) {
 
     });
 
+app.get('/authenticateuser', function (req, res, next) {
+    // Returns the database version that is currently valid
+    console.log("******************************************");
+    console.log(" RUNNING MB VERSION");
+    console.log("validateuser GET message received as follows: -");
+
+    console.log(req.body);
+
+    var obj, user_name, user_auth, dest;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
+
+    //  - Currently supporting the following destinations.
+    //	- FILE = Filesystem
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
+    // and save data packet to destination
+
+
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(501)
+                break;
+                
+            case "DBLocal":
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
+                
+                var response = get_password(userid, authenticateuser, res, validate_user);    // Once get_password has finished it calls validate_user
+
+                break;
+
+            case "AWS":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                res.sendStatus(501);
+                break;
+
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
+        }
+
+    });
 
 var server = app.listen(8080, function () {
    var host = server.address().address

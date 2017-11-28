@@ -10,6 +10,7 @@
 
 from tkinter import *
 from tkinter.ttk import *
+from tkinter import messagebox
 import logging
 import logging.config
 import dict_Logging
@@ -17,12 +18,68 @@ import dict_Logging
 import os
 import sys
 import os.path
+import requests
 
 import SystemSettings as SS
+
+class Login(Toplevel):
+    """"""
+ 
+    def __init__(self, original):
+        """Constructor"""
+        self.original_frame = original
+        self.user = StringVar()
+        self.password = StringVar()
+        self.db = StringVar()
+        self.login_status = False
+
+        Toplevel.__init__(self)
+        self.geometry("350x200")
+        self.title("Login")
+        self.frame = Frame(self, relief='ridge')
+        Label(self.frame, text="     Username:").grid(row=0,column=0, padx=20, sticky=W)
+        user = Entry(self.frame, textvariable=self.user).grid(row=0,column=1, padx=10, pady=10, sticky=E)
+        Label(self.frame, text="     Password:").grid(row=1,column=0, padx=20, sticky=W)
+        password = Entry(self.frame, textvariable=self.password, show='*').grid(row=1,column=1, padx=10, pady=10, sticky=E)
+        Radiobutton(self.frame, text="File", value="FILE", variable=self.db).grid(row=2,column=0, sticky=W, padx=10)
+        Radiobutton(self.frame, text="DBLocal", value="DBLocal", variable=self.db).grid(row=2,column=1, sticky=W, padx=10)
+        Radiobutton(self.frame, text="DBRemote", value="DBRemote", variable=self.db).grid(row=3,column=0, sticky=W, padx=10)
+        Radiobutton(self.frame, text="AWS", value="AWS", variable=self.db).grid(row=3,column=1, sticky=W, padx=10)
+        self.db.set("DBLocal")
+        btn = Button(self.frame, text="Login", command=self.onLogin).grid(row=4,column=0, pady=10, columnspan=2)
+
+        self.frame.pack(fill=BOTH, expand=NO)#, anchor="center")
+ 
+    def onLogin(self):
+        """"""
+        # Validate the input
+        if self.check_credentials():
+            self.destroy()
+            self.original_frame.show(True, self.user.get(), self.password.get())
+        else:
+            messagebox.showinfo("Unsuccessful", "Username / password not authenticated" )
+        return
+
+    def check_credentials(self):
+        """"""
+        print("Checking Credentials")
+        fulldata = {'id':self.user.get(), 'auth':self.password.get(), 'dest':self.db.get()}
+        #print("Payload Being Sent:\n%s" % fulldata)
+        try:
+            r = requests.get('http://RPi_3B:8080/authenticateuser', data=fulldata)
+            #print("response:%s" % r)
+            if r.status_code ==200:
+                self.status = True
+            else:
+                self.status = False
+        except:
+            self.status = False
+        return self.status
 
 class DataDisplay(Frame):
     def __init__(self, master=None):
         Frame.__init__(self,master)
+        self.master = master
 
         gbl_log.info("Starting Main Frame")
         # These are the tuples of what is selected in the listbox
@@ -34,26 +91,21 @@ class DataDisplay(Frame):
         self.data_window_text = StringVar()
         self.refresh_rate = IntVar()
 
-
-        #These are the check boxes
-        self.label_text = StringVar()
-        self.label_text.set("Enter Book info")
-
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
         self.device = Combobox(selection_frame, height=10, textvariable=self.current_device, width=20)
 #        self.user.bind("<<ComboboxSelected>>", self.reset_find)
-        self.device.grid(row=0, column=0)#, padx=30)
+        self.device.grid(row=0, column=0, padx=30)
         self.sensor = Combobox(selection_frame, height=10, textvariable=self.current_sensor, width=10)
 #        self.press.bind("<<ComboboxSelected>>", self.reset_find)
-        self.sensor.grid(row=0, column=1)#, padx=10)
+        self.sensor.grid(row=0, column=1, padx=10)
         self.sensor_info = Label(selection_frame, relief='sunken', text="Log In", textvariable=self.sensor_info_text, width=30, wraplength=50)
         self.sensor_info.grid(row=0, column=2)
-        self.login_button = Button(selection_frame, text='Login', command=self.login).grid(row=0, column=3)#, padx=20)
+        self.login_button = Button(selection_frame, text='Login', command=self.login).grid(row=0, column=3, padx=20)
         selection_frame.grid(row=0, column=0, columnspan=2, pady=10)
 
         # Build the data display frame and the selection part
-        data_frame = Frame(self, relief='ridge')
+        data_frame = Frame(self, relief='ridge',width=20,height=20)
         self.data_info = Label(data_frame, relief='sunken', text="Data Info", textvariable=self.data_window_text, width=30, wraplength=200)
         self.data_info.grid(row=0, column=0)
         data_frame.grid(row=1, column=0, pady=10)
@@ -61,22 +113,19 @@ class DataDisplay(Frame):
         # Build the book canvas picture
         graph_frame = Frame(self, relief='ridge')
         graph_canvas = Canvas(graph_frame, width=450, height=300, background='#ffffff')
-        graph_canvas.create_polygon(140,60,290,75,280,240,130,225, outline="blue", fill="")
-        graph_canvas.create_line(140,60,130,45,120,210,130,225, fill="blue")          # spine line
-        graph_canvas.create_line(128,78,138,93, fill="lightblue")          # across spine line upper
-        graph_canvas.create_line(126,111,136,126, fill="green")          # across spine line upper middle
-        graph_canvas.create_line(124,144,134,159, fill="brown")          # across spine linelower middle
-        graph_canvas.create_line(122,177,132,192, fill="lightgreen")          # across spine line lower
-        graph_canvas.create_line(130,45,280,60,290,75, fill="blue")                   # top line
-        graph_canvas.create_arc(220,185,360,275,outline="red",style="arc")
-
+        graph_canvas.create_polygon(20,20,430,20,430,280,20,280, outline="green", fill="")
+        for r in range(40,280,20):
+            graph_canvas.create_line(20,r,430,r, fill="lightblue")
+        for c in range(40,430,20):
+            graph_canvas.create_line(c,20,c,280, fill="lightblue")
+        
         graph_canvas.pack()
 
         graph_frame.grid(row=1, column=1)
 
         close_frame = Frame(self,relief='ridge')
         self.refresh = Combobox(close_frame, height=10, textvariable=self.refresh_rate, width=20)
-        self.refresh.grid(row=2, column=0)#, padx=30)
+        self.refresh.grid(row=2, column=0, padx=30)
         exit_program = Button(close_frame, text="Exit", command=self.exit_program).grid(row=2, column=3, padx=40)
         close_frame.grid(row=2, column=0, columnspan=2)
 
@@ -103,7 +152,23 @@ class DataDisplay(Frame):
         return True
 
     def login(self):
-        # called from teh login button
+        # called from the login button
+        self.hide()
+        subFrame = Login(self)
+        
+    def hide(self):
+        """"""
+        self.master.withdraw()
+        return
+
+    def show(self,status, uid, pwd):
+        """"""
+        self.status = status        # The value passed back from the pop up window
+        self.user = uid
+        self.password = pwd
+        self.master.update()
+        self.master.deiconify()
+        print("Details Back - status:%s, username:%s, password:%s" % (self.status, self.user, self.password))
         return
         
     def exit_program(self):
@@ -136,7 +201,7 @@ def main():
     text_font = ('TkDefault', '20')
     root.option_add('*TCombobox*Listbox.font', text_font)
     #root.option_add('*TCombobox*Height', 20)
-    app = DataDisplay(master=root)
+    app = DataDisplay(root)
     root.geometry("800x410")
     app.master.title("Data Display Tool")
     app.mainloop()
