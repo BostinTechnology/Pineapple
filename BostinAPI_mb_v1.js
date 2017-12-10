@@ -38,7 +38,111 @@ AWS.config.update({
 var dynamodb = new AWS.DynamoDB();
 
 
-function retrievesensorvalues(req, res) {
+function get_password (user_name, cb_func, res, callback) {
+    // request the password from the db and return it to the callback function with a further callback function to run
+    // parameters user_name = user name, 
+    // cb_func = the function to pass into the callback when got good data
+    // callback = the function to run when the data read completed
+    console.log("==>get_password reached");
+    //var dynamodb = new AWS.DynamoDB();
+    
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    
+    console.log("User Name being used:" + user_name);
+    
+    var params = {
+        TableName: 'Users',
+        Key: { 
+            "UserName": user_name
+        },
+        AttributesToGet: [ 
+            'Password'
+        ],
+        ConsistentRead: true,
+    };
+    
+    console.log("params:"+JSON.stringify(params));
+    
+    docClient.get(params, function(err, data) {
+        if (err) {
+            console.log("get_password returned an error:" + err);
+            // Need to sort out NEGATIVE response here to http call.
+            res.sendStatus(403);
+            res.end();
+        } else
+        {
+            // this is called when the getItem returns
+            console.log("Data Back:" + JSON.stringify(data, null, 2));
+            callback(data, res, cb_func);     // returns the data to the calling function with cb_func as callback
+        }
+    });
+    
+    console.log("get_password completed");
+}
+
+function validate_user (db_pwd, res, callback) {
+    // given the database returned object, validate it
+    console.log("==>validate_user reached")
+    console.log("GetItem succeeded:" + JSON.stringify(db_pwd, null, 2));
+    // Fails here as .Password doesn't exist
+    if (typeof db_pwd.Item.Password == "undefined") {
+        console.log("No password returned");
+        db_pwd.Item.Password = "";
+    }
+    console.log("pwd: " + db_pwd.Item.Password);
+    console.log("authcode:" + authcode);        // This is empty, should be password passed in
+
+    
+    user_auth = db_pwd.Item.Password;
+    if (user_auth == authcode) {
+        msg = "\tValidated User...."
+        console.log(msg);
+        callback(true, res);
+
+    }
+    else {
+        msg = "\tInvalid Authorisation Code";
+        console.log(msg);
+        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
+        res.end()
+        }
+
+}
+
+function submitdata(status, res) {
+    // given the status, write the data help in the post body (packet) to the database
+    console.log("==>submitdata reached");
+    
+    if (status == true) {
+        // only write the data if status is set to true
+
+        var params = {
+            TableName: 'SensorValues',
+            Item: packet,
+        };        
+        console.log("submit params:" + JSON.stringify(params));
+        dynamodb.putItem(params, function(err, data) {
+            if (err) {
+                console.log("submitdata returned an error:" + err);
+                res.sendStatus(400);
+                
+            } else
+            {
+                // this is called when the putItem returns
+                console.log("Data Written successfully??");
+                // need to return positive here to the http call!!!
+                res.sendStatus(200);
+                
+            }
+        });
+
+    };
+    console.log("submitdata completed");
+
+    return;
+}
+
+function retrievesensorvalues(status, res) {
     // returns a list of the most recent 100 items from the database
 
     console.log('==>retrievesensorvalues reached');
@@ -55,7 +159,7 @@ function retrievesensorvalues(req, res) {
             '#name': 'Device_ID'
         },
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
-          ':value': req.body.device_id // 3355054600 //2480248024
+          ':value': 3355054600 //2480248024
         },
         ScanIndexForward: false,            // return the last xx items
         Limit: 100,
@@ -81,7 +185,8 @@ function retrievesensorvalues(req, res) {
     });
 }
 
-function retrievedbversion(res) {
+
+function retrievedbversion(status, res) {
     // retrieves the valid db versions from the database
     console.log('==>retrievedbversion reached');
 
@@ -127,104 +232,36 @@ function retrievedbversion(res) {
 //    return value_dataset;
 }
 
-function authenticateuser(res) {
+function authenticateuser(status, res) {
     // dummy function at present, just returns a good response
     console.log('==>authenticateuser reached');
     res.status(200);
     res.end()
 }
 
-
-
-function submitdata(req, res) {
-    // given the status, write the data help in the post body (packet) to the database
-    console.log("==>submitdata reached");
-    
-    var params = {
-        TableName: 'SensorValues',
-        Item: JSON.parse(req.body.data),
-    };        
-    console.log("submit params:" + JSON.stringify(params));
-    dynamodb.putItem(params, function(err, data) {
-        if (err) {
-            console.log("submitdata returned an error:" + JSON.stringify(err));
-            res.sendStatus(400);
-            
-        } else
-        {
-            // this is called when the putItem returns
-            console.log("Data Written successfully??"+JSON.stringify(data));
-            // need to return positive here to the http call!!!
-            console.log("message:"+JSON.stringify(data));
-            res.sendStatus(200);
-            
-        }
-    });
-
-    console.log("submitdata completed");
-
-    return;
-}
-
-var ValidateUserMiddleware = function(req, res, next) {
-    console.log("\n\n==>ValidateUserMiddleware reached\n\n")
-
-    var docClient = new AWS.DynamoDB.DocumentClient();
-    
-    var params = {
-        TableName: 'Users',
-        Key: { 
-            "UserName": req.body.id
-        },
-        AttributesToGet: [ 
-            'Password'
-        ],
-        ConsistentRead: true,
-    };
-    
-    console.log("params:"+JSON.stringify(params));
-    
-    docClient.get(params, function(err, data) {
-        if (err) {
-            console.log("ValidateUserMiddleware returned an error:" + JSON.stringify(err));
-            req.validated = false;
-            next();
-            // Need to sort out NEGATIVE response here to http call.
-        } else
-        {
-            // this is called when the getting of the password returns
-            console.log("Data Back:" + JSON.stringify(data, null, 2));
-            req.password = data['Item']['Password'];
-            if (req.body.auth == req.password) {
-                console.log("\tValidated User....");
-                req.validated = true;
-                next();
-            }
-            else {
-                console.log("\tInvalid Authorisation Code");
-                req.validated = false;
-                next();
-            }
-        }
-    });
-}
     
 app.use(express.static('public'));
 
 
-app.post('/submitdata', ValidateUserMiddleware, function (req, res, next) {
+app.post('/submitdata', function (req, res, next) {
 
     console.log("******************************************");
     console.log(" RUNNING MB VERSION");
-    console.log("submitdata POST message values: -");
+    console.log("submitdata POST message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    console.log(req.body);
 
+    var obj, user_name, user_auth;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    packet = JSON.parse(req.body.data);     // This is coming in as a string, needs to be an object
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
+    console.log("packet:" + packet);
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -232,52 +269,54 @@ app.post('/submitdata', ValidateUserMiddleware, function (req, res, next) {
     //	- AWS = Amazon AWS
     // and save data packet to destination
 
-    if (req.validated) {
-        switch(req.body.dest) {
-                case "FILE":
-                    console.log("\nSending data packet to FILESYSTEM");
-                    //console.log(data);
-                    res.sendStatus(501);
-                    break;
-                    
-                case "DBLocal":
-                case "DBRemote":
-                    console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
-                    submitdata(req, res);
+    switch(dest) {
+            case "FILE":
+                console.log("\nSending data packet to FILESYSTEM");
+                console.log(data);
+                res.sendStatus(501);
+                break;
+                
+            case "DBLocal":
+            case "DBRemote":
+                console.log("\nSending data packet to "+dest+" DATABASE");
+                console.log(packet);
 
-                    break;
+                var response = get_password(userid, submitdata, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                case "AWS":
-                    console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
-                    res.sendStatus(501);
-                    break;
+                break;
 
-                default:
-                    console.log("\n\nERROR : Unrecognised destination");
-                    res.sendStatus(501);
-        }
+            case "AWS":
+                console.log("\nSending data packet to Amazon AWS");
+                console.log(data);
+                res.sendStatus(501);
+                break;
+
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
     }
-    else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
-    }
-    console.log("\n /submitdata completed");
+                
+    console.log("\n /submitdata completed, awaiting callback....");
     });
 
-app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, next) {
+app.get('/retrievesensorvalues', function (req, res, next) {
 
     console.log("******************************************");
     console.log(" RUNNING MB VERSION");
     console.log("retrievesensorvalues GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    console.log(req.body);
+
+    var obj, user_name, user_auth;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -285,53 +324,51 @@ app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, nex
     //	- AWS = Amazon AWS
     // and save data packet to destination
 
-    if (req.validated) {
-        switch(req.body.dest) {
-                case "FILE":
-                    console.log("\nSending data packet to FILESYSTEM");
-                    //console.log(data);
-                    res.sendStatus(501);
-                    break;
-                    
-                case "DBLocal":
-                case "DBRemote":
-                    console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
-                    retrievesensorvalues(req, res);
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(501)
+                break;
+                
+            case "DBLocal":
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
+                
+                var response = get_password(userid, retrievesensorvalues, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                    break;
+                break;
 
-                case "AWS":
-                    console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
-                    res.sendStatus(501);
-                    break;
+            case "AWS":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                res.sendStatus(501);
+                break;
 
-                default:
-                    console.log("\n\nERROR : Unrecognised destination");
-                    res.sendStatus(501);
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
         }
-    }
-    else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
-    }
-    console.log("\n /retrievesensorvalues completed");
+    });
 
-});
-
-app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) {
+app.get('/retrievedbversion', function (req, res, next) {
     // Returns the database version that is currently valid
     console.log("******************************************");
     console.log(" RUNNING MB VERSION");
     console.log("retrievedbversions GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    console.log(req.body);
+
+    var obj, user_name, user_auth;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -339,39 +376,34 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
     //	- AWS = Amazon AWS
     // and save data packet to destination
 
-    if (req.validated) {
-        switch(req.body.dest) {
-                case "FILE":
-                    console.log("\nSending data packet to FILESYSTEM");
-                    //console.log(data);
-                    res.sendStatus(501);
-                    break;
-                    
-                case "DBLocal":
-                case "DBRemote":
-                    console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
-                    retrievedbversion(res);
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(501)
+                break;
+                
+            case "DBLocal":
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
+                
+                var response = get_password(userid, retrievedbversion, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                    break;
+                break;
 
-                case "AWS":
-                    console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
-                    res.sendStatus(501);
-                    break;
+            case "AWS":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                res.sendStatus(501);
+                break;
 
-                default:
-                    console.log("\n\nERROR : Unrecognised destination");
-                    res.sendStatus(501);
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
         }
-    }
-    else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
-    }
-    console.log("/retrievedbversion completed");
-});
+
+    });
 
 app.get('/connected', function (req, res, next) {
     // Returns a positive response, used to confirm there is connectivity to the client
@@ -380,16 +412,11 @@ app.get('/connected', function (req, res, next) {
     console.log(" RUNNING MB VERSION");
     console.log("connected GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    console.log(req.body);
 
     // convert incoming post to component parts
     dest = req.body.dest;
-    console.log("dest:" + req.body.dest);
+    console.log("dest:" + dest);
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -398,20 +425,22 @@ app.get('/connected', function (req, res, next) {
     // and save data packet to destination
 
 
-    switch(req.body.dest) {
+    switch(dest) {
             case "FILE":
                 console.log("\nChecking FILESYSTEM enabled");
+                console.log(data);
                 res.sendStatus(501)
                 break;
                 
             case "DBLocal":
             case "DBRemote":
-                console.log("\nChecking "+req.body.dest+" DATABASE enabled");
+                console.log("\nChecking "+dest+" DATABASE enabled");
                 res.sendStatus(200);
                 break;
 
             case "AWS":
                 console.log("\nChecking Amazon AWS enabled");
+                console.log(data);
                 res.sendStatus(501);
                 
                 break;
@@ -429,12 +458,17 @@ app.get('/authenticateuser', function (req, res, next) {
     console.log(" RUNNING MB VERSION");
     console.log("authenticateuser GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    console.log(req.body);
+
+    var obj, user_name, user_auth, dest;
+
+    // convert incoming post to component parts
+    userid = req.body.id;
+    authcode = req.body.auth;
+    dest = req.body.dest;
+    console.log("userid:"+userid);
+    console.log("authcode:" + authcode);
+    console.log("dest:" + dest);
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -442,38 +476,33 @@ app.get('/authenticateuser', function (req, res, next) {
     //	- AWS = Amazon AWS
     // and save data packet to destination
 
-    if (req.validated) {
-        switch(req.body.dest) {
-                case "FILE":
-                    console.log("\nSending data packet to FILESYSTEM");
-                    //console.log(data);
-                    res.sendStatus(501);
-                    break;
-                    
-                case "DBLocal":
-                case "DBRemote":
-                    console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
-                    authenticateuser(res);
+    switch(dest) {
+            case "FILE":
+                console.log("\nGetting data from FILESYSTEM");
+                console.log(data);
+                res.sendStatus(501)
+                break;
+                
+            case "DBLocal":
+            case "DBRemote":
+                console.log("\nGetting data packet from "+dest+" DATABASE");
+                
+                var response = get_password(userid, authenticateuser, res, validate_user);    // Once get_password has finished it calls validate_user
 
-                    break;
+                break;
 
-                case "AWS":
-                    console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
-                    res.sendStatus(501);
-                    break;
+            case "AWS":
+                console.log("\nGetting data packet from Amazon AWS");
+                console.log(data);
+                res.sendStatus(501);
+                break;
 
-                default:
-                    console.log("\n\nERROR : Unrecognised destination");
-                    res.sendStatus(501);
+            default:
+                console.log("\n\nERROR : Unrecognised destination");
+                res.sendStatus(501);
         }
-    }
-    else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
-    }
-    console.log("/retrievedbversion completed");
+
     });
 
 var server = app.listen(8080, function () {
