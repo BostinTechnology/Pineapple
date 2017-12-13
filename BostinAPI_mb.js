@@ -37,9 +37,30 @@ AWS.config.update({
             });
 var dynamodb = new AWS.DynamoDB();
 
+   
+function consolelogdata (req) {
+    // function to log all the possible console data to the the screen
+    console.log("Parameters being passed into main function following validation of user");
+    console.log("userid:"+req.body.id);
+    console.log("authcode:" + req.body.auth);
+    console.log("dest:" + req.body.dest);
+    // All the rest are not in every case, so only display them if they exists
+    if (typeof req.body.data !== 'undefined') {
+        console.log("packet:" + JSON.parse(req.body.data));
+    }
+    if (typeof req.device_id !== 'undefined') {
+        console.log("device_id: "+req.device_id);
+    }
+    if (typeof req.password !== 'undefined') {
+        console.log("Password: "+req.password);
+    }
+    if (typeof req.validated !== 'undefined') {
+        console.log("Validated: "+req.validated)
+    }
+}
 
 function retrievesensorvalues(req, res) {
-    // returns a list of the most recent 100 items from the database
+    // returns a list of the most recent 100 items from the database for the specified device
 
     console.log('==>retrievesensorvalues reached');
 
@@ -76,6 +97,50 @@ function retrievesensorvalues(req, res) {
 
             console.log("Data Returned:" + value_dataset);
             res.status(200).send(value_dataset);
+            
+        }
+    });
+}
+
+function retrievedevicelist(req, res) {
+    // returns a list of the most recent 100 items from the database for the specified device
+
+    console.log('==>retrievesensorvalues reached');
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
+    var device_list = [];
+    //context.fillText("Retriving Data", 300, 50);      //debug data
+    // TODO: Need to pass in the device_id
+    var params = {
+        TableName: 'Users',
+        KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
+        ExpressionAttributeNames: { // a map of substitutions for attribute names with special characters
+            '#name': 'UserName'
+        },
+        ExpressionAttributeValues: { // a map of substitutions for all attribute values
+          ':value': req.body.id
+        },
+        ScanIndexForward: false,            // return the last xx items
+        Limit: 100,
+        ProjectionExpression: "Devices",
+    };
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.log("retrievesensorvalues query returned error: " + err);
+            res.sendStatus(400);
+        } else {
+            // The followingline shows how to retrieve just the value I am interested in 
+            // Need to loop it through next.
+            var dataset = data['Items']; 
+
+            for (var i = 0; i < dataset.length; i = i + 1) {
+                device_list[i] = dataset[i]['Devices'];
+            };
+
+            console.log("Data Returned:" + JSON.stringify(device_list));
+            res.status(200).send(JSON.stringify(device_list));
+            // BUG: The data is return as a string, not a list
             
         }
     });
@@ -134,8 +199,6 @@ function authenticateuser(res) {
     res.end()
 }
 
-
-
 function submitdata(req, res) {
     // given the status, write the data help in the post body (packet) to the database
     console.log("==>submitdata reached");
@@ -166,8 +229,13 @@ function submitdata(req, res) {
     return;
 }
 
+
 var ValidateUserMiddleware = function(req, res, next) {
-    console.log("\n\n==>ValidateUserMiddleware reached\n\n")
+    console.log("\n******************************************");
+    console.log(" RUNNING MB VERSION");
+    console.log(req.path + " message received");
+
+    console.log("\n==>ValidateUserMiddleware reached\n\n")
 
     var docClient = new AWS.DynamoDB.DocumentClient();
     
@@ -209,21 +277,17 @@ var ValidateUserMiddleware = function(req, res, next) {
     });
 }
     
+
 app.use(express.static('public'));
 
 
 app.post('/submitdata', ValidateUserMiddleware, function (req, res, next) {
 
-    console.log("******************************************");
-    console.log(" RUNNING MB VERSION");
-    console.log("submitdata POST message values: -");
+//    console.log("******************************************");
+//    console.log(" RUNNING MB VERSION");
+//    console.log("submitdata POST message values: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    consolelogdata(req);        // output the incoming data
 
 
     //  - Currently supporting the following destinations.
@@ -261,6 +325,7 @@ app.post('/submitdata', ValidateUserMiddleware, function (req, res, next) {
         }
     }
     else {
+        console.log("*** Data has not been sent");
         res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
     }
     console.log("\n /submitdata completed");
@@ -268,23 +333,18 @@ app.post('/submitdata', ValidateUserMiddleware, function (req, res, next) {
 
 app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, next) {
 
-    console.log("******************************************");
-    console.log(" RUNNING MB VERSION");
-    console.log("retrievesensorvalues GET message received as follows: -");
+//    console.log("******************************************");
+//    console.log(" RUNNING MB VERSION");
+//    console.log("retrievesensorvalues GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    consolelogdata(req);        // output the incoming data
+
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
     //	- DBLocal = Local DynamoDB Database 
     //	- AWS = Amazon AWS
     // and save data packet to destination
-
     if (req.validated) {
         switch(req.body.dest) {
                 case "FILE":
@@ -296,7 +356,6 @@ app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, nex
                 case "DBLocal":
                 case "DBRemote":
                     console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
                     retrievesensorvalues(req, res);
 
@@ -320,18 +379,61 @@ app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, nex
 
 });
 
+app.get('/retrievedevicelist', ValidateUserMiddleware, function (req, res, next) {
+
+//    console.log("******************************************");
+//    console.log(" RUNNING MB VERSION");
+//    console.log("retrievesensorvalues GET message received as follows: -");
+
+    consolelogdata(req);        // output the incoming data
+
+
+    //  - Currently supporting the following destinations.
+    //	- FILE = Filesystem
+    //	- DBLocal = Local DynamoDB Database 
+    //	- AWS = Amazon AWS
+    // and save data packet to destination
+    if (req.validated) {
+        switch(req.body.dest) {
+                case "FILE":
+                    console.log("\nSending data packet to FILESYSTEM");
+                    //console.log(data);
+                    res.sendStatus(501);
+                    break;
+                    
+                case "DBLocal":
+                case "DBRemote":
+                    console.log("\nSending data packet to "+req.body.dest+" DATABASE");
+
+                    retrievedevicelist(req, res);
+
+                    break;
+
+                case "AWS":
+                    console.log("\nSending data packet to Amazon AWS");
+                    console.log(data);
+                    res.sendStatus(501);
+                    break;
+
+                default:
+                    console.log("\n\nERROR : Unrecognised destination");
+                    res.sendStatus(501);
+        }
+    }
+    else {
+        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
+    }
+    console.log("\n /retrievesensorvalues completed");
+
+});
+
 app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) {
     // Returns the database version that is currently valid
-    console.log("******************************************");
-    console.log(" RUNNING MB VERSION");
-    console.log("retrievedbversions GET message received as follows: -");
+//    console.log("******************************************");
+//    console.log(" RUNNING MB VERSION");
+//    console.log("retrievedbversions GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    consolelogdata(req);        // output the incoming data
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -350,7 +452,6 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
                 case "DBLocal":
                 case "DBRemote":
                     console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
                     retrievedbversion(res);
 
@@ -376,20 +477,11 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
 app.get('/connected', function (req, res, next) {
     // Returns a positive response, used to confirm there is connectivity to the client
     // ONly requires the destination to confirm link ok
-    console.log("******************************************");
+    console.log("\n******************************************");
     console.log(" RUNNING MB VERSION");
     console.log("connected GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
-
-    // convert incoming post to component parts
-    dest = req.body.dest;
-    console.log("dest:" + req.body.dest);
+    consolelogdata(req);        // output the incoming data
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -423,18 +515,14 @@ app.get('/connected', function (req, res, next) {
 
     });
 
-app.get('/authenticateuser', function (req, res, next) {
+app.get('/authenticateuser', ValidateUserMiddleware, function (req, res, next) {
     // Returns the database version that is currently valid
-    console.log("******************************************");
-    console.log(" RUNNING MB VERSION");
-    console.log("authenticateuser GET message received as follows: -");
+//    console.log("******************************************");
+//    console.log(" RUNNING MB VERSION");
+//    console.log("authenticateuser GET message received as follows: -");
 
-    console.log("userid:"+req.body.id);
-    console.log("authcode:" + req.body.auth);
-    console.log("dest:" + req.body.dest);
-    console.log("packet:" + JSON.parse(req.body.data));
-    console.log("Password: "+req.password);
-    console.log("Validated: "+req.validated);
+    consolelogdata(req);        // output the incoming data
+
 
     //  - Currently supporting the following destinations.
     //	- FILE = Filesystem
@@ -453,7 +541,6 @@ app.get('/authenticateuser', function (req, res, next) {
                 case "DBLocal":
                 case "DBRemote":
                     console.log("\nSending data packet to "+req.body.dest+" DATABASE");
-                    console.log(JSON.parse(req.body.data));
 
                     authenticateuser(res);
 
@@ -475,6 +562,7 @@ app.get('/authenticateuser', function (req, res, next) {
     }
     console.log("/retrievedbversion completed");
     });
+
 
 var server = app.listen(8080, function () {
    var host = server.address().address

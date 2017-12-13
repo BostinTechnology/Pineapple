@@ -81,6 +81,22 @@ def retrievesensorvalues():
         print('Failed to Read')
         print('Status Code:%s' % r.status_code)
     return
+    
+def retrievedevicelist():
+    print("Retreiving Devices List")
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', }
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get(API_ADDRESS+'/retrievedevicelist', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
 
 def retrievedbversion():
     print("Retrieving Database Version info")
@@ -130,17 +146,19 @@ def authenticateuser():
 def main():
     
     
-    #connected()
+    connected()
 
-    #authenticateuser()
+    authenticateuser()
     
     submitdata()
 
     submitdata_false()
 
-    #retrievesensorvalues()
+    retrievesensorvalues()
 
-    #retrievedbversion()
+    retrievedbversion()
+
+    retrievedevicelist()
     
     return
 

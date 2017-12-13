@@ -6,6 +6,10 @@
     
 """
 
+#TODO: Force Login at the beginning
+#TODO: Populate Device / Sensor selection
+#TODO: 
+
 
 
 from tkinter import *
@@ -20,6 +24,7 @@ import sys
 import os.path
 import requests
 import random
+import json
 
 import SystemSettings as SS
 
@@ -75,7 +80,7 @@ class Login(Toplevel):
         # Validate the input
         if self.check_credentials():
             self.destroy()
-            self.original_frame.after_login_show(True, self.user.get(), self.password.get())
+            self.original_frame.after_login_show(True, self.user.get(), self.password.get(), self.db.get())
         else:
             messagebox.showinfo("Unsuccessful", "Username / password not authenticated" )
         return
@@ -96,6 +101,8 @@ class Login(Toplevel):
             self.login_status = False
         return self.login_status
 
+
+
 class DataDisplay(Frame):
     def __init__(self, master=None):
         Frame.__init__(self,master)
@@ -105,27 +112,27 @@ class DataDisplay(Frame):
         gbl_log.info("Starting Main Frame")
         # These are the tuples of what is selected in the listbox
         self.current_device = StringVar()
-        self.current_sensor = StringVar()
-        self.user = StringVar()
-        self.password = StringVar()
-        self.sensor_info_text = StringVar()
+        self.current_sensor_acroyn = StringVar()
+        self.current_sensor_desc = StringVar()
+        self.user = ""
+        self.password = ""
+        self.db = ""
+        self.device_dict = {}
         self.data_window_text = StringVar()
         self.refresh_rate = IntVar()
 
-        self.running = True#False just to test        # When true, data is being captured.
+        self.running = False       # When true, data is being captured.
         self.data_in = []           # The data after it has been passed into the 
         self.dataset = []           # The dataset being displayed and graphed
-                                    # The newest reading is the last one in the list
 
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
         self.device = Combobox(selection_frame, height=10, textvariable=self.current_device, width=20)
-#        self.user.bind("<<ComboboxSelected>>", self.reset_find)
+        self.device.bind("<<ComboboxSelected>>", self.populate_sensor_info)
         self.device.grid(row=0, column=0, padx=30)
-        self.sensor = Combobox(selection_frame, height=10, textvariable=self.current_sensor, width=10)
-#        self.press.bind("<<ComboboxSelected>>", self.reset_find)
+        self.sensor = Label(selection_frame, relief='sunken', textvariable=self.current_sensor_acroyn, width=10)
         self.sensor.grid(row=0, column=1, padx=10)
-        self.sensor_info = Label(selection_frame, relief='sunken', text="Log In", textvariable=self.sensor_info_text, width=30, wraplength=50)
+        self.sensor_info = Label(selection_frame, relief='sunken', textvariable=self.current_sensor_desc, width=30, wraplength=50)
         self.sensor_info.grid(row=0, column=2)
         self.login_button = Button(selection_frame, text='Login', command=self.call_login_popup).grid(row=0, column=3, padx=20)
         selection_frame.grid(row=0, column=0, columnspan=2, pady=10)
@@ -160,11 +167,44 @@ class DataDisplay(Frame):
         self.after(100, self.main)      # was root.
         return
 
+    def populate_sensor_info(self, event):
+        """
+        Populate the sensor info following selection of the device id.
+        """
+        print("populate sensor values reached")
+        selection = self.device.get()
+        for entry in self.device_dict:
+            if entry['DeviceID'] == selection:
+                self.current_sensor_acroyn.set(entry['DeviceAcroynm'])
+                self.current_sensor_desc.set(entry['DeviceDescription'])
+        self.running = True
+        
     def populate_dropdowns(self):
         """
         Populate the variables used by the main display from data from the db
         """
-        
+        # Initially can only populate the device list
+        print("Getting Device List")
+        fulldata = {'id':self.user, 'auth':self.password, 'dest':self.db}
+        #print("Payload Being Sent:\n%s" % fulldata)
+        try:
+            r = requests.get('http://RPi_3B:8080/retrievedevicelist', data=fulldata)
+            #print("response:%s" % r)
+            if r.status_code ==200:
+                # r.text contains the dictionary of data
+                device_list = []
+                self.device_dict = json.loads(r.text)
+                for entry in self.device_dict:
+                    # r.text could contain multiple dictionaries in the response
+                    device_list.append(entry['DeviceID'])
+                self.device['values'] = device_list
+
+            else:
+                self.device['values'] = ["No Devices"]
+        except:
+            self.device['values'] = ["Error Finding devices"]
+            
+        #print("Device List:%s <-> %s" % (self.device['values'], device_list))
         return
 
     def check_data_entered(self):
@@ -263,14 +303,15 @@ class DataDisplay(Frame):
         self.master.withdraw()
         return
 
-    def after_login_show(self,status, uid, pwd):
+    def after_login_show(self,status, uid, pwd, db):
         """This is called after the pop up window has completed"""
         self.status = status        # The value passed back from the pop up window
         self.user = uid
         self.password = pwd
+        self.db = db
         self.master.update()
         self.master.deiconify()
-        print("Details Back - status:%s, username:%s, password:%s" % (self.status, self.user, self.password))
+        print("Details Back - status:%s, username:%s, password:%s, db:%s" % (self.status, self.user, self.password, self.db))
         self.populate_dropdowns()
         return
         
