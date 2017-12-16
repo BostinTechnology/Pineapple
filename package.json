@@ -2,7 +2,7 @@
   "name": "pineapple",
   "version": "1.0.0",
   "description": "Bostin CognIoT API installation.",
-  "main": "BostinAPI.js",
+  "main": "BostinAPI_mb.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"

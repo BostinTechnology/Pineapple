@@ -121,9 +121,6 @@ class ID_IoT():
     def ReturnSensorPartNumber(self):
         return self.sensor_part_number
 
-    def ReturnSensorType(self):
-        return self.sensor_type
-
     def ReturnSensorManufacturer(self):
         return self.sensor_manufacturer
 
