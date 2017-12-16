@@ -26,7 +26,8 @@ EEPROM_READ_RETRY = 5               # How many times it will try and read data f
 #Database Locations
 DB_LOCAL = 'DBLocal'
 DB_AWS = 'AWS'
-DB_REMOTE = 'DBRemote'
+DB_LORA = 'DBLoRa'
+DB_WIFI = 'Wifi'
 
 # Database API address information
 DB_LOCAL_ADDR = 'localhost'
@@ -34,6 +35,9 @@ DB_LOCAL_PORT = '8080'
 DB_AWS_ADDR = '192.168.1.182'
 DB_AWS_PORT = '8080'
 DB_REMOTE_PORT = '8080'         # Default Value
+DB_LORA_ADDR = 'unknown'
+DB_LORA_PORT = '0000'
+
 
 TRANSMIT_FREQ = 30                  # The time between each transmitting of data
 

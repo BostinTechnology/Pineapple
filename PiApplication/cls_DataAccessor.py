@@ -93,7 +93,7 @@ class DataAccessor:
         self.acroynm = acroynm
         self.description = desc
         #self._db_version_check()
-        
+
         return
 
     def DataIn(self,data):
@@ -183,7 +183,8 @@ class DataAccessor:
 
     def _write_data_to_file(self, data_to_write):
         """
-        Takes the given data and creates a new file with the contents of it
+        Takes the given data and creates a new file with the contents of it and the following information
+            deviceID, SensorID, Acroynm, Description
         Format of the filename is based on standard settings
             RECORDFILE_NAME+tiemstamp+RECORDFILE_EXT
         Stored in sub folder
@@ -192,6 +193,13 @@ class DataAccessor:
         Disk space management is handled by the calling program
         """
         status = False
+        record_to_write = []
+        #Create additional data for the record
+        record_to_write.append(self.device)
+        record_to_write.append(self.sensor)
+        record_to_write.append(self.acroynm)
+        record_to_write.append(self.description)
+        record_to_write.append(data_to_write)
         file_time = datetime.now().strftime("%y%m%d%H%M%S-%f")
 
         #TODO: If the datafile directoryu doesn't exist, an error is thrown!
@@ -201,7 +209,7 @@ class DataAccessor:
 
         #TODO: Need to handle a failure to open the file
         with open(data_record_name, mode='w') as f:
-            json.dump(data_to_write, f)
+            json.dump(record_to_write, f)
             status = True
         return status
 
@@ -467,16 +475,22 @@ class DataAccessor:
 
         if data_in contains multiple datasets, send each record independently
         The format of the data sent could be different for different data versions
+        data_in consists of a list copntaining
+            0 - self.device
+            1 - self.sensor
+            2 - self.acroynm
+            3 - self.description
+            4 - data_to_write
         """
         response = True
         if self.db_version in [0.1, 1.0]:
-            for item in data_in:
+            for item in data_in[4]:
                 data_record = {}
-                data_record['Device_ID'] = { 'N' : str(self.device)}
-                data_record['Sensor_ID'] = { 'N' : str(self.sensor)}
+                data_record['Device_ID'] = { 'N' : str(data_in[0])}
+                data_record['Sensor_ID'] = { 'S' : str(data_in[1])}
                 data_record['TimeStamp'] = { 'S' : str(item[3])}
-                data_record['SensorAcroynm'] = { 'S' : str(self.acroynm)}
-                data_record['SensorDescription'] = { 'S' : str(self.description)}
+                data_record['SensorAcroynm'] = { 'S' : str(data_in[2])}
+                data_record['SensorDescription'] = { 'S' : str(data_in[3])}
                 mvdata = {}
                 mvdata['type'] = {'S' : str(item[0])}
                 mvdata['value'] = {'S' : str(item[1])}

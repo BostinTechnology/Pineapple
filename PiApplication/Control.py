@@ -480,84 +480,34 @@ def SetCustomerParameters(device):
 
     Will need to use SaveCustomerInfo
     """
+
+    (icog, eeprom) = SetupSensor()
+
     print("Setting Customer Information\n")
     cust_info = {}
     cust_info['device'] = device
     gbl_log.debug("[CTRL] Device Number:%s" % device)
+    cust_info['sensor'] = eeprom.ReturnUUID()
+    gbl_log.debug("[CTRL] Sensor UUID Number:%s" % cust_info['sensor'])
 
     choice = ""
     while choice == "":
-        choice = input("Please enter your Customer Name?")
-        if len(choice) > 0:
-            print("Customer Name entered:%s" % choice)
-            print("NOTE: This is case sensitive")
-            confirm = input ("Are you sure? (y/n)")
-            if confirm.upper() == "Y":
-                cust_info['username'] = choice
-            else:
-                choice = ""
-    gbl_log.debug("[CTRL] Customer UserName:%s" % choice)
-
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your customer Password?")
-        if len(choice) > 0:
-            print("Customer Password entered:%s" % choice)
-            print("NOTE: This is case sensitive")
-            confirm = input ("Are you sure? (y/n)")
-            if confirm.upper() == "Y":
-                cust_info['password'] = choice
-            else:
-                choice = ""
-    gbl_log.debug("[CTRL] Customer Password:%s" % choice)
-
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your Sensor number?")
-        if choice.isdigit():
-            choice = int(choice)
-            cust_info['sensor'] = choice
-        else:
-            print("Please enter a number")
-            choice = ""
-    gbl_log.debug("[CTRL] Sensor Number:%s" % choice)
-
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your Sensor Acroynm?")
-        if len(choice) > 0 and len(choice) <= SS.MAX_ACROYNM_LENGTH:
-            cust_info['acroynm'] = choice
-        else:
-            print("Please enter a acroynm for the sensor (max 10 characters")
-            choice = ""
-    gbl_log.debug("[CTRL] Sensor Acroynm:%s" % choice)
-
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your Sensor Description?")
-        if len(choice) > 0 and len(choice) <= SS.MAX_DESCRIPTION_LENGTH:
-            cust_info['description'] = choice
-        else:
-            print("Please enter a description for the sensor (max 100 characters)")
-            choice = ""
-    gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
-
-    choice = ""
-    while choice == "":
-        choice = input("Is the Pi operating with a local, remote or AWS database (l, r or a)?")
+        choice = input("Is the Pi operating with a (l)ocal, remote over Lo(r)a, remote over (W)ifi or (A)WS database (l, r, w or a)?")
         if choice.upper() == "L":
             cust_info['database'] = SS.DB_LOCAL
         elif  choice.upper() == "A":
             cust_info['database'] = SS.DB_AWS
         elif  choice.upper() == "R":
-            cust_info['database'] = SS.DB_REMOTE
+            cust_info['database'] = SS.DB_LORA
+        elif  choice.upper() == "W":
+            cust_info['database'] = SS.DB_WIFI
         else:
             print("Please enter either 'l' for local or 'a' for Amazon AWS")
             choice = ""
     gbl_log.debug("[CTRL] Database Location:%s" % choice)
 
-    if cust_info['database'] == SS.DB_REMOTE:
-        # Remote database details need to be captured
+    if cust_info['database'] == SS.DB_WIFI:
+        # Remote database details need to be captured, either LoRa or Wifi
         choice = ""
         while choice == "":
             choice = input("Please enter the remote database address (IP addr or hostname)?")
@@ -586,10 +536,67 @@ def SetCustomerParameters(device):
         # If the database local, set the address to localhost and default port
         cust_info['db_addr'] = SS.DB_LOCAL_ADDR
         cust_info['db_port'] = SS.DB_LOCAL_PORT
+
+    elif cust_info['database'] == SS.DB_LORA:
+        # If the database local, set the address to localhost and default port
+        cust_info['db_addr'] = SS.DB_LORA_ADDR
+        cust_info['db_port'] = SS.DB_LORA_PORT
+
     else:
         # Set a default, just in case
         cust_info['db_addr'] = SS.DB_LOCAL_ADDR
         cust_info['db_port'] = SS.DB_LOCAL_PORT
+
+    if cust_info['database'] != SS.DB_LORA:
+        choice = ""
+        while choice == "":
+            choice = input("Please enter your Customer Name?")
+            if len(choice) > 0:
+                print("Customer Name entered:%s" % choice)
+                print("NOTE: This is case sensitive")
+                confirm = input ("Are you sure? (y/n)")
+                if confirm.upper() == "Y":
+                    cust_info['username'] = choice
+                else:
+                    choice = ""
+        gbl_log.debug("[CTRL] Customer UserName:%s" % choice)
+
+        choice = ""
+        while choice == "":
+            choice = input("Please enter your customer Password?")
+            if len(choice) > 0:
+                print("Customer Password entered:%s" % choice)
+                print("NOTE: This is case sensitive")
+                confirm = input ("Are you sure? (y/n)")
+                if confirm.upper() == "Y":
+                    cust_info['password'] = choice
+                else:
+                    choice = ""
+        gbl_log.debug("[CTRL] Customer Password:%s" % choice)
+    else:
+        cust_info['username'] = 'DEFAULT'
+        cust_info['password'] = 'default'
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Sensor Acroynm?")
+        if len(choice) > 0 and len(choice) <= SS.MAX_ACROYNM_LENGTH:
+            cust_info['acroynm'] = choice
+        else:
+            print("Please enter a acroynm for the sensor (max 10 characters")
+            choice = ""
+    gbl_log.debug("[CTRL] Sensor Acroynm:%s" % choice)
+
+    choice = ""
+    while choice == "":
+        choice = input("Please enter your Sensor Description?")
+        if len(choice) > 0 and len(choice) <= SS.MAX_DESCRIPTION_LENGTH:
+            cust_info['description'] = choice
+        else:
+            print("Please enter a description for the sensor (max 100 characters)")
+            choice = ""
+    gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
+
 
 
     SaveCustomerInfo(cust_info)
