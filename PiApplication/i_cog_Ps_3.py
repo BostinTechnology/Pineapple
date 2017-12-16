@@ -22,6 +22,9 @@ altimeter_mode          - When set to True, sensor to be in Altimeter mode, else
 
 """
 
+#BUG: /bin/sh: 1: cannot create /sys/module/i2c_bcm2708/parameters/combined: Directory nonexistent
+#       After setting all the calibration values
+
 import logging
 import time
 from datetime import datetime
@@ -452,7 +455,7 @@ class iCog():
         input is the equivalent Sea level presure, in 2 Pa units
         Default value is 1 standard atmosphere (atm) is defined as 101.325 kPa
         """
-        sealevel = calibration_data['baro_pressure_offset']
+        sealevel = self.calibration_data['baro_pressure_offset']
 
         #TODO: Convert the numbers below to variables
         if sealevel < 1 or sealevel > 110000:
@@ -491,7 +494,7 @@ class iCog():
             self.log.debug("[Ps3] Barometric Input Equivalent Sea Level is already set to the requested value")
         return
 
-    def _read_temperature():
+    def _read_temperature(self):
         """
         Read the data out from the Temperature Registers OUT_T_MSB and OUT_T_LSB data registers
         Register 0x04 - msb, 0x05 bits 7 - 4 - lsb
@@ -510,7 +513,7 @@ class iCog():
         self.log.info("[Ps3] OUT_T Registers combined %x" % data_out)
         return [data_out, "DegC"]
 
-    def _read_pressure():
+    def _read_pressure(self):
         """
         Read and return the pressure value read from the OUT_P_MSB, OUT_P_CSB and OUT_P_LSB registers
         Registers are 0x01, 0x02, 0x03
@@ -547,7 +550,7 @@ class iCog():
             units = "Pa"
         return [data_out, units]
 
-    def _read_temperature_delta():
+    def _read_temperature_delta(self):
         """
         Read the data out from the Temperature Delta Registers OUT_T_DELTA_MSB and OUT_T_DELTA_LSB data registers
         Register 0x0A - msb, 0x0B bits 7 - 4 - lsb
@@ -568,7 +571,7 @@ class iCog():
         self.log.info("[Ps3] OUT_T Delta Registers combined %x" % data_out)
         return [data_out, "DegC"]
 
-    def _read_pressure_delta():
+    def _read_pressure_delta(self):
         """
         Read and return the pressure delta value read from the OUT_P_DELTA_MSB, OUT_P_DELTA_CSB and OUT_P_DELTA_LSB registers
         Registers are 0x07, 0x08, 0x09
