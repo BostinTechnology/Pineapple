@@ -336,9 +336,9 @@ class iCog():
 
         # Configure Standard data
         data[0][0] = self.calibration_data['low_power_mode'] & 0b00000001
-        data[0][1] = ((self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
-        data[0][2] = ((self.calibration_data['read_frequency']* 10) & 0x00ff00) >> 8
-        data[0][3] = (self.calibration_data['read_frequency']* 10) & 0x0000ff
+        data[0][1] = (int(self.calibration_data['read_frequency']* 10) & 0xff0000) >> 16
+        data[0][2] = (int(self.calibration_data['read_frequency']* 10) & 0x00ff00) >> 8
+        data[0][3] = int(self.calibration_data['read_frequency']* 10) & 0x0000ff
 
         # Configure Sensor Specific data
         data[1][0] = self.calibration_data['single_mode'] & 0b00000001
