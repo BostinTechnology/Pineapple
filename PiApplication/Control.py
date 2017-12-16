@@ -44,6 +44,8 @@ Customer Info (cust_info)
 
 #TODO: When it started after being disconnected, the data was not sent to DBRemote.
 
+#BUG: The sensor value is to be based on tehe UUID of the iCog, not user entered.
+
 from datetime import datetime
 from datetime import timedelta
 
