@@ -643,8 +643,9 @@ class iCog():
         Do all that is required to setup the sensor before starting
         Return either False - unsuccessful, or True if successful
         """
-        if self.comms.repeated_start() == False:
-            return False
+        #if self.comms.repeated_start() == False:
+        #    return False
+        # UPDATE: I think this has now been auto implemented within the driver and therefore no longer required
 
         # TODO: Ensure sensor is turned off
         # TODO: Fail if any of these fail
