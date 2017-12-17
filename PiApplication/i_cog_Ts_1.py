@@ -410,7 +410,8 @@ class iCog():
         if self.calibration_data['avg_humd_samples'] in AVGH.keys():
             mode = AVGH[self.calibration_data['avg_humd_samples']]
         else:
-            mode = AVGH[0]
+            mode = AVGH[AVGH[0]]     # Takes the default value stored in index zero and gets the right one
+        self.log.debug("[TS1] Calibration Values to be written:%x" % mode)
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Humidity Samples Register Before turning on Sensor:0x%x" % byte)
         if (byte & mask) != (mode & mask):
@@ -421,7 +422,7 @@ class iCog():
             time.sleep(WAITTIME)
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
             self.log.info ("[Ts1] Humidity Samples Register after setting:0x%x" % byte)
-            if (byte & mask) == mode:
+            if (byte & mask) == (mode & mask):
                 self.log.debug("[Ts1] Humidity Samples Register set")
                 status = True
             else:
