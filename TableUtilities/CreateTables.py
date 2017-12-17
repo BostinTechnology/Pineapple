@@ -410,7 +410,7 @@ def WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc):
             Item={
                 'Device_ID': {'N': str(device)},
                 'TimeStamp': {'S': str(tstamp)},
-                'Sensor_ID': {'N': str(sensor)},
+                'Sensor_ID': {'S': str(sensor)},
                 'SensorAcroynm': {'S' : str(acroynm)},
                 'SensorDescription' : { 'S': str(desc)},
                 'MVData': { 'M' : {
@@ -461,6 +461,63 @@ def WriteUsers(db, username, password, clientid, clientname, status, lastlogon, 
                         'DeviceAcroynm': {'S' : str(acroynm)},
                         'DeviceDescription': { 'S' : str(description)}
                         }},
+                    'Viewed': { 'BOOL' : False},
+                    },
+                )
+            # print("Create Item Response %s" % ans) #Debug
+        except Exception as exception:
+            print ("Unable to write data to AWS: %s" % exception)
+
+
+        return
+
+def Write3Users(db, username, password, clientid, clientname, status, lastlogon, email, contact, creationdate,
+                deviceid, acroynm, description, deviceid2, acroynm2, description2, deviceid3, acroynm3, description3):
+        """
+        Update the Users table with the given data
+
+        returns nothing
+        """
+        
+        #TODO: Needs to return a success / failure
+
+        #TODO: Future upgrade is to capture the data if offline and send it when it reconnects.
+        
+        print ("Username: %s, Password: %s, Client_ID: %s, ClientName: %s, Status: %s, LastLogOn: %s, Email: %s, Contact: %s, CreationDate: %s" 
+                    % (username, password, clientid, clientname, status, lastlogon, email, contact, creationdate)), 
+        
+
+        try:
+            ans = db.put_item(
+                TableName='Users',
+                Item={
+                    'UserName': {'S': str(username)},
+                    'Password': {'S': str(password)},
+                    'Client_ID': {'N': str(clientid)},
+                    'ClientName': {'S' : str(clientname)},
+                    'Status' : { 'S': str(status)},
+                    'LastLogOn' : { 'S' : str(lastlogon)},
+                    'Email' : { 'S' : str(email)},
+                    'Contact' : { 'S' :str(contact)},
+                    'CreationDate' : {'S' : str(creationdate)},
+                    'Devices': { 'M' : [
+                        {
+                        'DeviceID': { 'S' : str(deviceid)},
+                        'DeviceAcroynm': {'S' : str(acroynm)},
+                        'DeviceDescription': { 'S' : str(description)}
+                        },
+                        {
+                        'DeviceID': { 'S' : str(deviceid2)},
+                        'DeviceAcroynm': {'S' : str(acroynm2)},
+                        'DeviceDescription': { 'S' : str(description2)}
+                        },
+                        {
+                        'DeviceID': { 'S' : str(deviceid3)},
+                        'DeviceAcroynm': {'S' : str(acroynm3)},
+                        'DeviceDescription': { 'S' : str(description3)}
+                        }]
+                        
+                        },
                     'Viewed': { 'BOOL' : False},
                     },
                 )
@@ -550,8 +607,9 @@ dbversions = CreatedbVersionTable(conn)
 #                   creationdate, deviceid, acroynm, description):
 print("Write Users\n***********")
 
-WriteUsers(conn, "m@mlb.com", "password", 1, "BostinTech", 'ACTIVE', '2017-05-05 15:05:34', 'm@mlb.com', '07676 543322', 
-                    '07-07-2017 16:05:34', 1234567890, 'GrnHse1', 'Greenhouse 1')
+Write3Users(conn, "m@mlb.com", "password", 1, "BostinTech", 'ACTIVE', '2017-05-05 15:05:34', 'm@mlb.com', '07676 543322', 
+                    '07-07-2017 16:05:34', 3355054600, 'RPi_3B', 'RPi on workbench', 165456298, 'RPi_Zero', 'RPi by Cosy Sensor',
+                    135080095, 'RPi_Sens', 'Rpi on windowsil')
 WriteUsers(conn, "l@mlb.com", "pssaword", 2, "BostinTech", 'ACTIVE', '2017-06-06 16:05:34', 'l@mlb.com', '06677 543322', 
                     '07-07-2017 16:05:34', 2480248024, 'Shed1', 'Mushroom Shed 1')
 WriteUsers(conn, "c@mlb.com", "passowrd", 3, "BostinTech", 'ACTIVE', '2017-07-07 17:05:34', 'c@mlb.com', '05566 543322', 
