@@ -56,7 +56,7 @@ MVDATA_UNITS = ['DegC','rH']
 # Conversion from numeric to binary for the sample quantity
 # NOTE: The zero key is added as the default and to cater for when there is no calibration data set.
 AVGT = {0:16, 2:0, 4:1, 8:2, 16:3, 32:4, 64:5, 128:6, 256:7}
-AVGH = {0:32, 4:0, 8:1, 16:2, 32:3, 64:4, 128:5, 256:7, 512:8}
+AVGH = {0:32, 4:0, 8:1, 16:2, 32:3, 64:4, 128:5, 256:6, 512:7}
 
 class iCog():
 
@@ -375,7 +375,10 @@ class iCog():
         status = False
         reg_addr = 0x10
         mask = 0b00111000
-        mode = AVGT[self.calibration_data['avg_temp_samples']] << 3
+        if self.calibration_data['avg_temp_samples'] in AVGT.keys():
+            mode = AVGT[self.calibration_data['avg_temp_samples']] << 3
+        else:
+            mode = AVGT[0] << 3
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Temperature Samples Register Before turning on Sensor:0x%x" % byte)
         if (byte & mask) != mode:
@@ -386,7 +389,7 @@ class iCog():
             time.sleep(WAITTIME)
             byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
             self.log.debug ("[Ts1] Temperature Samples Register after setting:0x%x" % byte)
-            if (byte & mask) == mode:
+            if (byte & mask) == (mode & mask):
                 self.log.info("[Ts1] Temperature Samples Register set")
                 status = True
             else:
@@ -404,10 +407,13 @@ class iCog():
         status = False
         reg_addr = 0x10
         mask = 0b00000111
-        mode = AVGH[self.calibration_data['avg_humd_samples']]
+        if self.calibration_data['avg_humd_samples'] in AVGH.keys():
+            mode = AVGH[self.calibration_data['avg_humd_samples']]
+        else:
+            mode = AVGH[0]
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Humidity Samples Register Before turning on Sensor:0x%x" % byte)
-        if (byte & mask) != mode:
+        if (byte & mask) != (mode & mask):
             #Modify the register to set bits 5-3 to the mode
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to set Humidity Samples Register 0x%x" % towrite)
@@ -436,7 +442,7 @@ class iCog():
         mode = 0b10000001
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Control Register Before turning on Sensor (0x20):0x%x" % byte)
-        if (byte & mask) != mode:
+        if (byte & mask) != (mode & mask):
             #Modify the register to set bit7 = 1 and bits1,0 to 01
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to turn on Sensor 0x%x" % towrite)
@@ -464,7 +470,7 @@ class iCog():
         mode = 0b00000000
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] Control Register Before turning off (0x20):%x" % byte)
-        if (byte & mask) != mode:
+        if (byte & mask) != (mode & mask):
             # Modify the register to set bit7 = 0 and bits1,0 to 00
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to turn off %s" % towrite)
@@ -671,7 +677,7 @@ class iCog():
         mode = 0b00000001
         byte = self.comms.read_data_byte(SENSOR_ADDR,reg_addr)
         self.log.info ("[Ts1] One Shot Enable before activating (0x21):%x" % byte)
-        if (byte & mask) != mode:
+        if (byte & mask) != (mode & mask):
             # Modify the register to set bit0 = 1
             towrite = (byte & ~mask) | mode
             self.log.debug("[Ts1] Byte to write to enable One Shot %s" % towrite)
