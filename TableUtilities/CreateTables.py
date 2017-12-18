@@ -500,23 +500,26 @@ def Write3Users(db, username, password, clientid, clientname, status, lastlogon,
                     'Email' : { 'S' : str(email)},
                     'Contact' : { 'S' :str(contact)},
                     'CreationDate' : {'S' : str(creationdate)},
-                    'Devices': { 'M' : [
+                    'Devices': { 'M' : {
+                        '0' : { 'M' :
                         {
                         'DeviceID': { 'S' : str(deviceid)},
                         'DeviceAcroynm': {'S' : str(acroynm)},
                         'DeviceDescription': { 'S' : str(description)}
-                        },
+                        }},
+                        '1' : { 'M' :
                         {
                         'DeviceID': { 'S' : str(deviceid2)},
                         'DeviceAcroynm': {'S' : str(acroynm2)},
                         'DeviceDescription': { 'S' : str(description2)}
-                        },
+                        }},
+                        '2' : { 'M' :
                         {
                         'DeviceID': { 'S' : str(deviceid3)},
                         'DeviceAcroynm': {'S' : str(acroynm3)},
                         'DeviceDescription': { 'S' : str(description3)}
-                        }]
-                        
+                        }}
+                        }
                         },
                     'Viewed': { 'BOOL' : False},
                     },
