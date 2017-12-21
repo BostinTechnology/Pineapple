@@ -483,10 +483,12 @@ def SetCustomerParameters(device, args):
 
     print("Setting Customer Information\n")
 
-    if args.transmit == False or args.displayinfo == False:
+    if not(args.transmit or args.displayinfo):
         (icog, eeprom) = SetupSensor()
         cust_info['sensor'] = eeprom.ReturnUUID()
         gbl_log.debug("[CTRL] Sensor UUID Number:%s" % cust_info['sensor'])
+    else:
+        cust_info['sensor'] = "SeeFile"
 
     cust_info = {}
     cust_info['device'] = device
@@ -579,25 +581,29 @@ def SetCustomerParameters(device, args):
         cust_info['username'] = 'DEFAULT'
         cust_info['password'] = 'default'
 
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your Sensor Acroynm?")
-        if len(choice) > 0 and len(choice) <= SS.MAX_ACROYNM_LENGTH:
-            cust_info['acroynm'] = choice
-        else:
-            print("Please enter a acroynm for the sensor (max 10 characters")
-            choice = ""
-    gbl_log.debug("[CTRL] Sensor Acroynm:%s" % choice)
+    if not(args.transmit or args.displayinfo):
+        choice = ""
+        while choice == "":
+            choice = input("Please enter your Sensor Acroynm?")
+            if len(choice) > 0 and len(choice) <= SS.MAX_ACROYNM_LENGTH:
+                cust_info['acroynm'] = choice
+            else:
+                print("Please enter a acroynm for the sensor (max 10 characters")
+                choice = ""
+        gbl_log.debug("[CTRL] Sensor Acroynm:%s" % choice)
 
-    choice = ""
-    while choice == "":
-        choice = input("Please enter your Sensor Description?")
-        if len(choice) > 0 and len(choice) <= SS.MAX_DESCRIPTION_LENGTH:
-            cust_info['description'] = choice
-        else:
-            print("Please enter a description for the sensor (max 100 characters)")
-            choice = ""
-    gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
+        choice = ""
+        while choice == "":
+            choice = input("Please enter your Sensor Description?")
+            if len(choice) > 0 and len(choice) <= SS.MAX_DESCRIPTION_LENGTH:
+                cust_info['description'] = choice
+            else:
+                print("Please enter a description for the sensor (max 100 characters)")
+                choice = ""
+        gbl_log.debug("[CTRL] Sensor Description:%s" % choice)
+    else:
+        cust_info['acroynm'] = "SeeFile"
+        cust_info['description'] = "Data is gathered from the file"
 
 
 
