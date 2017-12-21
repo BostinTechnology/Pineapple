@@ -471,7 +471,7 @@ def DisplayCustomerParameters(cust_info):
 
 def SetCustomerParameters(device):
     """
-    Perform the necessary actions to allow the clinet to set the parameter data being used
+    Perform the necessary actions to allow the client to set the parameter data being used
 
     Parameters to be captured
     - Sensor Acroynm
@@ -481,14 +481,16 @@ def SetCustomerParameters(device):
     Will need to use SaveCustomerInfo
     """
 
-    (icog, eeprom) = SetupSensor()
-
     print("Setting Customer Information\n")
+
+    if args.transmit == False or args.displayinfo == False:
+        (icog, eeprom) = SetupSensor()
+        cust_info['sensor'] = eeprom.ReturnUUID()
+        gbl_log.debug("[CTRL] Sensor UUID Number:%s" % cust_info['sensor'])
+
     cust_info = {}
     cust_info['device'] = device
     gbl_log.debug("[CTRL] Device Number:%s" % device)
-    cust_info['sensor'] = eeprom.ReturnUUID()
-    gbl_log.debug("[CTRL] Sensor UUID Number:%s" % cust_info['sensor'])
 
     choice = ""
     while choice == "":
@@ -691,7 +693,7 @@ def main():
     status, customer_info = LoadCustomerInfo(device_id)
     if status != True:
         print("Customer Infomation is missing or incomplete, please re-enter")
-        customer_info = SetCustomerParameters(device_id)
+        customer_info = SetCustomerParameters(device_id, args)
 
     # Note: The default is Start, hence it is the else clause
     if args.start:
@@ -706,7 +708,7 @@ def main():
     elif args.displayinfo:
         DisplayCustomerParameters(customer_info)
     elif args.setinfo:
-        SetCustomerParameters(device_id)
+        SetCustomerParameters(device_id, args)
     elif args.transmit:
         TransmitData(customer_info)
     else:
