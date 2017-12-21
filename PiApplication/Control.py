@@ -469,7 +469,7 @@ def DisplayCustomerParameters(cust_info):
 
     return
 
-def SetCustomerParameters(device):
+def SetCustomerParameters(device, args):
     """
     Perform the necessary actions to allow the client to set the parameter data being used
 
