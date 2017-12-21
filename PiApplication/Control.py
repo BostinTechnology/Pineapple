@@ -482,6 +482,7 @@ def SetCustomerParameters(device, args):
     """
 
     print("Setting Customer Information\n")
+    cust_info = {}
 
     if not(args.transmit or args.displayinfo):
         (icog, eeprom) = SetupSensor()
@@ -490,7 +491,6 @@ def SetCustomerParameters(device, args):
     else:
         cust_info['sensor'] = "SeeFile"
 
-    cust_info = {}
     cust_info['device'] = device
     gbl_log.debug("[CTRL] Device Number:%s" % device)
 
