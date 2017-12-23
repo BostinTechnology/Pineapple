@@ -69,7 +69,7 @@ def submitdata_false():
     
 def retrievesensorvalues():
     print("Retreiving Sensor Values")
-    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal'}
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
     print("Payload Being Sent:\n%s" % fulldata)
     r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
@@ -84,7 +84,7 @@ def retrievesensorvalues():
     
 def retrievedevicelist():
     print("Retreiving Devices List")
-    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', }
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal'}
     print("Payload Being Sent:\n%s" % fulldata)
     r = requests.get(API_ADDRESS+'/retrievedevicelist', data=fulldata)
 
@@ -150,9 +150,9 @@ def main():
 
     authenticateuser()
     
-    submitdata()
+    #submitdata()
 
-    submitdata_false()
+    #submitdata_false()
 
     retrievesensorvalues()
 

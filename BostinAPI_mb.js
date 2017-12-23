@@ -31,7 +31,7 @@ app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x
 
 AWS.config.update({
               region: "us-west-2",
-              endpoint: "http://localhost:8000",
+              endpoint: "http://RPi_Display:8000",
               accessKeyId: "fakeMyKeyId",
               secretAccessKey: "fakeSecretAccessKey"
             });
@@ -48,8 +48,8 @@ function consolelogdata (req) {
     if (typeof req.body.data !== 'undefined') {
         console.log("packet:" + JSON.parse(req.body.data));
     }
-    if (typeof req.device_id !== 'undefined') {
-        console.log("device_id: "+req.device_id);
+    if (typeof req.body.device_id !== 'undefined') {
+        console.log("device_id: "+req.body.device_id);
     }
     if (typeof req.password !== 'undefined') {
         console.log("Password: "+req.password);
@@ -76,7 +76,7 @@ function retrievesensorvalues(req, res) {
             '#name': 'Device_ID'
         },
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
-          ':value': req.body.device_id // 3355054600 //2480248024
+          ':value': parseInt(req.body.device_id) // 3355054600 //2480248024
         },
         ScanIndexForward: false,            // return the last xx items
         Limit: 100,
@@ -212,6 +212,8 @@ function submitdata(req, res) {
         if (err) {
             console.log("submitdata returned an error:" + JSON.stringify(err));
             res.sendStatus(400);
+            // The error text includes a "statusCode":500, "retryable":true
+            // How can these be used
             
         } else
         {

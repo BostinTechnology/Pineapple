@@ -150,7 +150,7 @@ class DataAccessor:
                         if record_try_count > SS.RECORD_TRY_COUNT:
                             self.log.error("[DAcc] Failed to send record over %s times, record archived" % record_try_count)
                             self.log.info("[DAcc] Archived Record:%s" % record)
-                            self._rename_record_file(record)
+                            self._rename_record_file()
                         else:
                             time.sleep(record_try_count)        # Wait for a period before retrying
                 else:
@@ -433,21 +433,20 @@ class DataAccessor:
         Given the dataset, send it to the RESTFul interface and return success or failure
 
         """
+        status = False
         #TODO: Validate response and return fail accordingly
         self.log.warning("[DAcc] Posting of Records is not fully implemented, validation required:%s" % data_to_send)
 
         payload = {'id': self.customer, 'auth':self.password, 'dest':self.db, 'data':json.dumps(data_to_send)}
         r = requests.post('http://'+self.db_addr+':'+self.db_port+'/submitdata', data=payload)
 
+        self.log.info("[DAcc] Record Response, Header:%s, Status Code:%s, Text:%s" % (r.headers, r.status_code, r.text))
         if r.status_code ==200:
-            print('Header:%s' % r.headers)
-            print('Status Code:%s' % r.status_code)
-            print('Text:%s' % r.text)
+            status = True
         else:
-            print('Failed to Read')
-            print('Status Code:%s' % r.status_code)
-            return False
-        return True
+            self.log.warning("[DAcc] Failed to write record to the Restful APi, status code:%s" % r.status_code)
+            status = False
+        return status
 
     def _send_records(self, data_in):
         """
@@ -464,11 +463,24 @@ class DataAccessor:
                 - Need to review how to store the info.
 
                 'MVData': { 'M' :
-                    {                     # Multiple sets of values require seperate records
-                    'type': { 'S' : '1'},
-                    'value': { 'S' : str(data)},
-                    'units': { 'S' : units}
-                    }
+                    '0' : { 'M' :
+                    {
+                    'DeviceID': { 'S' : str(deviceid)},
+                    'DeviceAcroynm': {'S' : str(acroynm)},
+                    'DeviceDescription': { 'S' : str(description)}
+                    }},
+                    '1' : { 'M' :
+                    {
+                    'DeviceID': { 'S' : str(deviceid2)},
+                    'DeviceAcroynm': {'S' : str(acroynm2)},
+                    'DeviceDescription': { 'S' : str(description2)}
+                    }},
+                    '2' : { 'M' :
+                    {
+                    'DeviceID': { 'S' : str(deviceid3)},
+                    'DeviceAcroynm': {'S' : str(acroynm3)},
+                    'DeviceDescription': { 'S' : str(description3)}
+                    }}
                     },
                 'Viewed': { 'BOOL' : False},
                 },
@@ -481,26 +493,30 @@ class DataAccessor:
             2 - self.acroynm
             3 - self.description
             4 - data_to_write
+
         """
         response = True
-        if self.db_version in [0.1, 1.0]:
-            for item in data_in[4]:
-                data_record = {}
-                data_record['Device_ID'] = { 'N' : str(data_in[0])}
-                data_record['Sensor_ID'] = { 'S' : str(data_in[1])}
-                data_record['TimeStamp'] = { 'S' : str(item[3])}
-                data_record['SensorAcroynm'] = { 'S' : str(data_in[2])}
-                data_record['SensorDescription'] = { 'S' : str(data_in[3])}
-                mvdata = {}
-                mvdata['type'] = {'S' : str(item[0])}
-                mvdata['value'] = {'S' : str(item[1])}
-                mvdata['units'] = {'S' : str(item[2])}
-                data_record['MVData'] = { 'M' : mvdata}
-                data_record['Viewed'] = { 'BOOL' : False}
+        if True:#self.db_version in [0.1, 1.0]:
+            data_record = {}
+            data_record['Device_ID'] = { 'N' : str(data_in[0])}
+            data_record['Sensor_ID'] = { 'S' : str(data_in[1])}
+            data_record['SensorAcroynm'] = { 'S' : str(data_in[2])}
+            data_record['SensorDescription'] = { 'S' : str(data_in[3])}
+            data_record['Viewed'] = { 'BOOL' : False}
+            mvdata = {}
+            for i in range(0, len(data_in[4])):
+                data_record['TimeStamp'] = { 'S' : str(data_in[4][i][3])}
+                mvrecord = {}
+                mvrecord['type'] = {'S' : str(data_in[4][i][0])}
+                mvrecord['value'] = {'S' : str(data_in[4][i][1])}
+                mvrecord['units'] = {'S' : str(data_in[4][i][2])}
+                self.log.debug("[DAcc] mvrecord %s:%s" % (i, mvrecord))
+                mvdata[i] = { 'M' : mvrecord}
+            data_record['MVData'] = { 'M' : mvdata}
 
-                self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
+            self.log.debug("[DAcc] Data Record to be sent:%s" % data_record)
 
-                response = response & self._post_record(data_record)
+            response = response & self._post_record(data_record)
         else:
             response = False
             self.log.info("[DAcc] In _send_records, db check failed, no data sent")
@@ -524,16 +540,29 @@ def GenerateTestData():
     Generate a dataset to represent the simulated input
     [type, number, units]
     """
+    log = logging.getLogger()
     types = [1,2,3,4]
     units = ['lux', 'Deg C', 'Deg F', '%', 'tag']
-    dataset = [[]]
-    dataset[0].append(types[random.randint(0,len(types)-1)])
-    dataset[0].append(random.randint(0,100))
-    dataset[0].append(units[random.randint(0,len(units)-1)])
-    dataset[0].append(GenerateTimestamp())
-    print("Data Being Returned:%s" % dataset)
+    data = []
+    for f in range(0,2):
+        dataset = []
+        dataset.append(types[random.randint(0,len(types)-1)])
+        dataset.append(random.randint(0,100))
+        dataset.append(units[random.randint(0,len(units)-1)])
+        dataset.append(GenerateTimestamp())
+        print("dataset %s:%s" % (f,dataset))
+        data.append(dataset)
 
-    return dataset
+
+    log.debug("Dataset Generated:%s" % data)
+    record = []
+    record = [3355054600, "00113684", "rate2", "rate sensor 2"]
+    record.append(data)
+
+    log.debug("Record Created:%s" % record)
+    print("Data Being Returned:%s" % record)
+
+    return record
 
 def SetupLogging():
     """
@@ -550,24 +579,24 @@ def SetupLogging():
     log.info("File Logging Started, current level is %s" % log.getEffectiveLevel)
     log.info("Screen Logging Started, current level is %s" % log.getEffectiveLevel)
 
-    return
+    return log
 
 def main():
     print("Sending Data In")
     # Need to add comms handler and calib data to test with
-    # customer, password, db, addr, port, device, sensor, acroynm, desc
+    # customer, password, db, addr, port, device, sensor, acroynm, desc):
     dacc = DataAccessor(customer='m@mlb.com', password='password', db=SS.DB_LOCAL, addr=SS.DB_LOCAL_ADDR, port=SS.DB_LOCAL_PORT,
                         device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
     for i in range(0,10):
-        dacc.DataIn(GenerateTestData())
+        dacc._send_records(GenerateTestData())
     print("\nTransmitting Data\n")
-    dacc.TransmitData()
+    #dacc.TransmitData()
 
 if __name__ == '__main__':
     import logging
     import logging.config
     import dict_LoggingSetup
-    SetupLogging()
+    logger = SetupLogging()
 
     main()
     #TODO: when run seperately this needs to transmit data

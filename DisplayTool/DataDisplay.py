@@ -336,11 +336,38 @@ def SetupLogging():
 
     return
 
+def GetData_random():
+    # Function to retrieve the data from the database
+    # Just an example at the moment
+    # This is self running and will send new data every 1000mS
+    text_to_add = []
+    #TODO: Convert the function below to get real data
+    text_to_add.append(random.randint(0,100))
+    gbl_log.debug("Data to be added:%s" % text_to_add)
+    if len(text_to_add) >0:        #TODO: This will be required to check if there is any new data
+        app.update_data(text_to_add)
+    root.after(100, GetData)
+    return
+        
 def GetData():
     # Function to retrieve the data from the database
     # Just an example at the moment
     # This is self running and will send new data every 1000mS
     text_to_add = []
+
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+
+    
     #TODO: Convert the function below to get real data
     text_to_add.append(random.randint(0,100))
     gbl_log.debug("Data to be added:%s" % text_to_add)
