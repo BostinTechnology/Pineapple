@@ -14,7 +14,7 @@ data_record = {}
 data_record['UserName'] = { 'S' : 'm@mlb.com'}
 #data_record['Password'] = { 'N' : 'password'}
 
-API_ADDRESS = 'http://RPi_3B:8080'
+API_ADDRESS = 'http://RPi_Display:8080'
 
 def GenerateTimestamp():
     now = str(datetime.now())
@@ -146,9 +146,9 @@ def authenticateuser():
 def main():
     
     
-    connected()
+    #connected()
 
-    authenticateuser()
+    #authenticateuser()
     
     #submitdata()
 
@@ -156,9 +156,9 @@ def main():
 
     retrievesensorvalues()
 
-    retrievedbversion()
+    #retrievedbversion()
 
-    retrievedevicelist()
+    #retrievedevicelist()
     
     return
 

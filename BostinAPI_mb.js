@@ -92,7 +92,10 @@ function retrievesensorvalues(req, res) {
             var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
 
             for (var i = 0; i < dataset.length; i = i + 1) {
-                value_dataset[i] = dataset[i]['MVData']['value'].valueOf();
+                // scroll through the dataset returned for each item
+                for (var j = 0; j < dataset[i]['MVData'].length; j = j + 1) {
+                    value_dataset.push(dataset[i]['MVData'][j]['value'].valueOf());
+                }
             };
 
             console.log("Data Returned:" + value_dataset);
