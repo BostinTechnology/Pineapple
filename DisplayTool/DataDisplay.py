@@ -30,6 +30,9 @@ import SystemSettings as SS
 
 MAX_LENGTH = 100        # The maximum number of values to be displayed
 
+# The destination of the RestFul API
+API_ADDRESS = 'http://localhost:8080'
+
 # Graph coordinates
 #   50,10   _____________________
 #           |..|..|..|..|..|..|..|
@@ -52,6 +55,8 @@ class Login(Toplevel):
  
     def __init__(self, original):
         """Constructor"""
+        self.log = logging.getLogger()
+        self.log.debug("[Disp] cls_Login initialised")
         self.original_frame = original
         self.user = StringVar()
         self.password = StringVar()
@@ -91,7 +96,7 @@ class Login(Toplevel):
         fulldata = {'id':self.user.get(), 'auth':self.password.get(), 'dest':self.db.get()}
         #print("Payload Being Sent:\n%s" % fulldata)
         try:
-            r = requests.get('http://RPi_3B:8080/authenticateuser', data=fulldata)
+            r = requests.get(API_ADDRESS+'/authenticateuser', data=fulldata)
             #print("response:%s" % r)
             if r.status_code ==200:
                 self.login_status = True
@@ -105,11 +110,13 @@ class Login(Toplevel):
 
 class DataDisplay(Frame):
     def __init__(self, master=None):
+        self.log = logging.getLogger()
+        self.log.debug("[Disp] cls_DataDisplay initialised")
         Frame.__init__(self,master)
         self.master = master
         self.login_status = False
 
-        gbl_log.info("Starting Main Frame")
+        self.log.info("Starting Main Frame")
         # These are the tuples of what is selected in the listbox
         self.current_device = StringVar()
         self.current_sensor_acroyn = StringVar()
@@ -173,15 +180,23 @@ class DataDisplay(Frame):
         """
         print("populate sensor values reached")
         selection = self.device.get()
-        for entry in self.device_dict:
-            if entry['DeviceID'] == selection:
-                self.current_sensor_acroyn.set(entry['DeviceAcroynm'])
-                self.current_sensor_desc.set(entry['DeviceDescription'])
+        for i in range(0, len(self.device_dict)):
+            entry = self.device_dict[i]
+            if entry[0]['DeviceID'] == selection:
+                self.current_sensor_acroyn.set(entry[0]['DeviceAcroynm'])
+                self.current_sensor_desc.set(entry[0]['DeviceDescription'])
         self.running = True
         
     def populate_dropdowns(self):
         """
         Populate the variables used by the main display from data from the db
+
+        Data Returned:[{
+        "0":{"DeviceAcroynm":"RPi_3B","DeviceDescription":"RPi on workbench","DeviceID":"3355054600"},
+        "1":{"DeviceAcroynm":"RPi_Zero","DeviceDescription":"RPi by Cosy Sensor","DeviceID":"165456298"},
+        "2":{"DeviceAcroynm":"RPi_Sens","DeviceDescription":"Rpi on windowsil","DeviceID":"135080095"}
+        }]
+
         """
         # Initially can only populate the device list
         print("Getting Device List")
@@ -189,14 +204,15 @@ class DataDisplay(Frame):
         #print("Payload Being Sent:\n%s" % fulldata)
         try:
             r = requests.get('http://RPi_3B:8080/retrievedevicelist', data=fulldata)
-            #print("response:%s" % r)
             if r.status_code ==200:
                 # r.text contains the dictionary of data
                 device_list = []
                 self.device_dict = json.loads(r.text)
+                self.log.debug("[Disp] Device Dictionary: %s" % self.device_dict)
                 for entry in self.device_dict:
                     # r.text could contain multiple dictionaries in the response
-                    device_list.append(entry['DeviceID'])
+                    for element in entry:
+                        device_list.append(element['DeviceID'])
                 self.device['values'] = device_list
 
             else:
@@ -230,11 +246,50 @@ class DataDisplay(Frame):
         Takes the new values in from outside the class
         data is a list of values, the newest reading is last
         """
+        self.log.debug("[Disp] Incoming data to be added to feed:%s" % data)
         self.data_in = data
         if len(self.data_in) > 0:
             self.dataset = self.dataset + data
             self.dataset = self.dataset[-MAX_LENGTH:]        # Trim the data to the last 100 readings max
+        self.log.info("[Disp] Dataset after update and trim:%s" % self.dataset)
         self.update_idletasks() #was root.
+        return
+        
+    def _is_number(check):
+        """
+        Check if the string passed into check is a number or a string
+        """
+        try:
+            float(check)
+            return True
+        except:
+            return False
+
+    def get_data(self):
+        # Function to retrieve the data from the database
+        # Just an example at the moment
+        # This is self running and will send new data every 1000mS
+        text_to_add = []
+
+        if self.running:
+            fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
+            print("Payload Being Sent:\n%s" % fulldata)
+            r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+
+            if r.status_code ==200:
+                self.log.info("[Disp] Data of length %s received from the RestFul API:%s" % (len(r.text), r.text))
+                if len(r.text[0]) >0:        #TODO: This will be required to check if there is any new data
+                    self.log.debug("[Disp] length of r.text is greater than zero")
+                    data = json.loads(r.text)
+                    for i in data[0]:
+                        self.log.debug("[Disp] Item being converted:%s" % i)
+                        if _is_number(i):
+                            text_to_add.append(float(i))
+                            self.log.debug("[Disp] record added:%s" % float(i))
+                self.update_data(text_to_add)
+            else:
+                print('Failed to Read')
+                print('Status Code:%s' % r.status_code)
         return
 
     def draw_graph(self):
@@ -277,7 +332,7 @@ class DataDisplay(Frame):
         but then clear the incoming stream to stop it being re-added!
         """
         if len(self.data_in) >0:
-            gbl_log.debug("Length of the data to be added:%d" % len(self.data_in))
+            self.log.debug("Length of the data to be added:%d" % len(self.data_in))
             self.data_info.insert(0,self.data_in)
             self.data_in = []
         self.update_idletasks()     #was root.
@@ -289,9 +344,12 @@ class DataDisplay(Frame):
         """
         if self.running:
             # Call this when running
+            self.get_data()
             self.update_stream()
-            self.draw_graph()
-        self.after(100, self.main)      #was root.
+            if len(self.dataset) > 0:
+                # Only draw the graph if there is data to draw
+                self.draw_graph()
+        self.after(1000, self.main)      #was root.
 
     def call_login_popup(self):
         # called from the login button
@@ -348,6 +406,16 @@ def GetData_random():
         app.update_data(text_to_add)
     root.after(100, GetData)
     return
+
+def _is_number(check):
+    """
+    Check if the string passed into check is a number or a string
+    """
+    try:
+        float(check)
+        return True
+    except:
+        return False
         
 def GetData():
     # Function to retrieve the data from the database
@@ -366,14 +434,15 @@ def GetData():
     else:
         print('Failed to Read')
         print('Status Code:%s' % r.status_code)
-
-    
     #TODO: Convert the function below to get real data
-    text_to_add.append(random.randint(0,100))
+#    text_to_add.append(random.randint(0,100))
     gbl_log.debug("Data to be added:%s" % text_to_add)
-    if len(text_to_add) >0:        #TODO: This will be required to check if there is any new data
-        app.update_data(text_to_add)
-    root.after(100, GetData)
+    if len(r.text[0]) >0:        #TODO: This will be required to check if there is any new data
+        for i in r.text[0]:
+            if _is_number(i):
+                text_to_add.append(float(i))
+    app.update_data(text_to_add)
+    #root.after(100, GetData)
     return
         
 def main():
@@ -389,7 +458,7 @@ def main():
     app = DataDisplay(root)
     root.geometry("800x410")
     app.master.title("Data Display Tool")
-    GetData()
+    #GetData()
     app.mainloop()
     return
 

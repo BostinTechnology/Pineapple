@@ -159,7 +159,7 @@ def main():
 
     #retrievedbversion()
 
-    #retrievedevicelist()
+    retrievedevicelist()
     
     return
 

@@ -134,7 +134,6 @@ function retrievesensorvalues(req, res) {
                 // scroll through the dataset returned for each item
                 //console.log("MVData Record being examined: "+ JSON.stringify(dataset[i]['MVData']));
                 for (var element in dataset[i]['MVData']) {
-                    // At this point I need to create value_dataset with a new element & keep a record of it
                     
                     var contents = dataset[i]['MVData'][element];
                     //console.log("element "+element+" contents:"+ JSON.stringify(contents));
@@ -162,7 +161,7 @@ function retrievesensorvalues(req, res) {
 
 
 function retrievedevicelist(req, res) {
-    // returns a list of the most recent 100 items from the database for the specified device
+    // returns a list of the most recent 100 items of the device details
 
     console.log('==>retrievesensorvalues reached');
 
@@ -194,12 +193,28 @@ function retrievedevicelist(req, res) {
             var dataset = data['Items']; 
 
             for (var i = 0; i < dataset.length; i = i + 1) {
-                device_list[i] = dataset[i]['Devices'];
-            };
+            //    device_list[i] = dataset[i]['Devices'];
+            //};
+                for (var element in dataset[i]['Devices']) {
+                    
+                    var contents = dataset[i]['Devices'][element];
+                    //console.log("element "+element+" contents:"+ JSON.stringify(contents));
+                    //for (var bits in contents) {      // added for debug purposes
+                    //    console.log("bits:"+contents[bits]);
+                    //}
+                    // Need to put a check around this, so if the element doesn'texist, create it
+                    //console.log("Length of value_dataset"+value_dataset.length);
+                    if (element >= device_list.length) {
+                        // There are more elements than places to put them, so add a new sublist to the dataset
+                        console.log("Adding element");
+                        device_list.push([]);
+                        }
+                    device_list[element].push(contents);//['value']).valueOf();
+                }
 
             console.log("Data Returned:" + JSON.stringify(device_list));
             res.status(200).send(JSON.stringify(device_list));
-            // BUG: The data is return as a string, not a list
+            }
             
         }
     });
