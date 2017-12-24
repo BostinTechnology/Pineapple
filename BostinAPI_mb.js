@@ -59,7 +59,7 @@ function consolelogdata (req) {
     }
 }
 
-function retrievesensorvalues(req, res) {
+function retrievesensorMVDatavalues(req, res) {
     // returns a list of the most recent 100 items from the database for the specified device
 
     console.log('==>retrievesensorvalues reached');
@@ -91,19 +91,75 @@ function retrievesensorvalues(req, res) {
             // Need to loop it through next.
             var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
 
-            for (var i = 0; i < dataset.length; i = i + 1) {
-                // scroll through the dataset returned for each item
-                for (var j = 0; j < dataset[i]['MVData'].length; j = j + 1) {
-                    value_dataset.push(dataset[i]['MVData'][j]['value'].valueOf());
-                }
-            };
-
             console.log("Data Returned:" + value_dataset);
             res.status(200).send(value_dataset);
             
         }
     });
 }
+
+function retrievesensorvalues(req, res) {
+    // returns a list of the most recent 100 items from the database for the specified device
+    // returns a dataset containing a list for each sensor in the dataset
+
+    console.log('==>retrievesensorvalues reached');
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+
+    var value_dataset = [];
+    var params = {
+        TableName: 'SensorValues',
+        KeyConditionExpression: '#name = :value', 
+        ExpressionAttributeNames: { 
+            '#name': 'Device_ID'
+            },
+        ExpressionAttributeValues: { 
+          ':value': parseInt(req.body.device_id) //165456298 // 3355054600 //2480248024
+            },
+        ScanIndexForward: false,            // return the last xx items
+        Limit: 100,
+        ProjectionExpression: "MVData",
+        };
+        
+        
+    docClient.query(params, function(err, data) {
+        if (err) {
+            console.log("retrievesensorvalues query returned error: " + err);
+            res.sendStatus(400);
+        } else {
+            var dataset = data['Items']; //JSON.stringify(data['Items'], undefined, 2);
+            //console.log("data:"+ JSON.stringify(data['Items']));
+            //console.log("length of dataset:"+dataset.length);
+            for (var i = 0; i < dataset.length; i = i + 1) {
+                // scroll through the dataset returned for each item
+                //console.log("MVData Record being examined: "+ JSON.stringify(dataset[i]['MVData']));
+                for (var element in dataset[i]['MVData']) {
+                    // At this point I need to create value_dataset with a new element & keep a record of it
+                    
+                    var contents = dataset[i]['MVData'][element];
+                    //console.log("element "+element+" contents:"+ JSON.stringify(contents));
+                    //for (var bits in contents) {      // added for debug purposes
+                    //    console.log("bits:"+contents[bits]);
+                    //}
+                    // Need to put a check around this, so if the element doesn'texist, create it
+                    //console.log("Length of value_dataset"+value_dataset.length);
+                    if (element >= value_dataset.length) {
+                        // There are more elements than places to put them, so add a new sublist to the dataset
+                        console.log("Adding element");
+                        value_dataset.push([]);
+                        }
+                    value_dataset[element].push(contents['value']).valueOf();
+                }
+            }
+
+            //console.log("Data Returned: " + value_dataset[0] +"\n****\n"+ value_dataset[1]);
+            console.log("Dataset length returned:"+value_dataset.length);
+            res.status(200).send(value_dataset);
+
+        }
+    });
+}
+
 
 function retrievedevicelist(req, res) {
     // returns a list of the most recent 100 items from the database for the specified device

@@ -14,7 +14,8 @@ data_record = {}
 data_record['UserName'] = { 'S' : 'm@mlb.com'}
 #data_record['Password'] = { 'N' : 'password'}
 
-API_ADDRESS = 'http://RPi_Display:8080'
+#API_ADDRESS = 'http://RPi_Display:8080'
+API_ADDRESS = 'http://localhost:8080'
 
 def GenerateTimestamp():
     now = str(datetime.now())
@@ -69,7 +70,7 @@ def submitdata_false():
     
 def retrievesensorvalues():
     print("Retreiving Sensor Values")
-    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'} #'3355054600'} 
     print("Payload Being Sent:\n%s" % fulldata)
     r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
