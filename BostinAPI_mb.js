@@ -20,12 +20,6 @@ var multer = require('multer'); // v1.0.5
 var upload = multer(); // for parsing multipart/form-data
 var AWS = require("aws-sdk");
 
-// moved here so they are available to the functions
-
-// These can't live here as they are global scross multiple connections!!
-var userid, authcode, dest, packet;
-var obj, user_name, user_auth;
-
 app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
@@ -51,12 +45,19 @@ function consolelogdata (req) {
     if (typeof req.body.device_id !== 'undefined') {
         console.log("device_id: "+req.body.device_id);
     }
+    if (typeof req.body.starttime !== 'undefined') {
+        console.log("Start time: "+req.body.starttime)
+    }
+    if (typeof req.body.limit !== 'undefined') {
+        console.log("Limit of records: "+req.body.limit)
+    }
     if (typeof req.password !== 'undefined') {
         console.log("Password: "+req.password);
     }
     if (typeof req.validated !== 'undefined') {
         console.log("Validated: "+req.validated)
     }
+
 }
 
 function retrievesensorMVDatavalues(req, res) {
@@ -107,21 +108,51 @@ function retrievesensorvalues(req, res) {
     var docClient = new AWS.DynamoDB.DocumentClient();
 
     var value_dataset = [];
+    var units_dataset = [];
+    var return_dataset = {};
+    var limit;
+    var starttime;
+
+    if (typeof req.body.limit == 'undefined') {
+        //If no limit of records exist, pick a default
+        console.log("No record limit supplied, using default of 10")
+        limit = 10
+    }
+    else {
+        limit = req.body.limit;
+    }
+
+    if (typeof req.body.starttime == 'undefined') {
+        // If no time is given, start with the earliest 
+        starttime = "2000-01-01 00:00:00";
+        console.log("No start time supplied, using default of:2000-01-01 00:00:00")
+    }
+    else {
+        starttime = req.body.starttime;
+    }
+        
     var params = {
         TableName: 'SensorValues',
-        KeyConditionExpression: '#name = :value', 
+        KeyConditionExpression: '#name = :value and #timestamp > :time', 
         ExpressionAttributeNames: { 
-            '#name': 'Device_ID'
+            '#name': 'Device_ID',
+            '#timestamp': 'TimeStamp'
             },
-        ExpressionAttributeValues: { 
-          ':value': parseInt(req.body.device_id) //165456298 // 3355054600 //2480248024
+        ExpressionAttributeValues: {
+            // Test sensors 165456298 // 3355054600 //2480248024
+            ':value': parseInt(req.body.device_id),
+            ':time': starttime
             },
-        ScanIndexForward: false,            // return the last xx items
-        Limit: 100,
+        ScanIndexForward: true,
+        Limit: limit,
         ProjectionExpression: "MVData",
-        };
+    };
         
-        
+    // Data To Return
+    // ==============
+    // List of values, one for each sensor output
+    // list of units, corresponding to the list of values
+    // Timestamp of oldest / newest (from last evaluated key)
     docClient.query(params, function(err, data) {
         if (err) {
             console.log("retrievesensorvalues query returned error: " + err);
@@ -136,24 +167,27 @@ function retrievesensorvalues(req, res) {
                 for (var element in dataset[i]['MVData']) {
                     
                     var contents = dataset[i]['MVData'][element];
-                    //console.log("element "+element+" contents:"+ JSON.stringify(contents));
-                    //for (var bits in contents) {      // added for debug purposes
-                    //    console.log("bits:"+contents[bits]);
-                    //}
                     // Need to put a check around this, so if the element doesn'texist, create it
-                    //console.log("Length of value_dataset"+value_dataset.length);
                     if (element >= value_dataset.length) {
                         // There are more elements than places to put them, so add a new sublist to the dataset
                         console.log("Adding element");
                         value_dataset.push([]);
+                        units_dataset.push(contents['units'])
                         }
                     value_dataset[element].push(contents['value']).valueOf();
                 }
             }
 
-            //console.log("Data Returned: " + value_dataset[0] +"\n****\n"+ value_dataset[1]);
-            console.log("Dataset length returned:"+value_dataset.length);
-            res.status(200).send(value_dataset);
+            console.log("Dataset length returned:"+value_dataset.length);       //number of recordsets, not records
+            console.log("Data Returned: " + value_dataset);
+            console.log("Last Evaluated Key"+JSON.stringify(data.LastEvaluatedKey));
+            return_dataset.values = value_dataset;
+            return_dataset.last_key = data.LastEvaluatedKey
+            return_dataset.units = units_dataset;
+            
+            console.log("\nReturn Dataset"+JSON.stringify(return_dataset));
+            
+            res.status(200).send(return_dataset);
 
         }
     });
@@ -179,10 +213,16 @@ function retrievedevicelist(req, res) {
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
           ':value': req.body.id
         },
-        ScanIndexForward: false,            // return the last xx items
+        ScanIndexForward: true,            // return the last xx items
         Limit: 100,
         ProjectionExpression: "Devices",
     };
+    
+    // Data To Return
+    // ==============
+    // List of values, one for each sensor output
+    // list of units, corresponding to the list of values
+    // Timestamp of oldest / newest
     docClient.query(params, function(err, data) {
         if (err) {
             console.log("retrievesensorvalues query returned error: " + err);
@@ -238,7 +278,7 @@ function retrievedbversion(res) {
         ExpressionAttributeValues: { // a map of substitutions for all attribute values
           ':value': 1
         },
-        ScanIndexForward: false,            // return the last xx items
+        ScanIndexForward: true,            // return the last xx items
         Limit: 100,
         ProjectionExpression: "to_date, from_date, version", 
     };

@@ -83,6 +83,38 @@ def retrievesensorvalues():
         print('Status Code:%s' % r.status_code)
     return
     
+def retrievelimitsensorvalues():
+    print("Retreiving Sensor Values")
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
+                'limit':50} #'3355054600'} 
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
+    
+def retrievetimesensorvalues():
+    print("Retreiving Sensor Values")
+    fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
+                'starttime': '2017-12-25 13:05:05'} #'3355054600'} 
+    print("Payload Being Sent:\n%s" % fulldata)
+    r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+
+    if r.status_code ==200:
+        print('Header:%s' % r.headers)
+        print('Status Code:%s' % r.status_code)
+        print('Text:%s' % r.text)
+    else:
+        print('Failed to Read')
+        print('Status Code:%s' % r.status_code)
+    return
+    
 def retrievedevicelist():
     print("Retreiving Devices List")
     fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal'}
@@ -157,9 +189,13 @@ def main():
 
     retrievesensorvalues()
 
+    retrievelimitsensorvalues()
+
+    retrievetimesensorvalues()
+
     #retrievedbversion()
 
-    retrievedevicelist()
+    #retrievedevicelist()
     
     return
 
