@@ -100,8 +100,9 @@ function retrievesensorMVDatavalues(req, res) {
 }
 
 function retrievesensorvalues(req, res) {
-    // returns a list of the most recent 100 items from the database for the specified device
-    // returns a dataset containing a list for each sensor in the dataset
+    // returns a list of the most recent xxx items (req.body.limit) from the given date / time (req.body.starttime)
+    // from the database for the specified device
+    // returns a dataset containing a list for each sensor in the dataset, the units and the last value read
 
     console.log('==>retrievesensorvalues reached');
 
@@ -112,6 +113,7 @@ function retrievesensorvalues(req, res) {
     var return_dataset = {};
     var limit;
     var starttime;
+    var lastrecord;
 
     if (typeof req.body.limit == 'undefined') {
         //If no limit of records exist, pick a default
@@ -145,7 +147,7 @@ function retrievesensorvalues(req, res) {
             },
         ScanIndexForward: true,
         Limit: limit,
-        ProjectionExpression: "MVData",
+        //ProjectionExpression: "MVData",       // Removed to allow the timestamp to be captured
     };
         
     // Data To Return
@@ -176,13 +178,21 @@ function retrievesensorvalues(req, res) {
                         }
                     value_dataset[element].push(contents['value']).valueOf();
                 }
+                lastrecord = dataset[i].TimeStamp;      // Capture the TimeStamp from the current record beign examined
             }
 
             console.log("Dataset length returned:"+value_dataset.length);       //number of recordsets, not records
             console.log("Data Returned: " + value_dataset);
             console.log("Last Evaluated Key"+JSON.stringify(data.LastEvaluatedKey));
             return_dataset.values = value_dataset;
-            return_dataset.last_key = data.LastEvaluatedKey
+            console.log("Last Record Read:"+lastrecord);
+            if (lastrecord.length >= 19 ) {         // 19 comes from the timestamp string size yyyy-mm-dd hh:mm:ss
+                return_dataset.last_key = lastrecord;
+            }
+            else {
+                return_dataset.last_key = starttime;
+            }
+        
             return_dataset.units = units_dataset;
             
             console.log("\nReturn Dataset"+JSON.stringify(return_dataset));

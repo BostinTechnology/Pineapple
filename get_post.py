@@ -84,7 +84,7 @@ def retrievesensorvalues():
     return
     
 def retrievelimitsensorvalues():
-    print("Retreiving Sensor Values")
+    print("Retreiving Limit of Sensor Values")
     fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
                 'limit':50} #'3355054600'} 
     print("Payload Being Sent:\n%s" % fulldata)
@@ -100,9 +100,9 @@ def retrievelimitsensorvalues():
     return
     
 def retrievetimesensorvalues():
-    print("Retreiving Sensor Values")
+    print("Retreiving Time based Sensor Values")
     fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
-                'starttime': '2017-12-25 13:05:05'} #'3355054600'} 
+                'limit': 50, 'starttime': '2018-01-01 18:00:26.606'} #'3355054600'} 
     print("Payload Being Sent:\n%s" % fulldata)
     r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
@@ -187,9 +187,9 @@ def main():
 
     #submitdata_false()
 
-    retrievesensorvalues()
+    #retrievesensorvalues()
 
-    retrievelimitsensorvalues()
+    #retrievelimitsensorvalues()
 
     retrievetimesensorvalues()
 

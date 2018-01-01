@@ -131,6 +131,9 @@ class DataDisplay(Frame):
         self.running = False       # When true, data is being captured.
         self.data_in = []           # The data after it has been passed into the 
         self.dataset = []           # The dataset being displayed and graphed
+        self.starttime = "2000-01-01 00:00:00"         # The date of the oldest record
+        self.limit = 10
+
 
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
@@ -272,21 +275,26 @@ class DataDisplay(Frame):
         text_to_add = []
 
         if self.running:
-            fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
+            fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
+                        'limit':self.limit, 'starttime':self.starttime}
             print("Payload Being Sent:\n%s" % fulldata)
             r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
             if r.status_code ==200:
                 self.log.info("[Disp] Data of length %s received from the RestFul API:%s" % (len(r.text), r.text))
-                if len(r.text[0]) >0:        #TODO: This will be required to check if there is any new data
-                    self.log.debug("[Disp] length of r.text is greater than zero")
-                    data = json.loads(r.text)
-                    for i in data[0]:
+                dataset = json.loads(r.text)
+                self.log.debug("[Disp] JSON converted data of length %s received from the RestFul API:%s" % (len(dataset), dataset))
+                if len(dataset['values']) >0:        #TODO: This will be required to check if there is any new data
+                    self.log.debug("[Disp] length of values are greater than zero")
+                    data = dataset['values'][0]     # Extact the first dataset returned
+                    self.log.debug("[Disp] Dataset selected to be used:%s" % data)
+                    for i in data:
                         self.log.debug("[Disp] Item being converted:%s" % i)
                         if _is_number(i):
                             text_to_add.append(float(i))
                             self.log.debug("[Disp] record added:%s" % float(i))
                 self.update_data(text_to_add)
+                self.starttime = dataset['last_key']
             else:
                 print('Failed to Read')
                 print('Status Code:%s' % r.status_code)
@@ -315,7 +323,7 @@ class DataDisplay(Frame):
             y_spacing = (END_Y - START_Y)
         #print("y_spacing:%s" % y_spacing)
         start_line_x = START_X        # Set the starting point for the X axis
-        start_line_y = END_Y - (data_to_draw[0] * y_spacing)
+        start_line_y = END_Y - ((data_to_draw[0] - y_min) * y_spacing)
         for reading in data_to_draw[1:]:        # Start at the second reading as first one is starting point
             end_line_x = start_line_x + x_spacing
             end_line_y = END_Y - ((reading - y_min) * y_spacing)
