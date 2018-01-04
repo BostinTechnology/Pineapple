@@ -15,7 +15,7 @@ cd /home/pi/Projects/pineapple/
 node . &
 
 # Start the pineapple application
-cd /home/pi/Projects/pineapple/setup_dynDB
+cd /home/pi/Projects/pineapple/PiApplication
 
 sudo ./Control.py --transmit &
 
