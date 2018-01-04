@@ -14,6 +14,8 @@ cd /home/pi/Projects/pineapple/
 
 node . &
 
+sleep 5
+
 # Start the pineapple application
 cd /home/pi/Projects/pineapple/PiApplication
 
