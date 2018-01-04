@@ -30,8 +30,6 @@ import SystemSettings as SS
 
 MAX_LENGTH = 100        # The maximum number of values to be displayed
 
-# The destination of the RestFul API
-API_ADDRESS = 'http://localhost:8080'
 
 # Graph coordinates
 #   50,10   _____________________
@@ -74,7 +72,7 @@ class Login(Toplevel):
         Radiobutton(self.frame, text="File", value="FILE", variable=self.db).grid(row=2,column=0, sticky=W, padx=10)
         Radiobutton(self.frame, text="DBLocal", value="DBLocal", variable=self.db).grid(row=2,column=1, sticky=W, padx=10)
         Radiobutton(self.frame, text="DBRemote", value="DBRemote", variable=self.db).grid(row=3,column=0, sticky=W, padx=10)
-        Radiobutton(self.frame, text="AWS", value="AWS", variable=self.db).grid(row=3,column=1, sticky=W, padx=10)
+        Radiobutton(self.frame, text="Amazon Web Services", value="AWS", variable=self.db).grid(row=3,column=1, sticky=W, padx=10)
         self.db.set("DBLocal")
         btn = Button(self.frame, text="Login", command=self.onLogin).grid(row=4,column=0, pady=10, columnspan=2)
 
@@ -96,8 +94,78 @@ class Login(Toplevel):
         fulldata = {'id':self.user.get(), 'auth':self.password.get(), 'dest':self.db.get()}
         #print("Payload Being Sent:\n%s" % fulldata)
         try:
-            r = requests.get(API_ADDRESS+'/authenticateuser', data=fulldata)
+            r = requests.get(SS.API_ADDRESS+'/authenticateuser', data=fulldata)
             #print("response:%s" % r)
+            if r.status_code ==200:
+                self.login_status = True
+            else:
+                self.login_status = False
+        except:
+            self.login_status = False
+        return self.login_status
+
+
+class LoginDDown(Toplevel):
+    """"""
+ 
+    def __init__(self, original):
+        """Constructor"""
+        self.log = logging.getLogger()
+        self.log.debug("[Disp] cls_LoginDDown (Login Drop Downs) initialised")
+        self.original_frame = original
+        self.user = StringVar()
+        self.db = StringVar()
+        self.password = StringVar()
+        self.login_status = False
+
+        Toplevel.__init__(self)
+        self.geometry("350x200")
+        self.title("Login")
+        self.frame = Frame(self, relief='ridge')
+        Label(self.frame, text="     Username:").grid(row=0,column=0, padx=20, sticky=W)
+        user = Combobox(self.frame, height=10, textvariable=self.user, width=20, values=SS.USERS)
+        user.bind("<<ComboboxSelected>>", self.select_password)
+        user.grid(row=0,column=1, padx=10, pady=10, sticky=E)
+        Radiobutton(self.frame, text="File", value="FILE", variable=self.db).grid(row=2,column=0, sticky=W, padx=10)
+        Radiobutton(self.frame, text="DBLocal", value="DBLocal", variable=self.db).grid(row=2,column=1, sticky=W, padx=10)
+        Radiobutton(self.frame, text="DBRemote", value="DBRemote", variable=self.db).grid(row=3,column=0, sticky=W, padx=10)
+        Radiobutton(self.frame, text="Amazon Web Services", value="AWS", variable=self.db).grid(row=3,column=1, sticky=W, padx=10)
+        self.db.set("DBLocal")
+        btn = Button(self.frame, text="Login", command=self.onLogin).grid(row=4,column=0, pady=10, columnspan=2)
+
+        self.frame.pack(fill=BOTH, expand=NO)#, anchor="center")
+
+    def select_password(self, event):
+        """
+        Auto populate the password from the list
+        """
+        self.log.debug("[Disp] User selected:%s" % self.user.get())
+        if self.user.get() in SS.USERS:
+            self.password.set(SS.PASSWORDS[SS.USERS.index(self.user.get())])
+            self.log.debug("[Disp] Password selected from the list:%s" % self.password.get())
+        else:
+            self.password.set("")
+            self.log.debug("[Disp] User not in the prescribed list, password set to <emply string>")
+        return
+        
+    def onLogin(self):
+        """"""
+        # Validate the input
+        if self.check_credentials():
+            self.destroy()
+            self.original_frame.after_login_show(True, self.user.get(), self.password.get(), self.db.get())
+        else:
+            messagebox.showinfo("Unsuccessful", "Username / password not authenticated" )
+        return
+
+    def check_credentials(self):
+        """"""
+        print("Checking Credentials")
+        fulldata = {'id':self.user.get(), 'auth':self.password.get(), 'dest':self.db.get()}
+        print("Payload Being Sent:\n%s" % fulldata)
+        try:
+            r = requests.get(SS.API_ADDRESS+'/authenticateuser', data=fulldata)
+            print("response:%s" % r)
             if r.status_code ==200:
                 self.login_status = True
             else:
@@ -137,19 +205,21 @@ class DataDisplay(Frame):
 
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
-        self.device = Combobox(selection_frame, height=10, textvariable=self.current_device, width=20)
+        self.device = Combobox(selection_frame, height=10, textvariable=self.current_sensor_acroyn, width=20)
         self.device.bind("<<ComboboxSelected>>", self.populate_sensor_info)
         self.device.grid(row=0, column=0, padx=30)
-        self.sensor = Label(selection_frame, relief='sunken', textvariable=self.current_sensor_acroyn, width=10)
+        self.sensor = Label(selection_frame, relief='sunken', textvariable=self.current_device, width=15)
         self.sensor.grid(row=0, column=1, padx=10)
-        self.sensor_info = Label(selection_frame, relief='sunken', textvariable=self.current_sensor_desc, width=30, wraplength=50)
+        self.sensor_info = Label(selection_frame, relief='sunken', textvariable=self.current_sensor_desc, width=30)#, wraplength=50)
         self.sensor_info.grid(row=0, column=2)
         self.login_button = Button(selection_frame, text='Login', command=self.call_login_popup).grid(row=0, column=3, padx=20)
         selection_frame.grid(row=0, column=0, columnspan=2, pady=10)
 
         # Build the data display frame and the selection part
-        data_frame = Frame(self, relief='ridge',width=20,height=20)
-        self.data_info = Listbox(data_frame, relief='sunken', listvariable=self.data_window_text, width=30)#, textvariable=self.data_window_text, text="Data Info", wraplength=200)
+        data_frame = LabelFrame(self, relief='ridge',width=20, text="Data Received")
+        #self.data_info = Listbox(data_frame, relief='sunken', listvariable=self.data_window_text, width=30)#, textvariable=self.data_window_text, text="Data Info", wraplength=200)
+        # Changed to Label so that only the new values are displayed
+        self.data_info = Label(data_frame, relief='sunken', textvariable=self.data_window_text, width=30, wraplength=200)
         self.data_info.grid(row=0, column=0)
         data_frame.grid(row=1, column=0, pady=10)
         
@@ -185,8 +255,8 @@ class DataDisplay(Frame):
         selection = self.device.get()
         for i in range(0, len(self.device_dict)):
             entry = self.device_dict[i]
-            if entry[0]['DeviceID'] == selection:
-                self.current_sensor_acroyn.set(entry[0]['DeviceAcroynm'])
+            if entry[0]['DeviceAcroynm'] == selection:
+                self.current_device.set(entry[0]['DeviceID'])
                 self.current_sensor_desc.set(entry[0]['DeviceDescription'])
         self.running = True
         
@@ -206,7 +276,7 @@ class DataDisplay(Frame):
         fulldata = {'id':self.user, 'auth':self.password, 'dest':self.db}
         #print("Payload Being Sent:\n%s" % fulldata)
         try:
-            r = requests.get('http://RPi_3B:8080/retrievedevicelist', data=fulldata)
+            r = requests.get(SS.API_ADDRESS+'/retrievedevicelist', data=fulldata)
             if r.status_code ==200:
                 # r.text contains the dictionary of data
                 device_list = []
@@ -215,7 +285,8 @@ class DataDisplay(Frame):
                 for entry in self.device_dict:
                     # r.text could contain multiple dictionaries in the response
                     for element in entry:
-                        device_list.append(element['DeviceID'])
+                        #device_list.append(element['DeviceID'])
+                        device_list.append(element['DeviceAcroynm'])
                 self.device['values'] = device_list
 
             else:
@@ -275,10 +346,10 @@ class DataDisplay(Frame):
         text_to_add = []
 
         if self.running:
-            fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298',
+            fulldata = {'id':self.user, 'auth':self.password, 'dest': self.db, 'device_id' : self.current_device.get(),
                         'limit':self.limit, 'starttime':self.starttime}
             print("Payload Being Sent:\n%s" % fulldata)
-            r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+            r = requests.get(SS.API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
             if r.status_code ==200:
                 self.log.info("[Disp] Data of length %s received from the RestFul API:%s" % (len(r.text), r.text))
@@ -291,7 +362,8 @@ class DataDisplay(Frame):
                     for i in data:
                         self.log.debug("[Disp] Item being converted:%s" % i)
                         if _is_number(i):
-                            text_to_add.append(float(i))
+                            #text_to_add.append(float(i))
+                            text_to_add.append(float(format(float(i), '.2f')))          # Take the floating point number, reduce it to 2 decimal places and return a number, not a a string
                             self.log.debug("[Disp] record added:%s" % float(i))
                 self.update_data(text_to_add)
                 self.starttime = dataset['last_key']
@@ -341,8 +413,11 @@ class DataDisplay(Frame):
         """
         if len(self.data_in) >0:
             self.log.debug("Length of the data to be added:%d" % len(self.data_in))
-            self.data_info.insert(0,self.data_in)
+            #self.data_info.insert(0,self.data_in)
+            self.data_window_text.set(self.data_in)
             self.data_in = []
+        else:
+            self.data_window_text.set("")
         self.update_idletasks()     #was root.
         return
         
@@ -362,7 +437,8 @@ class DataDisplay(Frame):
     def call_login_popup(self):
         # called from the login button
         self.hide()
-        subFrame = Login(self)
+        # subFrame = Login(self)        # removed to allow user to be selected from dropdown for demo
+        subFrame = LoginDDown(self)
         
     def hide(self):
         """"""
@@ -433,7 +509,7 @@ def GetData():
 
     fulldata = {'id':'m@mlb.com', 'auth':'password', 'dest':'DBLocal', 'device_id' : '165456298'}
     print("Payload Being Sent:\n%s" % fulldata)
-    r = requests.get(API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+    r = requests.get(SS.API_ADDRESS+'/retrievesensorvalues', data=fulldata)
 
     if r.status_code ==200:
         print('Header:%s' % r.headers)

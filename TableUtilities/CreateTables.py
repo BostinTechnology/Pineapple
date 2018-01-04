@@ -39,7 +39,7 @@ def DynamodbConnection():
     """
     #TODO: Add in validation that a conection has been made.
     db = boto3.client('dynamodb', 
-        endpoint_url='http://localhost:8000',
+        endpoint_url='http://192.168.1.193:8000',
         aws_access_key_id='anything',
         aws_secret_access_key='anything',
         region_name='eu-west-1')
@@ -403,7 +403,14 @@ def WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc):
     #TODO: Future upgrade is to capture the data if offline and send it when it reconnects.
     
     print ("device: %s, Timestamp: %s, Sensor: %s, Acroynm: %s, Desc: %s, Tag: %s" % (device, tstamp, sensor, acroynm, desc, data))
-    
+
+    mvdata = {}
+    mvrecord = {}
+    mvrecord['type'] = {'S' : '1'}
+    mvrecord['value'] = {'S' : str(data)}
+    mvrecord['units'] = {'S' : str(units)}
+    mvdata['0'] = {'M': mvrecord}
+
     try:
         ans = db.put_item(
             TableName='SensorValues',
@@ -413,18 +420,15 @@ def WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc):
                 'Sensor_ID': {'S': str(sensor)},
                 'SensorAcroynm': {'S' : str(acroynm)},
                 'SensorDescription' : { 'S': str(desc)},
-                'MVData': { 'M' : {
-                    'type': { 'S' : '1'},
-                    'value': { 'S' : str(data)},
-                    'units':{ 'S' : str(units)}
-                    }},
                 'Viewed': { 'BOOL' : False},
+
+                'MVData': { 'M' : mvdata
+                    },
                 },
             )
         # print("Create Item Response %s" % ans) #Debug
     except Exception as exception:
         print ("Unable to write data to AWS:%s " % exception)
-
 
     return
         
@@ -457,9 +461,12 @@ def WriteUsers(db, username, password, clientid, clientname, status, lastlogon, 
                     'Contact' : { 'S' :str(contact)},
                     'CreationDate' : {'S' : str(creationdate)},
                     'Devices': { 'M' : {
-                        'DeviceID': { 'S' : str(deviceid)},
-                        'DeviceAcroynm': {'S' : str(acroynm)},
-                        'DeviceDescription': { 'S' : str(description)}
+                        '0' : { 'M' :
+                            {
+                            'DeviceID': { 'S' : str(deviceid)},
+                            'DeviceAcroynm': {'S' : str(acroynm)},
+                            'DeviceDescription': { 'S' : str(description)}
+                            }}
                         }},
                     'Viewed': { 'BOOL' : False},
                     },
@@ -623,6 +630,7 @@ WritedbVersion(conn, 1.0)
 
 print("Write Sensor Values\n*******************")
 # WriteSensorValues(db, data, units, tstamp, device, sensor, acroynm, desc)
+# Not used by any of the users
 WriteSensorValues(conn, '26.4', 'Deg C', '2017-07-07 :05:05:34.001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
 WriteSensorValues(conn, '26.5', 'Deg C', '2017-07-07 02:05:34.001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
 WriteSensorValues(conn, '26.6', 'Deg C', '2017-07-07 04:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
@@ -631,20 +639,32 @@ WriteSensorValues(conn, '18.7', 'Deg C', '2017-07-07 08:05:34001', 1234567890, 1
 WriteSensorValues(conn, '16.5', 'Deg C', '2017-07-07 10:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
 WriteSensorValues(conn, '14.5', 'Deg C', '2017-07-07 12:05:34001', 1234567890, 1, 'Temp1', 'Temperature Sensor 1')
 
-WriteSensorValues(conn, '5', '%', '2017-09-29 03:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '5', '%', '2017-09-29 04:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '5', '%', '2017-09-29 05:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '9', '%', '2017-09-29 06:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '23', '%', '2017-09-29 07:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '75', '%', '2017-09-29 08:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '100', '%', '2017-09-29 09:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '100', '%', '2017-09-29 10:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '100', '%', '2017-09-29 11:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '90', '%', '2017-09-29 12:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '87', '%', '2017-09-29 13:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '72', '%', '2017-09-29 14:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
-WriteSensorValues(conn, '50', '%', '2017-09-29 15:15:34.002', 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+# Values for l@mlb.com
+for i in range(0,100):
+    WriteSensorValues(conn, str(i), '%', '2017-09-29 03:15:34.'+format(i, '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
 
+for i in range(100,0, -1):
+    WriteSensorValues(conn, str(i), '%', '2017-09-29 03:15:35.'+format((100-i), '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(0,100):
+    WriteSensorValues(conn, str(i), '%', '2017-09-29 03:15:36.'+format(i, '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(100,0, -1):
+    WriteSensorValues(conn, str(i), '%', '2017-09-29 03:15:37.'+format((100-i), '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(0,100):
+    WriteSensorValues(conn, str(i), '%', '2018-01-04 03:15:34.'+format(i, '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(100,0, -1):
+    WriteSensorValues(conn, str(i), '%', '2018-01-04 03:15:35.'+format((100-i), '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(0,100):
+    WriteSensorValues(conn, str(i), '%', '2018-01-04 03:15:36.'+format(i, '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+for i in range(100,0, -1):
+    WriteSensorValues(conn, str(i), '%', '2018-01-04 03:15:37.'+format((100-i), '03'), 2480248024, 1, 'Humd1', 'Relative Humidity Sensor 1')
+
+# Values for c@mlb.com
 WriteSensorValues(conn, '1020', 'mBar', '2017-10-07 02:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
 WriteSensorValues(conn, '1019', 'mBar', '2017-10-07 04:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')
 WriteSensorValues(conn, '1016', 'mBar', '2017-10-07 06:42:49.003', 3690369036, 1, 'Press1', 'Absolute Pressure Sensor 1')

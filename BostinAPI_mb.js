@@ -113,7 +113,7 @@ function retrievesensorvalues(req, res) {
     var return_dataset = {};
     var limit;
     var starttime;
-    var lastrecord;
+    var lastrecord = "";
 
     if (typeof req.body.limit == 'undefined') {
         //If no limit of records exist, pick a default
@@ -176,7 +176,11 @@ function retrievesensorvalues(req, res) {
                         value_dataset.push([]);
                         units_dataset.push(contents['units'])
                         }
-                    value_dataset[element].push(contents['value']).valueOf();
+                    if (typeof contents['value'] !== 'undefined') {
+                        value_dataset[element].push(contents['value']).valueOf();
+                    } else {
+                        console.log("no value:"+ contents)
+                    }
                 }
                 lastrecord = dataset[i].TimeStamp;      // Capture the TimeStamp from the current record beign examined
             }
