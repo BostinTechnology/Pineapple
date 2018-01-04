@@ -231,6 +231,10 @@ class DataDisplay(Frame):
             self.graph_canvas.create_line(START_X,r,END_X,r, fill="lightblue")
         for c in range(START_X + GRAPH_STEP,END_X,GRAPH_STEP):
             self.graph_canvas.create_line(c,START_Y,c,END_Y, fill="lightblue")
+
+        # Graph axis labels
+        x_max_label = Label(self.graph_canvas, relief='sunken', text='Now')
+        x_max_label_window = self.graph_canvas.create_window(END_X-15, END_Y, anchor=NW, window=x_max_label)
         
         self.graph_canvas.pack()
 
