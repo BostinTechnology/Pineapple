@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Shelll script to run pineapple display applicaiton on bootup
+# Shelll script to run pineapple display application on bootup
 
 # Start the database
 cd /home/pi/Projects/pineapple/setup_dynDB
@@ -20,7 +20,6 @@ sleep 5
 cd /home/pi/Projects/pineapple/PiApplication
 
 sudo ./Control.py --transmit &
-
 
 exit 0
 
