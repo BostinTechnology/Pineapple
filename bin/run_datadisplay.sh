@@ -7,4 +7,4 @@ cd /home/pi/Projects/pineapple/DisplayTool
 
 sleep 5
 
-./run_datadisplay.sh &
+./DataDisplay.py &
