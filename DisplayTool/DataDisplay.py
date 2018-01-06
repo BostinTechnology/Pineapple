@@ -47,6 +47,8 @@ START_Y = 10
 END_X = 430
 END_Y = 270
 GRAPH_STEP = 20
+START_LEGEND_Y = 5                 # Where the legent starts for the Y axis
+
 
 class Login(Toplevel):
     """"""
@@ -195,13 +197,16 @@ class DataDisplay(Frame):
         self.device_dict = {}
         self.data_window_text = StringVar()
         self.refresh_rate = IntVar()
-
+        self.y_max_scale_value = IntVar()
+        self.y_min_scale_value = IntVar()
+        
         self.running = False       # When true, data is being captured.
-        self.data_in = []           # The data after it has been passed into the 
-        self.dataset = []           # The dataset being displayed and graphed
+        self.data_in = [[]]           # The data after it has been passed into the 
+        self.dataset = [[]]           # The dataset being displayed and graphed
         self.starttime = "2000-01-01 00:00:00"         # The date of the oldest record
         self.limit = 10
-
+        self.y_max_scale_value.set(0)
+        self.y_min_scale_value.set(0)
 
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
@@ -223,7 +228,7 @@ class DataDisplay(Frame):
         self.data_info.grid(row=0, column=0)
         data_frame.grid(row=1, column=0, pady=10)
         
-        # Build the book canvas picture
+        # Build the graph canvas picture
         graph_frame = Frame(self, relief='ridge')
         self.graph_canvas = Canvas(graph_frame, width=440, height=300, background='#ffffff')
         self.graph_canvas.create_polygon(START_X,START_Y,END_X,START_Y,END_X,END_Y,START_X,END_Y, outline="green", fill="")
@@ -235,6 +240,12 @@ class DataDisplay(Frame):
         # Graph axis labels
         x_max_label = Label(self.graph_canvas, relief='sunken', text='Now')
         x_max_label_window = self.graph_canvas.create_window(END_X-15, END_Y, anchor=NW, window=x_max_label)
+        x_min_label = Label(self.graph_canvas, relief='sunken', text='Oldest')
+        x_min_label_window = self.graph_canvas.create_window(START_X, END_Y, anchor=NW, window=x_min_label)
+        y_max_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_max_scale_value, width=5)
+        y_max_label_window = self.graph_canvas.create_window(START_LEGEND_Y, START_Y, anchor=NW, window=y_max_label)
+        y_min_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_min_scale_value, width=5)
+        y_min_label_window = self.graph_canvas.create_window(START_LEGEND_Y, END_Y-10, anchor=NW, window=y_min_label)
         
         self.graph_canvas.pack()
 
@@ -251,6 +262,19 @@ class DataDisplay(Frame):
         self.after(100, self.main)      # was root.
         return
 
+    def reset(self):
+        """
+        Reset the valus back to the start for another dataset
+        """
+        self.data_in = [[]]
+        self.dataset = [[]]
+        self.starttime = "2000-01-01 00:00:00"
+        self.limit = 10
+        self.y_max_scale_value.set(0)
+        self.y_min_scale_value.set(0)
+        self.graph_canvas.delete('graphline')
+        return
+
     def populate_sensor_info(self, event):
         """
         Populate the sensor info following selection of the device id.
@@ -262,6 +286,7 @@ class DataDisplay(Frame):
             if entry[0]['DeviceAcroynm'] == selection:
                 self.current_device.set(entry[0]['DeviceID'])
                 self.current_sensor_desc.set(entry[0]['DeviceDescription'])
+        self.reset()
         self.running = True
         
     def populate_dropdowns(self):
@@ -326,6 +351,24 @@ class DataDisplay(Frame):
         """
         self.log.debug("[Disp] Incoming data to be added to feed:%s" % data)
         self.data_in = data
+        for i in range(0, len(self.data_in)):
+            if len(self.dataset) > i-1:
+                # Dataset doesn't contain the right number of elements, so need to add one
+                self.dataset.append([])
+            if len(self.data_in[i]) > 0:
+                self.dataset[i] = self.dataset[i] + data[i]
+                self.dataset[i] = self.dataset[i][-MAX_LENGTH:]        # Trim the data to the last 100 readings max
+            self.log.info("[Disp] Dataset %s after update and trim:%s" % (i, self.dataset[i]))
+        self.update_idletasks() #was root.
+        return
+        
+    def update_data_old(self, data):
+        """
+        Takes the new values in from outside the class
+        data is a list of values, the newest reading is last
+        """
+        self.log.debug("[Disp] Incoming data to be added to feed:%s" % data)
+        self.data_in = data
         if len(self.data_in) > 0:
             self.dataset = self.dataset + data
             self.dataset = self.dataset[-MAX_LENGTH:]        # Trim the data to the last 100 readings max
@@ -361,6 +404,41 @@ class DataDisplay(Frame):
                 self.log.debug("[Disp] JSON converted data of length %s received from the RestFul API:%s" % (len(dataset), dataset))
                 if len(dataset['values']) >0:        #TODO: This will be required to check if there is any new data
                     self.log.debug("[Disp] length of values are greater than zero")
+                    data = dataset['values']     # Extact the first dataset returned
+                    self.log.debug("[Disp] Dataset selected to be used:%s" % data)
+                    # Need to convert each sub dataset to a number from a string now
+                    for j in range(0, len(data)):
+                        for i in range(0,len(data[j])):
+                            self.log.debug("[Disp] Item being converted:%s" % i)
+                            if _is_number(data[j][i]):
+                                #text_to_add.append(float(i))
+                                data[j][i] = float(format(float(data[j][i]), '.2f'))          # Take the floating point number, reduce it to 2 decimal places and return a number, not a a string
+                                self.log.debug("[Disp] record added:%s" % float(data[j][i]))
+                    self.update_data(data)#text_to_add)
+                self.starttime = dataset['last_key']
+            else:
+                print('Failed to Read')
+                print('Status Code:%s' % r.status_code)
+        return
+
+    def get_data_old(self):
+        # Function to retrieve the data from the database
+        # Just an example at the moment
+        # This is self running and will send new data every 1000mS
+        text_to_add = []
+
+        if self.running:
+            fulldata = {'id':self.user, 'auth':self.password, 'dest': self.db, 'device_id' : self.current_device.get(),
+                        'limit':self.limit, 'starttime':self.starttime}
+            print("Payload Being Sent:\n%s" % fulldata)
+            r = requests.get(SS.API_ADDRESS+'/retrievesensorvalues', data=fulldata)
+
+            if r.status_code ==200:
+                self.log.info("[Disp] Data of length %s received from the RestFul API:%s" % (len(r.text), r.text))
+                dataset = json.loads(r.text)
+                self.log.debug("[Disp] JSON converted data of length %s received from the RestFul API:%s" % (len(dataset), dataset))
+                if len(dataset['values']) >0:        #TODO: This will be required to check if there is any new data
+                    self.log.debug("[Disp] length of values are greater than zero")
                     data = dataset['values'][0]     # Extact the first dataset returned
                     self.log.debug("[Disp] Dataset selected to be used:%s" % data)
                     for i in data:
@@ -376,7 +454,7 @@ class DataDisplay(Frame):
                 print('Status Code:%s' % r.status_code)
         return
 
-    def draw_graph(self):
+    def draw_graph(self,data_to_draw, line_no):
         """
         Draw the graph on the graph area
         Graph area is 0 - 20 sections wide, 0 - 13 high
@@ -386,25 +464,30 @@ class DataDisplay(Frame):
         #try:
         #    self.graph_canvas.delete('graphline')
         #except:
-            
-        if len(self.graph_canvas.find_withtag('graphline'))> 0:
-            self.graph_canvas.delete('graphline')
-        data_to_draw = self.dataset     # Take a copy so it is not updated as I draw the graph
+        colours = ["red", "green", "blue", "cyan", "yellow", "magenta", "black", 'white']
+
+        if line_no == 0:
+            if len(self.graph_canvas.find_withtag('graphline'))> 0:
+                self.graph_canvas.delete('graphline')
+        #data_to_draw = self.dataset     # Take a copy so it is not updated as I draw the graph
         x_spacing = (END_X - START_X) / len(data_to_draw)       # Add 1 as
-        y_max = max(data_to_draw)
-        y_min = min(data_to_draw)
-        if (y_max - y_min) > 0:
-            y_spacing = (END_Y - START_Y) / (y_max - y_min)
+        if self.y_max_scale_value.get() < max(data_to_draw):
+            self.y_max_scale_value.set(max(data_to_draw))
+        if self.y_min_scale_value.get() > min(data_to_draw):
+            self.y_min_scale_value.set(min(data_to_draw))
+
+        if (self.y_max_scale_value.get() - self.y_min_scale_value.get()) > 0:
+            y_spacing = (END_Y - START_Y) / (self.y_max_scale_value.get() - self.y_min_scale_value.get())
         else:
             y_spacing = (END_Y - START_Y)
         #print("y_spacing:%s" % y_spacing)
         start_line_x = START_X        # Set the starting point for the X axis
-        start_line_y = END_Y - ((data_to_draw[0] - y_min) * y_spacing)
+        start_line_y = END_Y - ((data_to_draw[0] - self.y_min_scale_value.get()) * y_spacing)
         for reading in data_to_draw[1:]:        # Start at the second reading as first one is starting point
             end_line_x = start_line_x + x_spacing
-            end_line_y = END_Y - ((reading - y_min) * y_spacing)
+            end_line_y = END_Y - ((reading - self.y_min_scale_value.get()) * y_spacing)
             #print("END_Y:%s, reading:%s, end_line_y:%s" % (END_Y, reading, end_line_y))
-            self.graph_line = self.graph_canvas.create_line(start_line_x,start_line_y,end_line_x,end_line_y, fill="red", tags=('graphline'))
+            self.graph_line = self.graph_canvas.create_line(start_line_x,start_line_y,end_line_x,end_line_y, fill=colours[line_no], tags=('graphline'))
             start_line_x = end_line_x
             start_line_y = end_line_y
         #print(data_to_draw)
@@ -425,7 +508,7 @@ class DataDisplay(Frame):
         self.update_idletasks()     #was root.
         return
         
-    def main(self):
+    def main_old(self):
         """
         Called regularly to update values etc.
         """
@@ -435,7 +518,22 @@ class DataDisplay(Frame):
             self.update_stream()
             if len(self.dataset) > 0:
                 # Only draw the graph if there is data to draw
-                self.draw_graph()
+                self.draw_graph(self.dataset)
+        self.after(1000, self.main)      #was root.
+
+    def main(self):
+        """
+        Called regularly to update values etc.
+        """
+        if self.running:
+            # Call this when running
+            self.get_data()
+            self.update_stream()
+            for i in range(0,len(self.dataset)):
+                self.log.debug("[Disp] Drawing graph for dataset %s" % i)
+                if len(self.dataset[i]) > 0:
+                    # Only draw the graph if there is data to draw
+                    self.draw_graph(self.dataset[i], i)
         self.after(1000, self.main)      #was root.
 
     def call_login_popup(self):
