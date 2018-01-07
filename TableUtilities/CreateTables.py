@@ -39,7 +39,7 @@ def DynamodbConnection():
     """
     #TODO: Add in validation that a conection has been made.
     db = boto3.client('dynamodb', 
-        endpoint_url='http://192.168.1.193:8000',
+        endpoint_url='http://localhost:8000',
         aws_access_key_id='anything',
         aws_secret_access_key='anything',
         region_name='eu-west-1')
