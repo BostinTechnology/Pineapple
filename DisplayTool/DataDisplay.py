@@ -197,16 +197,18 @@ class DataDisplay(Frame):
         self.device_dict = {}
         self.data_window_text = StringVar()
         self.refresh_rate = IntVar()
-        self.y_max_scale_value = IntVar()
-        self.y_min_scale_value = IntVar()
+        # Removed as scale markers don't make sense with multiple lines
+        #self.y_max_scale_value = IntVar()
+        #self.y_min_scale_value = IntVar()
         
         self.running = False       # When true, data is being captured.
         self.data_in = [[]]           # The data after it has been passed into the 
         self.dataset = [[]]           # The dataset being displayed and graphed
         self.starttime = "2000-01-01 00:00:00"         # The date of the oldest record
         self.limit = 10
-        self.y_max_scale_value.set(0)
-        self.y_min_scale_value.set(0)
+        # Removed as scale markers don't make sense with multiple lines
+        #self.y_max_scale_value.set(0)
+        #self.y_min_scale_value.set(0)
 
         # Build the Selection row
         selection_frame = Frame(self, relief='ridge')
@@ -242,10 +244,11 @@ class DataDisplay(Frame):
         x_max_label_window = self.graph_canvas.create_window(END_X-15, END_Y, anchor=NW, window=x_max_label)
         x_min_label = Label(self.graph_canvas, relief='sunken', text='Oldest')
         x_min_label_window = self.graph_canvas.create_window(START_X, END_Y, anchor=NW, window=x_min_label)
-        y_max_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_max_scale_value, width=5)
-        y_max_label_window = self.graph_canvas.create_window(START_LEGEND_Y, START_Y, anchor=NW, window=y_max_label)
-        y_min_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_min_scale_value, width=5)
-        y_min_label_window = self.graph_canvas.create_window(START_LEGEND_Y, END_Y-10, anchor=NW, window=y_min_label)
+        # Removed as scale markers don't make sense with multiple lines
+        #y_max_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_max_scale_value, width=5)
+        #y_max_label_window = self.graph_canvas.create_window(START_LEGEND_Y, START_Y, anchor=NW, window=y_max_label)
+        #y_min_label = Label(self.graph_canvas, relief='sunken', textvariable=self.y_min_scale_value, width=5)
+        #y_min_label_window = self.graph_canvas.create_window(START_LEGEND_Y, END_Y-10, anchor=NW, window=y_min_label)
         
         self.graph_canvas.pack()
 
@@ -270,8 +273,9 @@ class DataDisplay(Frame):
         self.dataset = [[]]
         self.starttime = "2000-01-01 00:00:00"
         self.limit = 10
-        self.y_max_scale_value.set(0)
-        self.y_min_scale_value.set(0)
+        # Removed as scale markers don't make sense with multiple lines
+        #self.y_max_scale_value.set(0)
+        #self.y_min_scale_value.set(0)
         self.graph_canvas.delete('graphline')
         return
 
@@ -471,6 +475,41 @@ class DataDisplay(Frame):
                 self.graph_canvas.delete('graphline')
         #data_to_draw = self.dataset     # Take a copy so it is not updated as I draw the graph
         x_spacing = (END_X - START_X) / len(data_to_draw)       # Add 1 as
+        y_max = max(data_to_draw)
+        y_min = min(data_to_draw)
+
+        if (y_max - y_min) > 0:
+            y_spacing = (END_Y - START_Y) / (y_max - y_min)
+        else:
+            y_spacing = (END_Y - START_Y)
+        #print("y_spacing:%s" % y_spacing)
+        start_line_x = START_X        # Set the starting point for the X axis
+        start_line_y = END_Y - ((data_to_draw[0] - y_min) * y_spacing)
+        for reading in data_to_draw[1:]:        # Start at the second reading as first one is starting point
+            end_line_x = start_line_x + x_spacing
+            end_line_y = END_Y - ((reading - y_min) * y_spacing)
+            #print("END_Y:%s, reading:%s, end_line_y:%s" % (END_Y, reading, end_line_y))
+            self.graph_line = self.graph_canvas.create_line(start_line_x,start_line_y,end_line_x,end_line_y, fill=colours[line_no], tags=('graphline'))
+            start_line_x = end_line_x
+            start_line_y = end_line_y
+        #print(data_to_draw)
+        return
+
+    def draw_graph_combined(self,data_to_draw, line_no):
+        """
+        Draw the graph on the graph area
+        Graph area is 0 - 20 sections wide, 0 - 13 high
+        coord ranges 20 - END_X across, 20 - 280 up.
+        """
+        # This has been kept as a copy of the graphing software that includes Y max and Y min values.
+        # Removed as scale markers don't make sense with multiple lines
+        colours = ["red", "green", "blue", "cyan", "yellow", "magenta", "black", 'white']
+
+        if line_no == 0:
+            if len(self.graph_canvas.find_withtag('graphline'))> 0:
+                self.graph_canvas.delete('graphline')
+        #data_to_draw = self.dataset     # Take a copy so it is not updated as I draw the graph
+        x_spacing = (END_X - START_X) / len(data_to_draw)       # Add 1 as
         if self.y_max_scale_value.get() < max(data_to_draw):
             self.y_max_scale_value.set(max(data_to_draw))
         if self.y_min_scale_value.get() > min(data_to_draw):
@@ -492,7 +531,7 @@ class DataDisplay(Frame):
             start_line_y = end_line_y
         #print(data_to_draw)
         return
-
+        
     def update_stream(self):
         """
         If there is any data in the incoming stream, add it to the listbox,
