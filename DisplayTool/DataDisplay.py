@@ -476,7 +476,9 @@ class DataDisplay(Frame):
         #data_to_draw = self.dataset     # Take a copy so it is not updated as I draw the graph
         x_spacing = (END_X - START_X) / len(data_to_draw)       # Add 1 as
         y_max = max(data_to_draw)
+        y_max = y_max + (y_max * 0.1)       # Add 10% margin to the graph boundary
         y_min = min(data_to_draw)
+        y_min = y_min - ( y_min * 0.1)      # Take 10% off the minimum for the graph boundary
 
         if (y_max - y_min) > 0:
             y_spacing = (END_Y - START_Y) / (y_max - y_min)
