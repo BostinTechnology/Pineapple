@@ -1,4 +1,4 @@
-# This will download the required sqlite4java source for the ARM device and compile it to form a working dynamoDB 
+# This will download the required sqlite4java source for the ARM device and compile it to form a working dynamoDB
 
 echo "downloading sqlite4java and dynamoDB.....>"
 wget https://storage.googleapis.com/google-code-archive-source/v2/code.google.com/sqlite4java/source-archive.zip >/dev/null
@@ -9,7 +9,9 @@ wget https://s3.eu-central-1.amazonaws.com/dynamodb-local-frankfurt/dynamodb_loc
 
 tar -xvf ./dynamodb_local_latest.tar.gz >/dev/null
 
-echo " ......Finished."
+sudo apt-get install java7-sdk java8-sdk
+
+echo " ...... Download Finished."
 
 #mv ./libsql* ./DynamoDBLocal_lib/
 
@@ -32,17 +34,12 @@ gcc -O2 -DNDEBUG -fpic -Di586 -DARCH="i586" -DLINUX -D_LARGEFILE64_SOURCE -D_GNU
 gcc -O2 -DNDEBUG -fpic -Di586 -DARCH="i586" -DLINUX -D_LARGEFILE64_SOURCE -D_GNU_SOURCE -D_LITTLE_ENDIAN -fno-omit-frame-pointer -fno-strict-aliasing -static-libgcc -I./sqlite -I./native -I/usr/lib/jvm/jdk-7-oracle-arm-vfp-hflt/include -I/usr/lib/jvm/jdk-7-oracle-arm-vfp-hflt/include/linux  -DSQLITE_ENABLE_COLUMN_METADATA -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_ENABLE_STAT2 -DHAVE_READLINE=0 -DSQLITE_THREADSAFE=1 -DSQLITE_THREAD_OVERRIDE_LOCK=-1 -DTEMP_STORE=1 -DSQLITE_OMIT_LOAD_EXTENSION=1 -DSQLITE_OMIT_DEPRECATED -DSQLITE_OS_UNIX=1 -c ./native/intarray.c -o intarray.o
 gcc -O2 -DNDEBUG -fpic -Di586 -DARCH="i586" -DLINUX -D_LARGEFILE64_SOURCE -D_GNU_SOURCE -D_LITTLE_ENDIAN -fno-omit-frame-pointer -fno-strict-aliasing -static-libgcc -shared -Wl,-soname=libsqlite4java-linux-arm.so -o libsqlite4java-linux-arm.so sqlite3.o sqlite_wrap.o sqlite3_wrap_manual.o intarray.o
 
-echo " ...... finished"
+echo " ...... Compile Finished"
 
 cp libsqlite4java-linux-arm.so ../../DynamoDBLocal_lib/
 
 cd ../../
 
-echo "Starting dynamoDB in local mode" 
-
-java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb -inMemory
-
-
-
+echo "CVhoose a run option to run dynamodb"
 
 
