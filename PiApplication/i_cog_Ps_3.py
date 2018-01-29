@@ -531,7 +531,7 @@ class iCog():
             # In this mode, the data is a 20 bit signed Q16.4 format number
             # Therefore current value needs signing and dividing by 65536
             data_out = (data_h << 24) + (data_c << 16) + (data_l << 8)
-            self.log.debug("[Ps3] 32 bit number retrieved from the sensor: %x" % data_out)
+            self.log.debug("[Ps3] 32 bit number retrieved from the sensor: %f" % data_out)
             data_out = self._signed_number_32(data_out)
             self.log.debug("[Ps3] Altimeter Pressure Converted using Signed Number %f" % data_out)
             data_out = data_out / 65536
@@ -541,7 +541,7 @@ class iCog():
             # In this mode the data is in signed Q18.2
             # Therefore current value needs signing and dividing by 64
             data_out = (data_h << 16) + (data_c << 8) + data_l
-            self.log.debug("[Ps3] 24 bit number retrieved from the sensor: %x" % data_out)
+            self.log.debug("[Ps3] 24 bit number retrieved from the sensor: %f" % data_out)
             # pressure is unsigned
             #data_out = SignedNumber(data_out)
             #self.log.debug("Barometer Pressure Converted using Signed Number %f" % data_out)
@@ -568,7 +568,7 @@ class iCog():
         data_out = self._twos_compliment(data_out)
         # Because I merged the numbers together earlier, I now need to divide by 256 to get the right number
         data_out = data_out / 256
-        self.log.info("[Ps3] OUT_T Delta Registers combined %x" % data_out)
+        self.log.info("[Ps3] OUT_T Delta Registers combined %f" % data_out)
         return [data_out, "DegC"]
 
     def _read_pressure_delta(self):
