@@ -9,7 +9,7 @@ wget https://s3.eu-central-1.amazonaws.com/dynamodb-local-frankfurt/dynamodb_loc
 
 tar -xvf ./dynamodb_local_latest.tar.gz >/dev/null
 
-sudo apt-get install java7-sdk java8-sdk
+sudo apt-get install oracle-java7-jdk oracle-java8-jdk
 
 echo " ...... Download Finished."
 
