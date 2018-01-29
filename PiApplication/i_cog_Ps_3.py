@@ -510,7 +510,7 @@ class iCog():
         data_out = self._signed_number_16(data_out)
         # Because I merged the numbers together earlier, I now need to divide by 256 to get the right number
         data_out = data_out / 256
-        self.log.info("[Ps3] OUT_T Registers combined %x" % data_out)
+        self.log.info("[Ps3] OUT_T Registers combined %8.4f" % data_out)
         return [data_out, "DegC"]
 
     def _read_pressure(self):
