@@ -35,8 +35,9 @@ DB_REMOTE = 'DBRemote'
 
 # This method will be used by the mock to replace requests.get
 def mocked_requests_get(*args, **kwargs):
-    gbl_log.info("[TEST] args passed in:%s" % args)
-    gbl_log.info("[TEST] kwargs passed in:%s" % kwargs)
+    logger = logging.getLogger()
+    logger.info("[TEST] args passed in:%s" % args)
+    logger.info("[TEST] kwargs passed in:%s" % kwargs)
 
     class MockResponse:
         def __init__(self, status_code, text="", json_data={}):
@@ -46,16 +47,16 @@ def mocked_requests_get(*args, **kwargs):
             self.json_data = json_data
 
     if args[0] == 'http://localhost:8080/connected':
-        gbl_log.debug("[TEST] got to /connected")
+        logger.debug("[TEST] got to /connected")
         return MockResponse(status_code=200)
     elif args[0] == 'http://localhost:8080/retrievedbversion':
-        gbl_log.debug("[TEST] got to /retrievedbversion")
+        logger.debug("[TEST] got to /retrievedbversion")
         return MockResponse(status_code=200, text='1.0')
     elif args[0] == 'http://localhost:8080/submitdata':
-        gbl_log.debug("[TEST] got to /submitdata with:%s" % kwargs)
+        logger.debug("[TEST] got to /submitdata with:%s" % kwargs)
         return MockResponse(status_code=200)
     else:
-        gbl_log.debug("[TEST] got to unknown")
+        logger.debug("[TEST] got to unknown")
 
     return MockResponse(None, 404)
 
@@ -66,12 +67,17 @@ class TestDataAccInit(unittest.TestCase):
     Test the Data Accessor module initialisation
 
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_DAcc] TestDataAccInit class DataAccessor initialised")
+        return
+
     @patch('requests.get', side_effect=mocked_requests_get)
     def test_init(self, mockpost):
         """
         test the instationisation of the module
         """
-        gbl_log.debug("[TEST] test_init")
+        self.log.debug("[TEST] test_init")
         # need to mock _open_port
         result = DataAccessor(customer='m@mlb.com', password='password', db=DB_LOCAL, addr=DB_LOCAL_ADDR, port=DB_LOCAL_PORT,
                         device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
@@ -82,7 +88,7 @@ class TestDataAccInit(unittest.TestCase):
         #"""
         #test the instationisation of the module
         #"""
-        #gbl_log.debug("[TEST] test_init_fails")
+        #self.log.debug("[TEST] test_init_fails")
         #mock_smbus.side_effect = Exception('FileNotFoundError')
 
         #with self.assertRaises(SystemExit):
@@ -96,10 +102,14 @@ class TestDataAccDataIn(unittest.TestCase):
 
     """
 
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_DAcc] TestDataAccDataIn class DataAccessor initialised")
+        return
 
     @patch('requests.get', side_effect=mocked_requests_get)
     def test_datain(self, mockpost):
-        gbl_log.debug("[TEST] test_data accessor data in")
+        self.log.debug("[TEST] test_data accessor data in")
 
         dacc = DataAccessor(customer='m@mlb.com', password='password', db=DB_LOCAL, addr=DB_LOCAL_ADDR, port=DB_LOCAL_PORT,
                         device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
@@ -113,11 +123,15 @@ class TestDataAccTransmitData(unittest.TestCase):
 
     """
 
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_DAcc] TestDataAccTransmitData class DataAccessor initialised")
+        return
 
     @patch('requests.get', side_effect=mocked_requests_get)
     @patch('requests.post', side_effect=mocked_requests_get)
     def test_transmitdata(self, mockget, mockpost):
-        gbl_log.debug("[TEST] test_data accessor Transmit Data")
+        self.log.debug("[TEST] test_data accessor Transmit Data")
 
         dacc = DataAccessor(customer='m@mlb.com', password='password', db=DB_LOCAL, addr=DB_LOCAL_ADDR, port=DB_LOCAL_PORT,
                         device=1, sensor=2, acroynm="Lght1", desc="Light Sensor 1")
@@ -129,7 +143,6 @@ def SetupLogging():
     Setup the logging defaults
     Using the logger function to span multiple files.
     """
-    global gbl_log
 
     log_cfg = dict(
         version = 1,
@@ -142,7 +155,7 @@ def SetupLogging():
             'file': {'class': 'logging.handlers.RotatingFileHandler',
                     'formatter': 'full',
                     'level': logging.DEBUG,
-                    'filename': 'CognIoT.log',
+                    'filename': 'Unit_test.log',
                     'mode': 'w'},
             },
         root = {
@@ -153,15 +166,16 @@ def SetupLogging():
 
     # Create a logger with the name of the function
     logging.config.dictConfig(log_cfg)
-    gbl_log = logging.getLogger()
+    logger = logging.getLogger()
 
-    gbl_log.info("File Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
+    logger.info("File Logging Started, current level is %s" % logger.getEffectiveLevel())
 
     return
 
 def GenerateTimestamp():
+    logger = logging.getLogger()
     now = str(datetime.now())
-    gbl_log.debug("[TEST] Generated a timestamp %s" % now[:23])
+    logger.debug("[TEST] Generated a timestamp %s" % now[:23])
     return now[:23]
 
 def GenerateTestData():
@@ -169,6 +183,7 @@ def GenerateTestData():
     Generate a dataset to represent the simulated input
     [type, number, units]
     """
+    logger = logging.getLogger()
     types = [1,2,3,4]
     units = ['lux', 'Deg C', 'Deg F', '%', 'tag']
     dataset = [[]]
@@ -176,12 +191,15 @@ def GenerateTestData():
     dataset[0].append(random.randint(0,100))
     dataset[0].append(units[random.randint(0,len(units)-1)])
     dataset[0].append(GenerateTimestamp())
-    gbl_log.info("[TEST] Data Being Returned:%s" % dataset)
+    logger.info("[TEST] Data Being Returned:%s" % dataset)
 
     return dataset
 
+
+SetupLogging()
+
 if __name__ == '__main__':
-    SetupLogging()
+    gbl_log = logging.getLogger()
 
     gbl_log.critical("\n\n     [TEST] DataAccessor started\n\n")
 

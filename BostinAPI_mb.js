@@ -5,17 +5,25 @@
 // Response Codes Used
 // 200 OK - Standard response for successful HTTP requests
 // 400 Bad Request - The server cannot or will not process the request due to an apparent client error
+// 401 Unauthorised - similar to 403, but for when authentication has failed
 // 403 Forbidden - The request was valid, but the server is refusing action.
+// 500 Internal Server Error - something went wrong internally.
 // 501 Not Implemented - The server either does not recognize the request method, or it lacks the ability to fulfill the request. Usually this implies future availability (e.g., a new feature of a web-service API)
 //
 //
-// TODO: Check the right http codes are used in the various responses
+
+
+// TODO: Make greater use of
+//          if ( dataset.hasOwnProperty('version')) {
+// when checking the databse for responses
+
 var express = require('express');
 var app = express();
 var http = require('http');
 var fs = require('fs');
 
 var bodyParser = require('body-parser');
+// TODO: I don't think either of multer or upload are used, need to try without them.
 var multer = require('multer'); // v1.0.5
 var upload = multer(); // for parsing multipart/form-data
 var AWS = require("aws-sdk");
@@ -25,7 +33,7 @@ app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x
 
 AWS.config.update({
               region: "us-west-2",
-              endpoint: "http://RPi_Display:8000",
+              endpoint: "http://localhost:8000",
               accessKeyId: "fakeMyKeyId",
               secretAccessKey: "fakeSecretAccessKey"
             });
@@ -62,6 +70,7 @@ function consolelogdata (req) {
 
 function retrievesensorMVDatavalues(req, res) {
     // returns a list of the most recent 100 items from the database for the specified device
+    // TODO use req.body.limit to set the maximum and assume 100 if not defined
 
     console.log('==>retrievesensorvalues reached');
 
@@ -213,11 +222,24 @@ function retrievedevicelist(req, res) {
 
     console.log('==>retrievesensorvalues reached');
 
+    if (typeof req.body.limit == 'undefined') {
+        //If no limit of records exist, pick a default
+        console.log("No record limit supplied, using default of 10")
+        limit = 100
+    }
+    else {
+        if (parseInt(req.body.limit) < 1) {
+            limit = 1;
+        }
+        else {
+            limit = parseInt(req.body.limit);
+        }
+    }
+
     var docClient = new AWS.DynamoDB.DocumentClient();
 
     var device_list = [];
     //context.fillText("Retriving Data", 300, 50);      //debug data
-    // TODO: Need to pass in the device_id
     var params = {
         TableName: 'Users',
         KeyConditionExpression: '#name = :value', // a string representing a constraint on the attribute
@@ -228,7 +250,7 @@ function retrievedevicelist(req, res) {
           ':value': req.body.id
         },
         ScanIndexForward: true,            // return the last xx items
-        Limit: 100,
+        Limit: limit,
         ProjectionExpression: "Devices",
     };
     
@@ -244,29 +266,32 @@ function retrievedevicelist(req, res) {
         } else {
             // The followingline shows how to retrieve just the value I am interested in 
             // Need to loop it through next.
-            var dataset = data['Items']; 
+            console.log("Raw data returned:"+JSON.stringify(data));        //debug data
 
-            for (var i = 0; i < dataset.length; i = i + 1) {
-            //    device_list[i] = dataset[i]['Devices'];
-            //};
-                for (var element in dataset[i]['Devices']) {
-                    
-                    var contents = dataset[i]['Devices'][element];
-                    //console.log("element "+element+" contents:"+ JSON.stringify(contents));
-                    //for (var bits in contents) {      // added for debug purposes
-                    //    console.log("bits:"+contents[bits]);
-                    //}
-                    // Need to put a check around this, so if the element doesn'texist, create it
-                    //console.log("Length of value_dataset"+value_dataset.length);
-                    if (element >= device_list.length) {
-                        // There are more elements than places to put them, so add a new sublist to the dataset
-                        console.log("Adding element");
-                        device_list.push([]);
-                        }
-                    device_list[element].push(contents);//['value']).valueOf();
+            if (data.hasOwnProperty('Items')) {
+                var dataset = data['Items']; 
+                //console.log("Retrieve Sensor Values Response:"+JSON.stringify(dataset));        //debug data
+                //console.log("Dataset Length:"+ dataset.length);      //debug data
+
+                // The bit below is using dataset.length to check if there are any results, could be done better
+                
+                for (var i = 0; i < dataset.length; i = i + 1) {
+
+                    //console.log("Looping through dataset");     // debug data
+
+                    for (var element in dataset[i]['Devices']) {
+                        
+                        var contents = dataset[i]['Devices'][element];
+                        //console.log("Length of value_dataset"+value_dataset.length);
+                        if (element >= device_list.length) {
+                            // There are more elements than places to put them, so add a new sublist to the dataset
+                            //console.log("Adding element");        //debug
+                            device_list.push([]);
+                            }
+                        device_list[element].push(contents);//['value']).valueOf();
+                    }
                 }
-
-            console.log("Data Returned:" + JSON.stringify(device_list));
+            //console.log("Data Returned:" + JSON.stringify(device_list));      //debug
             res.status(200).send(JSON.stringify(device_list));
             }
             
@@ -301,13 +326,21 @@ function retrievedbversion(res) {
             console.log("retrievedbversionvalues query returned error: " + err);
             res.sendStatus(400);
         } else {
-            // The followingline shows how to retrieve just the value I am interested in 
-            // Need to loop it through next.
-            var dataset = data['Items'][0]; //JSON.stringify(data['Items'], undefined, 2);
-            console.log("Dataset:" + JSON.stringify(dataset, undefined, 2));
+            // The followingline shows how to retrieve just the value I am interested in
             var valid_version = "-1";
-            if ( dataset.hasOwnProperty('version')) {
-                valid_version = dataset['version'];
+            if (data.hasOwnProperty('Items')) {
+                if (data['Items'].hasOwnProperty(0)) {
+                    var dataset = data['Items'][0]; //JSON.stringify(data['Items'], undefined, 2);
+                    console.log("Dataset:" + JSON.stringify(dataset, undefined, 2));
+
+                    if ( dataset.hasOwnProperty('version')) {
+                        //valid_version = dataset['version'];
+                        // need to check if valid_version is a number, if not reset to -1
+                        if (!isNaN(parseFloat(dataset['version'])) && isFinite(dataset['version'])) {
+                            valid_version = dataset['version'];
+                        }
+                    }
+                }
             }
 
             console.log("Version:"+valid_version);
@@ -365,7 +398,7 @@ var ValidateUserMiddleware = function(req, res, next) {
     console.log(" RUNNING MB VERSION");
     console.log(req.path + " message received");
 
-    console.log("\n==>ValidateUserMiddleware reached\n\n")
+    console.log("\n==>ValidateUserMiddleware reached")
 
     var docClient = new AWS.DynamoDB.DocumentClient();
     
@@ -380,28 +413,43 @@ var ValidateUserMiddleware = function(req, res, next) {
         ConsistentRead: true,
     };
     
-    console.log("params:"+JSON.stringify(params));
+    //console.log("[VUM] params:"+JSON.stringify(params));      //debug
+
+    req.validated = false;
     
     docClient.get(params, function(err, data) {
         if (err) {
-            console.log("ValidateUserMiddleware returned an error:" + JSON.stringify(err));
-            req.validated = false;
+            console.log("[VUM] ValidateUserMiddleware returned an error:" + JSON.stringify(err));
+//            req.validated = false;
             next();
-            // Need to sort out NEGATIVE response here to http call.
         } else
         {
             // this is called when the getting of the password returns
-            console.log("Data Back:" + JSON.stringify(data, null, 2));
-            req.password = data['Item']['Password'];
-            if (req.body.auth == req.password) {
-                console.log("\tValidated User....");
-                req.validated = true;
-                next();
+            // console.log("[VUM] Data Back:" + JSON.stringify(data, null, 2));     //debug
+            if (data.hasOwnProperty('Item')) {
+                if (data.Item.hasOwnProperty('Password')) { 
+                    req.password = data.Item.Password;
+                    if (req.body.auth == req.password) {
+                        console.log("\tValidated User....");
+                        req.validated = true;
+                        next();
+                    }
+                    else {
+                        console.log("\tInvalid Authorisation Code (1)");
+ //                       req.validated = false;
+                        next();
+                    }
+                }
+                else {
+                     console.log("\tInvalid Authorisation Code (2)");
+ //                  req.validated = false;
+                     next();
+                }
             }
             else {
-                console.log("\tInvalid Authorisation Code");
-                req.validated = false;
-                next();
+                 console.log("\tInvalid Authorisation Code (3)");
+//                  req.validated = false;
+                 next();
             }
         }
     });
@@ -493,7 +541,7 @@ app.get('/retrievesensorvalues', ValidateUserMiddleware, function (req, res, nex
 
                 case "AWS":
                     console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
+                    //console.log(data);
                     res.sendStatus(501);
                     break;
 
@@ -541,7 +589,7 @@ app.get('/retrievedevicelist', ValidateUserMiddleware, function (req, res, next)
 
                 case "AWS":
                     console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
+                    //console.log(data);
                     res.sendStatus(501);
                     break;
 
@@ -558,10 +606,8 @@ app.get('/retrievedevicelist', ValidateUserMiddleware, function (req, res, next)
 });
 
 app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) {
-    // Returns the database version that is currently valid
-//    console.log("******************************************");
-//    console.log(" RUNNING MB VERSION");
-//    console.log("retrievedbversions GET message received as follows: -");
+    // If authorised, return the db version
+    // the db version is that of the supported database
 
     consolelogdata(req);        // output the incoming data
 
@@ -575,7 +621,6 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
         switch(req.body.dest) {
                 case "FILE":
                     console.log("\nSending data packet to FILESYSTEM");
-                    //console.log(data);
                     res.sendStatus(501);
                     break;
                     
@@ -589,7 +634,6 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
 
                 case "AWS":
                     console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
                     res.sendStatus(501);
                     break;
 
@@ -599,7 +643,7 @@ app.get('/retrievedbversion', ValidateUserMiddleware, function (req, res, next) 
         }
     }
     else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
+        res.sendStatus(401);
     }
     console.log("/retrievedbversion completed");
 });
@@ -678,8 +722,7 @@ app.get('/authenticateuser', ValidateUserMiddleware, function (req, res, next) {
 
                 case "AWS":
                     console.log("\nSending data packet to Amazon AWS");
-                    console.log(data);
-                    res.sendStatus(501);
+                     res.sendStatus(501);
                     break;
 
                 default:
@@ -688,9 +731,9 @@ app.get('/authenticateuser', ValidateUserMiddleware, function (req, res, next) {
         }
     }
     else {
-        res.sendStatus(403);      // Need to sort out NEGATIVE response here to http call.
+        res.sendStatus(401);      // Need to sort out NEGATIVE response here to http call.
     }
-    console.log("/retrievedbversion completed");
+    console.log("/authenticateuser completed");
     });
 
 
@@ -700,6 +743,9 @@ var server = app.listen(8080, function () {
    console.log("Bostin CognIoT API listening at http:// %s :%s", host, port)
 
 });
+
+module.exports = app;
+
 
 // This section servers up the various web pages that are required on port 1227.
 // The first page is capturing the data and storing it in the local store, but

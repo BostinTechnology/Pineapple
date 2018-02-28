@@ -23,13 +23,19 @@ class TestiCogInit(unittest.TestCase):
     - code correctly loads the default config
 
     """
+    def setUp(self):
+        #SetupLogging()
+        self.log = logging.getLogger()
+        self.log.debug("[Test_Ls_1] TestiCogInit iCog Ls_1 initialised")
+        return
+
     @patch.object(iCog, '_decode_calib_data')
     @patch.object(iCog, '_setup_sensor')
     def test_init_good_path(self, mock_setup, mock_decode):
         """
         Test the initalisation returns the object correctly
         """
-        gbl_log.info("[TEST] test_init_good_path")
+        self.log.info("[TEST] test_init_good_path")
 
         test_config = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -49,7 +55,7 @@ class TestiCogInit(unittest.TestCase):
         """
         Test that if default fails to load initially, it suceeds second time
         """
-        gbl_log.info("[TEST] test_init_decode_fails")
+        self.log.info("[TEST] test_init_decode_fails")
         test_config = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -68,7 +74,7 @@ class TestiCogInit(unittest.TestCase):
         """
         Test that if default fails to load initially, it also fails the second time
         """
-        gbl_log.info("[TEST] test_init_decode_fails_twice")
+        self.log.info("[TEST] test_init_decode_fails_twice")
         test_config = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -91,7 +97,9 @@ class TestiCogConfig(unittest.TestCase):
         """
         Test the initalisation returns the object correctly
         """
-        gbl_log.info("[TEST] TestiCogConfig.Setup")
+        #SetupLogging()
+        self.log = logging.getLogger()
+        self.log.info("[TEST] TestiCogConfig.Setup")
 
         test_config = [[0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
                         [0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -108,7 +116,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Clean up after testing
         """
-        gbl_log.info("[TEST] TestiCogConfig.tearDown")
+        self.log.info("[TEST] TestiCogConfig.tearDown")
         self.comms.destroy()
 
     @patch('builtins.input')
@@ -116,7 +124,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Check it works with valid values
         """
-        gbl_log.info("[TEST] test_set_standard_config_good")
+        self.log.info("[TEST] test_set_standard_config_good")
         lp_mode_choices = ['N', 'n', 'Y', 'y']
         freq_choices = ['0.1', '10', '100000', '16416000']
 
@@ -125,7 +133,7 @@ class TestiCogConfig(unittest.TestCase):
                 mock_kbd.side_effect = [lp_mode, freq]
                 self.test_icog._set_standard_config()
                 config = self.test_icog.ReturnCalibrationData()
-                gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+                self.log.debug("[TEST] Configuration Generated:\n%s" % config)
                 self.assertTrue(len(config)>0, msg="Configuration Data Missing")
                 if lp_mode.upper() == 'Y':
                     self.assertTrue(config['low_power_mode'], msg="Expected Low power mode to be set")
@@ -138,7 +146,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Check it works with valid values
         """
-        gbl_log.info("[TEST] test_set_standard_config_bad")
+        self.log.info("[TEST] test_set_standard_config_bad")
         # Within the lists additional values are added to test only the one question
         lp_mode_choices = ['C', 'v', 'g', '', 'N', '10']
         freq_choices = ['Y', '0.09', '', 'c', '16416001', '10']
@@ -146,14 +154,14 @@ class TestiCogConfig(unittest.TestCase):
         mock_kbd.side_effect = lp_mode_choices
         self.test_icog._set_standard_config()
         config = self.test_icog.ReturnCalibrationData()
-        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
         self.assertFalse(config['low_power_mode'], msg="Expected Low power mode to be NOT set")
 
         mock_kbd.side_effect = freq_choices
         self.test_icog._set_standard_config()
         config = self.test_icog.ReturnCalibrationData()
-        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
         self.assertTrue(config['read_frequency'] == 10, msg="Read Frequency does not match expected")
 
@@ -162,7 +170,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Check it works with valid values
         """
-        gbl_log.info("[TEST] test_set_specific_config_good")
+        self.log.info("[TEST] test_set_specific_config_good")
         light_mode_choices = ['a', 'A', 'i', 'I']
         fsr_choices = ['0', '1', '2', '3']
         adc_choices = ['0', '1', '2', '3']
@@ -173,7 +181,7 @@ class TestiCogConfig(unittest.TestCase):
                     mock_kbd.side_effect = [light_mode, fsr, adc]
                     self.test_icog._set_specific_config()
                     config = self.test_icog.ReturnCalibrationData()
-                    gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+                    self.log.debug("[TEST] Configuration Generated:\n%s" % config)
                     self.assertTrue(len(config)>0, msg="Configuration Data Missing")
                     if light_mode.upper() == 'A':
                         self.assertEqual(config['light_mode'],1, msg="Expected Light Mode  to be set")
@@ -188,7 +196,7 @@ class TestiCogConfig(unittest.TestCase):
         """
         Check it works with valid values
         """
-        gbl_log.info("[TEST] test_set_specific_config_bad")
+        self.log.info("[TEST] test_set_specific_config_bad")
         # Within the lists, are the other answers to test only the one question at a time
         light_mode_choices = ['s', 'Q', '', 'A', '1', '1']
         fsr_choices = ['A', '-1', '20', '0.1', '4', '3', '3']
@@ -197,21 +205,21 @@ class TestiCogConfig(unittest.TestCase):
         mock_kbd.side_effect = light_mode_choices
         self.test_icog._set_specific_config()
         config = self.test_icog.ReturnCalibrationData()
-        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
         self.assertEqual(config['light_mode'], 1, msg="Expected Light Mode to be set")
 
         mock_kbd.side_effect = fsr_choices
         self.test_icog._set_specific_config()
         config = self.test_icog.ReturnCalibrationData()
-        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
         self.assertEqual(config['full_scale_range'], 3, msg="Full Scale Range does not match expected")
 
         mock_kbd.side_effect = adc_choices
         self.test_icog._set_specific_config()
         config = self.test_icog.ReturnCalibrationData()
-        gbl_log.debug("[TEST] Configuration Generated:\n%s" % config)
+        self.log.debug("[TEST] Configuration Generated:\n%s" % config)
         self.assertTrue(len(config)>0, msg="Configuration Data Missing")
         self.assertEqual(config['adc_resolution'], 2, msg="ADC Resolution does not match expected")
 
@@ -224,7 +232,6 @@ def SetupLogging():
     Setup the logging defaults
     Using the logger function to span multiple files.
     """
-    global gbl_log
 
     log_cfg = dict(
         version = 1,
@@ -237,7 +244,7 @@ def SetupLogging():
             'file': {'class': 'logging.handlers.RotatingFileHandler',
                     'formatter': 'full',
                     'level': logging.DEBUG,
-                    'filename': 'CognIoT.log',
+                    'filename': 'Unit_test.log',
                     'mode': 'w'},
             },
         root = {
@@ -248,15 +255,18 @@ def SetupLogging():
 
     # Create a logger with the name of the function
     logging.config.dictConfig(log_cfg)
-    gbl_log = logging.getLogger()
+    logger = logging.getLogger()
 
-    gbl_log.info("File Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
+    logger.info("File Logging Started, current level is %s" % logger.getEffectiveLevel())
 
     return
 
+SetupLogging()
 
 if __name__ == '__main__':
-    SetupLogging()
+
+
+    gbl_log = logging.getLogger()
 
     gbl_log.critical("\n\n     [TEST] i2c test comms started\n\n")
 

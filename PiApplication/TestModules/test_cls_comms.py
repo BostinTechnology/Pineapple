@@ -27,11 +27,16 @@ class Testi2cCommsInit(unittest.TestCase):
     - stops if it can't create smbus
 
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cCommsInit class Comms initialised")
+        return
+
     def test_init(self, mock_smbus):
         """
         test the instationisation of the module
         """
-        gbl_log.debug("[TEST] test_init")
+        self.log.debug("[TEST] test_init")
         # need to mock _open_port
         result = i2c_comms()            # returns the object i2c_comms
 
@@ -41,7 +46,7 @@ class Testi2cCommsInit(unittest.TestCase):
         """
         test the instationisation of the module
         """
-        gbl_log.debug("[TEST] test_init_fails")
+        self.log.debug("[TEST] test_init_fails")
         mock_smbus.side_effect = Exception('FileNotFoundError')
 
         with self.assertRaises(SystemExit):
@@ -63,11 +68,16 @@ class Testi2cCommsRepeatedStart(unittest.TestCase):
     - not set initially
     - set after call
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cCommsRepeatedStart class Comms initialised")
+        return
+
     def test_repeated_start_not_set(self):
         """
         Check the repeated start setting is correct
         """
-        gbl_log.debug("[TEST] test_repeated_start_not_set")
+        self.log.debug("[TEST] test_repeated_start_not_set")
         result = ''
         comms = i2c_comms()
         response = comms.repeated_start(repeated=False)
@@ -80,7 +90,7 @@ class Testi2cCommsRepeatedStart(unittest.TestCase):
         """
         Check the repeated start setting is correct
         """
-        gbl_log.debug("[TEST] test_repeated_start_set")
+        self.log.debug("[TEST] test_repeated_start_set")
         result = ''
         comms = i2c_comms()
         response = comms.repeated_start(repeated=True)
@@ -99,12 +109,16 @@ class Testi2cComms_read_byte(unittest.TestCase):
     Checking
     - address and byte values correctly passed in
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cComms_read_byte class Comms initialised")
+        return
 
     def test_read_addr_byte_valid(self, mock_smbus):
         """
         Test the routine with a valid address and byte values
         """
-        gbl_log.debug("[TEST] test_read_addr_byte_valid")
+        self.log.debug("[TEST] test_read_addr_byte_valid")
         mock_smbus().read_byte_data.return_value = 0x45
 
         comms = i2c_comms()
@@ -118,7 +132,7 @@ class Testi2cComms_read_byte(unittest.TestCase):
         """
         #BUG: Need to check the exception raised
 
-        gbl_log.debug("[TEST] test_read_addr_byte_exception")
+        self.log.debug("[TEST] test_read_addr_byte_exception")
         mock_smbus().read_byte_data.side_effect = Exception('IOError')
 
         comms = i2c_comms()
@@ -136,13 +150,17 @@ class Testi2cComms_read_data_bytes(unittest.TestCase):
     - handles exception
     parameters(sens_addr, start_byte, no_bytes)
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cComms_read_data_bytes class Comms initialised")
+        return
 
     def test_read_addr_bytes_valid(self, mock_smbus):
         """
         Test the routine with a valid range of bytes
         Request a range and check
         """
-        gbl_log.debug("[TEST] test_read_addr_bytes_valid")
+        self.log.debug("[TEST] test_read_addr_bytes_valid")
         mock_smbus().read_byte_data.side_effect = [0x26, 0x27, 0x28]
         calls = [call(0x45, 0x12),call(0x45, 0x13),call(0x45, 0x14)]
         comms = i2c_comms()
@@ -156,7 +174,7 @@ class Testi2cComms_read_data_bytes(unittest.TestCase):
         """
         #BUG: Need to check the exception raised
 
-        gbl_log.debug("[TEST] test_read_addr_bytes_exception")
+        self.log.debug("[TEST] test_read_addr_bytes_exception")
         mock_smbus().read_byte_data.side_effect = [Exception('IOError'), 0x26, 0x27]
         calls = [call(0x45, 0x12),call(0x45, 0x13),call(0x45, 0x14)]
         comms = i2c_comms()
@@ -188,12 +206,16 @@ class Testi2cComms_write_byte(unittest.TestCase):
     Checking
     - address and byte values correctly passed in
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cComms_write_byte class Comms initialised")
+        return
 
     def test_write_addr_byte_valid(self, mock_smbus):
         """
         Test the routine with a valid address and byte values
         """
-        gbl_log.debug("[TEST] test_write_addr_byte_valid")
+        self.log.debug("[TEST] test_write_addr_byte_valid")
         mock_smbus().write_byte.return_value = True
 
         comms = i2c_comms()
@@ -207,7 +229,7 @@ class Testi2cComms_write_byte(unittest.TestCase):
         """
         #BUG: Need to check the exception raised
 
-        gbl_log.debug("[TEST] test_write_addr_byte_exception")
+        self.log.debug("[TEST] test_write_addr_byte_exception")
         mock_smbus().write_byte.side_effect = Exception('IOError')
 
         comms = i2c_comms()
@@ -223,13 +245,17 @@ class Testi2cComms_write_data_bytes(unittest.TestCase):
     - address and bytes and values are valid
     - handles exception
     """
+    def setUp(self):
+        self.log = logging.getLogger()
+        self.log.debug("[Test_COMMS] Testi2cComms_write_data_bytes class Comms initialised")
+        return
 
     def test_write_addr_bytes_valid(self, mock_smbus):
         """
         Test the routine with a valid range of bytes
         Request a range and check
         """
-        gbl_log.debug("[TEST] test_write_addr_bytes_valid")
+        self.log.debug("[TEST] test_write_addr_bytes_valid")
         mock_smbus().write_byte_data.side_effect = [True, True, True]
         calls = [call(0x45, 0x12, 0x20),call(0x45, 0x13, 0x21),call(0x45, 0x14, 0x22)]
         comms = i2c_comms()
@@ -242,7 +268,7 @@ class Testi2cComms_write_data_bytes(unittest.TestCase):
         Test the routine with an exception raised whilst writing each address and byte values
         """
         #BUG: Need to check the exception raised
-        gbl_log.debug("[TEST] test_write_addr_bytes_exception")
+        self.log.debug("[TEST] test_write_addr_bytes_exception")
         mock_smbus().write_byte_data.side_effect = Exception('IOError')
         comms = i2c_comms()
         result = comms.write_data_bytes(0x45, 0x12, [0x33, 0x34, 0x35])
@@ -262,7 +288,6 @@ def SetupLogging():
     Setup the logging defaults
     Using the logger function to span multiple files.
     """
-    global gbl_log
 
     log_cfg = dict(
         version = 1,
@@ -275,7 +300,7 @@ def SetupLogging():
             'file': {'class': 'logging.handlers.RotatingFileHandler',
                     'formatter': 'full',
                     'level': logging.DEBUG,
-                    'filename': 'CognIoT.log',
+                    'filename': 'Unit_test.log',
                     'mode': 'w'},
             },
         root = {
@@ -286,14 +311,16 @@ def SetupLogging():
 
     # Create a logger with the name of the function
     logging.config.dictConfig(log_cfg)
-    gbl_log = logging.getLogger()
+    logger = logging.getLogger()
 
-    gbl_log.info("File Logging Started, current level is %s" % gbl_log.getEffectiveLevel)
+    logger.info("File Logging Started, current level is %s" % logger.getEffectiveLevel())
 
     return
 
+SetupLogging()
+
 if __name__ == '__main__':
-    SetupLogging()
+    gbl_log = logging.getLogger()
 
     gbl_log.critical("\n\n     [TEST] i2c test comms started\n\n")
 

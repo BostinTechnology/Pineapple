@@ -191,11 +191,11 @@ def main():
 
     #retrievelimitsensorvalues()
 
-    retrievetimesensorvalues()
+    #retrievetimesensorvalues()
 
     #retrievedbversion()
 
-    #retrievedevicelist()
+    retrievedevicelist()
     
     return
 
