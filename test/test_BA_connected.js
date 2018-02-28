@@ -6,8 +6,9 @@
 //    https://www.npmjs.com/package/aws-sdk-mock
 //
 
-
-// TODO: Need to add response code 400 for when AWS doesn't respond
+/** TODO
+ * 
+**/
 
 "use strict";
 

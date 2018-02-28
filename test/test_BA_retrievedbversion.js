@@ -6,9 +6,9 @@
 //    https://www.npmjs.com/package/aws-sdk-mock
 //
 
-
-// TODO: Need to add response code 400 for when AWS doesn't respond
-
+/** TODO
+ * Unable to test for the db not returning, no solution found so far
+**/
 "use strict";
 
 var AWS = require('aws-sdk-mock');
@@ -245,7 +245,7 @@ describe('TEST API endpoint /retrievedbversion, empty response', function() {
     // Test the retrieve db version functionality for when there are database issues.
     // checks for database errors / bad responses
 
-    // no version record, should return 500 - internal server error
+    // no version record, should return 200 with a version of -1
     
     before(function() {
         // Stuff to do before the test runs
@@ -257,8 +257,7 @@ describe('TEST API endpoint /retrievedbversion, empty response', function() {
 
         // Mock the database response
         AWS.mock('DynamoDB.DocumentClient', 'query', function (params, callback) {
-            var response = { };        // Data format response is ['Item']['Password'] = password
-            callback(null, response);
+            callback(null, "");
         });
     });
 
@@ -273,10 +272,46 @@ describe('TEST API endpoint /retrievedbversion, empty response', function() {
         .get('/retrievedbversion')
         .send({dest: 'DBLocal', id:'l@mlb.com', auth:'pssaword'})
         .catch(err => err.response)
-        .then(function(res) {
-            expect(res).to.have.status(200);
-            console.log("[TEST] version received:" + res.text);
-            expect(res.text).to.equal("-1");
+        .then(function(err) {
+            expect(err).to.have.status(400);
+        });
+    });
+
+});
+
+describe('TEST API endpoint /retrievedbversion, error response from dynamodb', function() {
+    // Test the retrieve db version functionality for when there are database issues.
+    // checks for database errors / bad responses
+
+    // no version record, should return 200 with a version of -1
+    
+    before(function() {
+        // Stuff to do before the test runs
+        // Mock the user authentication - this has been validated elsewhere
+        AWS.mock('DynamoDB.DocumentClient', 'get', function (params, callback) {
+            var response = { "Item": {"Password" : "pssaword"}};      // Data format response is ['Item']['Password'] = password
+            callback(null, response);
+        });
+
+        // Mock the database response
+        AWS.mock('DynamoDB.DocumentClient', 'query', function (params, callback) {
+            callback(400, null);
+        });
+    });
+
+    after(function() {
+        // stuff to do after the test has run
+        AWS.restore('DynamoDB.DocumentClient');
+    });
+
+    // successful response with valid user - DBLocal
+    it('should return an error code 400', function() {
+        return chai.request(app)
+        .get('/retrievedbversion')
+        .send({dest: 'DBLocal', id:'l@mlb.com', auth:'pssaword'})
+        .catch(err => err.response)
+        .then(function(err) {
+            expect(err).to.have.status(400);
         });
     });
 

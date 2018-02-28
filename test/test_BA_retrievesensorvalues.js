@@ -5,8 +5,23 @@
 // based on
 //    https://www.npmjs.com/package/aws-sdk-mock
 //
-// TODO: Need to add response code 400 for when AWS doesn't respond
-
+/** TODO
+ * Unable to test for the db not returning, no solution found so far
+ * 
+ * tests required to be written
+ * - 5 different databse connections possible, local and remote return values, the rest 501
+ * - limit can exist or not
+ * - limit of incorrect format, string or negative
+ * - starttime can exist or not
+ * - starttime of incorrect format
+ * - dynamodb negatvie response
+ * - dataset structure errors items :{ 1 and items: { 4, but not 0, 2 or 3
+ * - dataset missing parts of the data structure
+ *  - items[number][mvdata][number][units & value & TimeStamp
+ * - dataset values being incorrect format
+ *  - items[number][mvdata][number][units & value & TimeStamp
+ * 
+**/
 "use strict";
 
 var AWS = require('aws-sdk-mock');
@@ -92,3 +107,43 @@ rdl_tests.forEach( function(test) {
         )
     })
 });
+
+
+describe('TEST API endpoint /retrievesensorvalues, error response from dynamodb', function() {
+    // Test the retrieve db version functionality for when there are database issues.
+    // checks for database errors / bad responses
+
+    // no version record, should return 200 with a version of -1
+    
+    before(function() {
+        // Stuff to do before the test runs
+        // Mock the user authentication - this has been validated elsewhere
+        AWS.mock('DynamoDB.DocumentClient', 'get', function (params, callback) {
+            var response = { "Item": {"Password" : "pssaword"}};      // Data format response is ['Item']['Password'] = password
+            callback(null, response);
+        });
+
+        // Mock the database response
+        AWS.mock('DynamoDB.DocumentClient', 'query', function (params, callback) {
+            callback(400, null);
+        });
+    });
+
+    after(function() {
+        // stuff to do after the test has run
+        AWS.restore('DynamoDB.DocumentClient');
+    });
+
+    // successful response with valid user - DBLocal
+    it('should return an error of 400', function() {
+        return chai.request(app)
+        .get('/retrievesensorvalues')
+        .send({dest: 'DBLocal', id:'l@mlb.com', auth:'pssaword'})
+        .catch(err => err.response)
+        .then(function(err) {
+            expect(err).to.have.status(400);
+        });
+    });
+
+});
+

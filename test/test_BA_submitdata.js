@@ -8,8 +8,17 @@
 // Test the submitdata functionality
 //
 
-
-// TODO: Need to add response code 400 for when AWS doesn't respond
+/** TODO
+ * Unable to test for the db not returning, no solution found so far
+ * 
+ * tests
+ * - 5 different databse connections possible, local and remote return values, the rest 501
+ * - JSON unable to parse as incorrect data format passed in
+ * - need to verify that if the data is wrong, it is rejected and returns 400
+ *  - it might not as it will only use the primary key to work with, not the whole data structure
+ *  - Need to try this with a real database first.
+ *
+**/
 
 "use strict";
 
@@ -92,3 +101,42 @@ rdl_tests.forEach( function(test) {
         )
     })
 });
+
+describe('TEST API endpoint /submitdata, error response from dynamodb', function() {
+    // Test the retrieve db version functionality for when there are database issues.
+    // checks for database errors / bad responses
+
+    // no version record, should return 200 with a version of -1
+    
+    before(function() {
+        // Stuff to do before the test runs
+        // Mock the user authentication - this has been validated elsewhere
+        AWS.mock('DynamoDB.DocumentClient', 'get', function (params, callback) {
+            var response = { "Item": {"Password" : "pssaword"}};      // Data format response is ['Item']['Password'] = password
+            callback(null, response);
+        });
+
+        // Mock the database response
+        AWS.mock('DynamoDB.DocumentClient', 'query', function (params, callback) {
+            callback(400, null);
+        });
+    });
+
+    after(function() {
+        // stuff to do after the test has run
+        AWS.restore('DynamoDB.DocumentClient');
+    });
+
+    // successful response with valid user - DBLocal
+    it('should return an error of 400', function() {
+        return chai.request(app)
+        .get('/submitdata')
+        .send({dest: 'DBLocal', id:'l@mlb.com', auth:'pssaword'})
+        .catch(err => err.response)
+        .then(function(err) {
+            expect(err).to.have.status(400);
+        });
+    });
+
+});
+

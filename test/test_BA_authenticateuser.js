@@ -6,9 +6,9 @@
 //    https://www.npmjs.com/package/aws-sdk-mock
 //
 
-
-// TODO: Need to add response code 400 for when AWS doesn't respond
-
+/** TODO
+ * Unable to test for the db not returning, no solution found so far
+**/
 "use strict";
 
 var AWS = require('aws-sdk-mock');
@@ -184,15 +184,7 @@ var tests = [
     {desc: "different user / different incorrect response combination (DBRemote)", db: dbs[1],
         user: users[2], pwd: pwds[2], resp: { "Item": {"Password" : pwds[3]}}, code: 401},
 
-//TODO: Add incorrect data strucutre to move test from other location to here
 
-    {desc: "incorrect data structure", db: dbs[1],
-        user: users[2], pwd: pwds[2], resp: { "Item": {"Password" : ""}}, code: 200},
-
-//        {user: users[0], pwd: pwds[0], code: 200, resp: { "Item": {"Password" : pwds[0] }}},
-//        {user: users[0], pwd: pwds[1], code: 401, resp: { "Item": {"Password" : "" }}},
-//        {user: users[0], pwd: pwds[2], code: 401, resp: { "Item": ""} },
-//        {user: users[0], pwd: pwds[3], code: 401, resp: {}},
 ];
 
 tests.forEach (function (test) {
@@ -226,3 +218,5 @@ tests.forEach (function (test) {
 
     });
 });
+
+

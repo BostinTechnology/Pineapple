@@ -224,7 +224,7 @@ function retrievedevicelist(req, res) {
 
     if (typeof req.body.limit == 'undefined') {
         //If no limit of records exist, pick a default
-        console.log("No record limit supplied, using default of 10")
+        console.log("No record limit supplied, using default of 100")
         limit = 100
     }
     else {
